@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Secrets — KHÔNG BAO GIỜ commit
+.env
+.env.*
+!.env.example
+!.env.production.example
+*.pem
+*.key
+auth.json
+
+# Build / Next.js
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# Prisma (client sinh lúc build)
+**/generated/
+prisma/*.db
+
+# Logs / OS / editor
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Docker / dữ liệu runtime
+db_data/
+*.local
