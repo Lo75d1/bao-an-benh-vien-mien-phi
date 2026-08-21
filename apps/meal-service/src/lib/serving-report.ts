@@ -1,5 +1,6 @@
 import type { Prisma, Role } from "@prisma/client";
 import { prisma } from "./prisma";
+import { readOperationalSettings } from "./settings";
 
 export type ServingLineInput = { dietTypeId: string; quantity: number; internalNote: string | null; patientVisibleNote: string | null };
 type ServingSnapshot = { status: "SUBMITTED"; departmentId: string; mealEventId: string; lines: ServingLineInput[] };
@@ -53,12 +54,13 @@ export function hospitalDate(now = new Date()): Date {
 }
 
 export async function readNurseServingDay(userId: string, now = new Date()) {
+  const settings = await readOperationalSettings();
   const memberships = await prisma.departmentMembership.findMany({ where: { userId, department: { status: "ACTIVE" } }, select: { departmentId: true, department: { select: { name: true } } } });
   const departmentId = requireNurseDepartment("NURSE", memberships.map((item) => item.departmentId));
   const day = hospitalDate(now);
   const events = await prisma.mealEvent.findMany({
     where: { mealDate: day }, orderBy: { mealType: { sortOrder: "asc" } },
-    include: { mealType: true, dietMeals: { where: { voidedAt: null }, orderBy: { dietType: { sortOrder: "asc" } }, include: { dietType: true } }, reports: { where: { departmentId }, include: { lines: true } }, additions: { where: { departmentId }, orderBy: { submittedAt: "desc" }, include: { dietType: true } } },
+    include: { mealType: true, dietMeals: { where: { voidedAt: null, ...(settings.sondeEnabled ? {} : { feedingRoute: "NORMAL" }) }, orderBy: { dietType: { sortOrder: "asc" } }, include: { dietType: true } }, reports: { where: { departmentId }, include: { lines: true } }, additions: { where: { departmentId, ...(settings.sondeEnabled ? {} : { dietType: { feedingRoute: "NORMAL" } }) }, orderBy: { submittedAt: "desc" }, include: { dietType: true } } },
   });
   return { departmentId, departmentName: memberships[0]?.department.name ?? "—", events };
 }

@@ -1,5 +1,6 @@
 import type { DietMealStatus, FeedingRoute, Prisma, Role } from "@prisma/client";
 import { prisma } from "./prisma";
+import { readOperationalSettings } from "./settings";
 
 export const DAY_MS = 86_400_000;
 export const VISIBLE_WEEK_OFFSETS = [0, 1] as const;
@@ -71,10 +72,12 @@ export async function ensureEmptyMealEvents(
   weekStart: Date,
   actor: { id: string; displayName: string },
 ) {
-  const [mealTypes, dietTypes] = await Promise.all([
+  const [mealTypes, allDietTypes, settings] = await Promise.all([
     prisma.mealType.findMany({ where: { status: "ACTIVE" }, orderBy: { sortOrder: "asc" } }),
     prisma.dietType.findMany({ where: { status: "ACTIVE" }, orderBy: { sortOrder: "asc" } }),
+    readOperationalSettings(),
   ]);
+  const dietTypes = allDietTypes.filter((item) => settings.sondeEnabled || item.feedingRoute === "NORMAL");
   if (mealTypes.length === 0 || dietTypes.length === 0) return;
 
   await prisma.$transaction(async (tx) => {

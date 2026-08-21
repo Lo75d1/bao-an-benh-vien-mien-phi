@@ -4,6 +4,7 @@ import { MenuEditor } from "@/components/menu-editor";
 import { getSessionUser } from "@/lib/auth";
 import { parseMenuItems } from "@/lib/menu-logic";
 import { prisma } from "@/lib/prisma";
+import { entryWindowEnd, readOperationalSettings } from "@/lib/settings";
 import { approveMenuAction, deleteTemplateAction, saveTemplateAction } from "./actions";
 
 function thresholdsOf(code: { energyKcalMin: number | null; energyKcalMax: number | null; proteinGMin: number | null; proteinGMax: number | null; lipidGMin: number | null; lipidGMax: number | null; glucidGMin: number | null; glucidGMax: number | null; sodiumMgMin: number | null; sodiumMgMax: number | null; potassiumMgMin: number | null; potassiumMgMax: number | null; waterGMin: number | null; waterGMax: number | null; mealsMin: number | null; mealsMax: number | null } | null) {
@@ -17,8 +18,9 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   if (!user) redirect("/");
   if (user.role !== "DIETITIAN") redirect("/");
   const params = await searchParams;
+  const settings = await readOperationalSettings();
   const [meals, foods, templates] = await Promise.all([
-    prisma.dietMeal.findMany({ where: { voidedAt: null }, orderBy: [{ mealEvent: { mealDate: "asc" } }, { mealEvent: { mealType: { sortOrder: "asc" } } }, { dietType: { sortOrder: "asc" } }], include: { mealEvent: { include: { mealType: true } }, dietType: { include: { dietCodeRef: true } } } }),
+    prisma.dietMeal.findMany({ where: { voidedAt: null, mealEvent: { mealDate: { lte: entryWindowEnd(new Date(), settings.advanceEntryDays) } }, ...(settings.sondeEnabled ? {} : { feedingRoute: "NORMAL" }) }, orderBy: [{ mealEvent: { mealDate: "asc" } }, { mealEvent: { mealType: { sortOrder: "asc" } } }, { dietType: { sortOrder: "asc" } }], include: { mealEvent: { include: { mealType: true } }, dietType: { include: { dietCodeRef: true } } } }),
     prisma.food.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, wastePercent: true, energyKcal: true, proteinG: true, lipidG: true, glucidG: true, sodiumMg: true, potassiumMg: true, waterG: true } }),
     prisma.menuTemplate.findMany({ where: { ownerId: user.id }, orderBy: { updatedAt: "desc" }, include: { items: { orderBy: { id: "asc" } }, _count: { select: { usedByMeals: true } } } }),
   ]);

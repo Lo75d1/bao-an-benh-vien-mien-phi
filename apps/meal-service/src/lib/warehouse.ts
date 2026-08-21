@@ -2,6 +2,7 @@ import type { DocumentKind, FeedingRoute, InventoryType, Prisma, Role } from "@p
 import { evidenceStorage } from "./evidence-storage";
 import { buildDietMealShopping } from "./kitchen";
 import { prisma } from "./prisma";
+import { readOperationalSettings } from "./settings";
 
 export type WarehouseMode = "A" | "B";
 export type WarehouseActor = { id: string; displayName: string; role: Role };
@@ -49,8 +50,7 @@ function lineSnapshot(lines: Array<{ id: string; foodId: string | null; itemName
 }
 
 async function readMode(client: Prisma.TransactionClient | typeof prisma = prisma): Promise<WarehouseMode> {
-  const setting = await client.appSetting.findUnique({ where: { key: "warehouseMode" }, select: { valueJson: true } });
-  return parseWarehouseMode(setting?.valueJson);
+  return (await readOperationalSettings(client)).warehouseMode;
 }
 
 async function assertWarehouseRoute(client: Prisma.TransactionClient, warehouseId: string, relatedDietMealId: string | null) {
@@ -105,6 +105,7 @@ export async function updateInventoryTransaction(input: { id: string; occurredAt
 
 export async function voidInventoryTransaction(id: string, reason: string, actor: WarehouseActor) {
   requireWarehouseRole(actor.role);
+  if (actor.role !== "ADMIN") throw new Error("Chỉ quản trị viên được hủy giao dịch kho.");
   const cleanReason = reason.trim();
   if (cleanReason.length < 3 || cleanReason.length > 500) throw new Error("Lý do hủy phải có từ 3 đến 500 ký tự.");
   return prisma.$transaction(async (tx) => {
