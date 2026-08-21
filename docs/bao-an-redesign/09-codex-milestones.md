@@ -21,6 +21,20 @@ Mỗi milestone dưới đây có: **Scope · Files · Depends · Acceptance · 
 
 ---
 
+## PREFLIGHT — kiểm trước khi phóng M0 (bộ công cụ Codex)
+> Chi tiết từng công cụ ở [`AGENTS.md` §1](../../AGENTS.md). Xong hết mới xin người duyệt cho M0.
+
+- [ ] **Required skills/tools installed** — Bun ≥ 1.1.35; `repo-harness` CLI; binary CodeGraph; `~/.codex/skills` có Taste (Codex tự cài) + 21 security skill.
+- [ ] **repo-harness verified** — `repo-harness --version` chạy; `~/.codex/hooks.json` tồn tại; `~/.claude` KHÔNG bị đụng.
+- [ ] **CodeGraph verified** — one-shot `--graph-only --run-tool` trả JSON, thoát 0; KHÔNG bật `--watch`.
+- [ ] **Taste Skill verified** — `npx skills add Leonxlnx/taste-skill` hợp lệ; Codex gọi được ở SETUP mỗi phiên.
+- [ ] **Selected security skills reviewed/installed** — 21 skill phòng thủ (5 nhóm), KHÔNG offensive.
+- [ ] **Repository preflight completed** — đọc `00-PROJECT-HOME.md`, `03-domain-model.md`, `CODEX-M0-HANDOFF.md`.
+- [ ] **Working tree checked** — `git status` sạch, chưa đụng file nghiệp vụ.
+- [ ] **Ready for human approval before M0** — báo bảng công cụ + chờ người duyệt; CHƯA chạy `codex exec` M0.
+
+---
+
 ## M0 — Scaffold monorepo + engine + data nền + auth
 - **Scope:** **chạy SETUP BẮT BUỘC ở trên** (cài Taste Skill + ghi vào `AGENTS.md`); dựng monorepo workspaces; trích `nutrition-engine` (P1); schema Prisma `init` (P3); seed data nền + tài khoản demo (P2); auth/session + 4 role; Department/Membership/MealType/DietType; Docker Compose (app+db+migrate+seed) reproducible.
 - **Files:** `package.json`, `packages/nutrition-engine/**`, `apps/meal-service/prisma/schema.prisma`, `apps/meal-service/scripts/seed*.ts`, `apps/meal-service/data/reference/*.jsonl`, `src/lib/auth.ts`, `compose*.yaml`, `docs/DEPLOY.md`.
