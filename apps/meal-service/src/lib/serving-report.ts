@@ -58,7 +58,7 @@ export async function readNurseServingDay(userId: string, now = new Date()) {
   const day = hospitalDate(now);
   const events = await prisma.mealEvent.findMany({
     where: { mealDate: day }, orderBy: { mealType: { sortOrder: "asc" } },
-    include: { mealType: true, dietMeals: { where: { voidedAt: null }, orderBy: { dietType: { sortOrder: "asc" } }, include: { dietType: true } }, reports: { where: { departmentId }, include: { lines: true } } },
+    include: { mealType: true, dietMeals: { where: { voidedAt: null }, orderBy: { dietType: { sortOrder: "asc" } }, include: { dietType: true } }, reports: { where: { departmentId }, include: { lines: true } }, additions: { where: { departmentId }, orderBy: { submittedAt: "desc" }, include: { dietType: true } } },
   });
   return { departmentId, departmentName: memberships[0]?.department.name ?? "—", events };
 }
