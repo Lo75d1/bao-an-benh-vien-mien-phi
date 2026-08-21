@@ -1,57 +1,12 @@
 "use client";
-
 import { useState } from "react";
-
+import { ArrowRight, LoaderCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 type DemoAccount = { label: string; email: string; password: string };
-
 export function LoginForm({ demoAccounts = [] }: { demoAccounts?: DemoAccount[] }) {
-  const [error, setError] = useState("");
-  const [pending, setPending] = useState(false);
-
-  async function login(email: string, password: string) {
-    setPending(true);
-    setError("");
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-      setError(payload?.error ?? "Không thể đăng nhập. Vui lòng thử lại.");
-      setPending(false);
-      return;
-    }
-    window.location.assign("/");
-  }
-
-  return (
-    <>
-      <form action={(formData) => login(String(formData.get("email") ?? ""), String(formData.get("password") ?? ""))} className="login-form">
-        <div>
-          <label htmlFor="email">Email nhân viên</label>
-          <input id="email" name="email" type="email" autoComplete="username" required />
-        </div>
-        <div>
-          <label htmlFor="password">Mật khẩu</label>
-          <input id="password" name="password" type="password" autoComplete="current-password" minLength={10} required />
-        </div>
-        {error ? <p className="form-error" role="alert">{error}</p> : null}
-        <button type="submit" disabled={pending}>{pending ? "Đang đăng nhập…" : "Đăng nhập"}</button>
-      </form>
-      {demoAccounts.length > 0 && (
-        <div className="demo-logins">
-          <p className="eyebrow">Đăng nhập nhanh (demo)</p>
-          <div className="demo-login-grid">
-            {demoAccounts.map((account) => (
-              <button key={account.email} type="button" className="demo-login-btn" disabled={pending} onClick={() => login(account.email, account.password)}>
-                {account.label}
-              </button>
-            ))}
-          </div>
-          <p className="demo-hint">Chỉ dành cho bản demo — bấm để điền sẵn tài khoản mẫu và vào xem.</p>
-        </div>
-      )}
-    </>
-  );
+  const [error, setError] = useState(""); const [pending, setPending] = useState(false);
+  async function login(email: string, password: string) { setPending(true); setError(""); const response = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, password }) }); const payload = await response.json().catch(() => null); if (!response.ok) { setError(payload?.error ?? "Không thể đăng nhập. Vui lòng thử lại."); setPending(false); return; } window.location.assign("/"); }
+  return <><form action={(formData) => login(String(formData.get("email") ?? ""), String(formData.get("password") ?? ""))} className="grid gap-5"><div className="grid gap-2"><Label htmlFor="email">Email nhân viên</Label><Input id="email" name="email" type="email" autoComplete="username" required className="h-11" /></div><div className="grid gap-2"><Label htmlFor="password">Mật khẩu</Label><Input id="password" name="password" type="password" autoComplete="current-password" minLength={10} required className="h-11" /></div>{error ? <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{error}</p> : null}<Button type="submit" disabled={pending} className="h-11 w-full bg-[#0f6e56] text-white hover:bg-[#0b5f4a]">{pending ? <><LoaderCircle className="size-4 animate-spin" />Đang đăng nhập…</> : <>Đăng nhập<ArrowRight className="size-4" /></>}</Button></form>{demoAccounts.length > 0 && <div className="mt-6 border-t pt-5"><p className="mb-3 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Đăng nhập nhanh (demo)</p><div className="grid grid-cols-2 gap-2 max-[440px]:grid-cols-1">{demoAccounts.map((account) => <Button key={account.email} type="button" variant="outline" disabled={pending} onClick={() => login(account.email, account.password)} className="h-auto min-h-11 whitespace-normal px-3 py-2 text-sm">{account.label}</Button>)}</div><p className="mt-3 text-xs leading-relaxed text-muted-foreground">Chỉ dành cho bản demo. Chọn một vai trò để vào xem bằng tài khoản mẫu.</p></div>}</>;
 }

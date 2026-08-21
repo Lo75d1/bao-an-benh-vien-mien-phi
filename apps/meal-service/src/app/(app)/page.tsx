@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { LoginForm } from "@/components/login-form";
 import { PatientAccessForm } from "@/components/patient-access-form";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSessionUser } from "@/lib/auth";
 
 const HOME_COPY = {
@@ -24,17 +25,13 @@ export default async function HomePage() {
   const user = await getSessionUser();
   if (!user) {
     return (
-      <main className="login-page">
-        <section className="login-intro">
-          <p className="eyebrow">Hệ thống điều phối suất ăn</p>
-          <h1>Mỗi bữa ăn được chuẩn bị đúng việc, đúng thời điểm.</h1>
-          <p>Lịch tuần chung giúp dinh dưỡng, điều dưỡng, bếp và quản trị phối hợp trên cùng một nguồn dữ liệu.</p>
-          <div className="public-patient-entry"><p className="eyebrow">Dành cho bệnh nhân và người nhà</p><h2>Xem bữa ăn của khoa</h2><PatientAccessForm /></div>
+      <main className="grid min-h-[100dvh] bg-[#f3f6f4] min-[900px]:grid-cols-[minmax(0,1.08fr)_minmax(400px,0.92fr)]">
+        <section className="flex flex-col justify-between bg-[#123c36] px-5 py-8 text-white sm:px-10 min-[900px]:min-h-[100dvh] min-[900px]:px-[clamp(3rem,6vw,6.5rem)] min-[900px]:py-12">
+          <div className="max-w-2xl"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#b9d9cf]">Hệ thống điều phối suất ăn</p><h1 className="mt-5 max-w-xl text-3xl font-semibold leading-tight tracking-[-0.035em] sm:text-4xl lg:text-5xl">Mỗi bữa ăn được chuẩn bị đúng việc, đúng thời điểm.</h1><p className="mt-5 max-w-xl text-base leading-relaxed text-[#d8e8e3]">Lịch tuần chung giúp dinh dưỡng, điều dưỡng, bếp và quản trị phối hợp trên cùng một nguồn dữ liệu.</p></div>
+          <Card className="mt-10 max-w-xl border-white/15 bg-white/[0.07] text-white shadow-none backdrop-blur-sm"><CardHeader><CardDescription className="text-xs font-semibold uppercase tracking-[0.1em] text-[#b9d9cf]">Dành cho bệnh nhân và người nhà</CardDescription><CardTitle className="text-xl">Xem bữa ăn của khoa</CardTitle></CardHeader><CardContent className="[&_input]:bg-white [&_input]:text-foreground [&_label]:text-white [&_p]:text-[#d8e8e3]"><PatientAccessForm /></CardContent></Card>
         </section>
-        <section className="login-panel" aria-labelledby="login-title">
-          <p className="eyebrow">Dành cho nhân viên</p>
-          <h2 id="login-title">Đăng nhập</h2>
-          <LoginForm demoAccounts={DEMO_ACCOUNTS} />
+        <section className="flex items-center justify-center px-4 py-10 sm:px-8" aria-labelledby="login-title">
+          <Card className="w-full max-w-md border-[#123c36]/10 shadow-[0_18px_50px_rgba(18,60,54,0.08)]"><CardHeader><CardDescription className="text-xs font-semibold uppercase tracking-[0.1em] text-[#0f6e56]">Dành cho nhân viên</CardDescription><CardTitle id="login-title" className="text-2xl tracking-[-0.025em]">Đăng nhập</CardTitle><CardDescription>Sử dụng tài khoản được bệnh viện cấp để tiếp tục.</CardDescription></CardHeader><CardContent><LoginForm demoAccounts={DEMO_ACCOUNTS} /></CardContent></Card>
         </section>
       </main>
     );
