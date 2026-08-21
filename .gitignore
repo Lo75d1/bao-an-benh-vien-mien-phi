@@ -17,6 +17,7 @@ auth.json
 out/
 dist/
 build/
+coverage/
 *.tsbuildinfo
 
 # Prisma (client sinh lúc build)

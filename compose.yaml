@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:17.6-bookworm
+    environment:
+      POSTGRES_DB: meal_service
+      POSTGRES_USER: meal_service
+      POSTGRES_PASSWORD: local-compose-only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meal_service -d meal_service"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes: ["meal_service_db:/var/lib/postgresql/data"]
+  migrate:
+    build: { context: ., target: migrate }
+    environment: { DATABASE_URL: "postgresql://meal_service:local-compose-only@db:5432/meal_service?schema=public" }
+    depends_on: { db: { condition: service_healthy } }
+    restart: "no"
+  seed:
+    build: { context: ., target: seed }
+    environment: { DATABASE_URL: "postgresql://meal_service:local-compose-only@db:5432/meal_service?schema=public" }
+    depends_on: { migrate: { condition: service_completed_successfully } }
+    restart: "no"
+  app:
+    build: { context: ., target: app }
+    environment: { DATABASE_URL: "postgresql://meal_service:local-compose-only@db:5432/meal_service?schema=public" }
+    depends_on: { seed: { condition: service_completed_successfully } }
+    ports: ["3000:3000"]
+    restart: unless-stopped
+volumes:
+  meal_service_db:

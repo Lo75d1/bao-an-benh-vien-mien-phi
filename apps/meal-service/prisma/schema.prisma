@@ -1,0 +1,489 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  DIETITIAN
+  NURSE
+  KITCHEN
+}
+
+enum ActiveStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum FeedingRoute {
+  NORMAL
+  SONDE
+}
+
+enum DietMealStatus {
+  PLANNED
+  LOCKED
+  PREPARING
+  PREPARED
+  SERVED
+  CANCELLED
+}
+
+enum ServingReportStatus {
+  DRAFT
+  SUBMITTED
+  CANCELLED
+}
+
+enum AdditionKind {
+  SUPPLEMENT
+  URGENT_POST_SERVE
+}
+
+enum AckStatus {
+  PENDING
+  RECEIVED
+  INSUFFICIENT
+  SUBSTITUTE
+}
+
+enum EvidenceKind {
+  MEAL_PHOTO
+  FOOD_SAMPLE
+  STOCK_IN
+  INVOICE
+}
+
+enum PatientNoteStatus {
+  RECEIVED
+  APPROVED
+  REJECTED
+}
+
+enum WarehouseKind {
+  GENERAL
+  KITCHEN
+  SONDE
+}
+
+enum InventoryType {
+  IN
+  OUT
+  ADJUST
+}
+
+enum DocumentKind {
+  BILL
+  INVOICE
+  PHOTO
+  OTHER
+}
+
+model User {
+  id                    String                 @id @default(cuid())
+  email                 String                 @unique
+  displayName           String
+  passwordHash          String
+  role                  Role
+  status                ActiveStatus           @default(ACTIVE)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  sessions              Session[]
+  memberships           DepartmentMembership[]
+  approvedMeals         DietMeal[]             @relation("DietMealApprover")
+  voidedMeals           DietMeal[]             @relation("DietMealVoider")
+  servingReports        ServingReport[]
+  additions             LateMealAddition[]     @relation("AdditionSubmitter")
+  acknowledgedAdditions LateMealAddition[]     @relation("AdditionAcknowledger")
+  evidence              MealEvidence[]
+  reviewedNotes         PatientNote[]
+  inventoryTransactions InventoryTransaction[]
+  menuTemplates         MenuTemplate[]
+  auditLogs             AuditLog[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Department {
+  id          String                 @id @default(cuid())
+  code        String                 @unique
+  name        String
+  publicToken String                 @unique @default(cuid())
+  status      ActiveStatus           @default(ACTIVE)
+  memberships DepartmentMembership[]
+  reports     ServingReport[]
+  additions   LateMealAddition[]
+  notes       PatientNote[]
+}
+
+model DepartmentMembership {
+  id           String     @id @default(cuid())
+  userId       String
+  departmentId String
+  user         User       @relation(fields: [userId], references: [id])
+  department   Department @relation(fields: [departmentId], references: [id])
+
+  @@unique([userId, departmentId])
+}
+
+model MealType {
+  id          String       @id @default(cuid())
+  code        String       @unique
+  name        String
+  cutoffTime  String
+  serviceTime String
+  sortOrder   Int          @default(0)
+  status      ActiveStatus @default(ACTIVE)
+  events      MealEvent[]
+}
+
+model DietType {
+  id            String              @id @default(cuid())
+  code          String              @unique
+  name          String
+  feedingRoute  FeedingRoute        @default(NORMAL)
+  dietCodeRefId String?
+  sortOrder     Int                 @default(0)
+  status        ActiveStatus        @default(ACTIVE)
+  dietCodeRef   DietCode?           @relation(fields: [dietCodeRefId], references: [id])
+  meals         DietMeal[]
+  reportLines   ServingReportLine[]
+  additions     LateMealAddition[]
+  templates     MenuTemplate[]
+}
+
+model MealEvent {
+  id         String             @id @default(cuid())
+  mealDate   DateTime           @db.Date
+  mealTypeId String
+  status     String             @default("PLANNED")
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  mealType   MealType           @relation(fields: [mealTypeId], references: [id])
+  dietMeals  DietMeal[]
+  reports    ServingReport[]
+  additions  LateMealAddition[]
+
+  @@unique([mealDate, mealTypeId])
+}
+
+model DietMeal {
+  id                    String                 @id @default(cuid())
+  mealEventId           String
+  dietTypeId            String
+  feedingRoute          FeedingRoute
+  menuSnapshotJson      Json?
+  approvedAt            DateTime?
+  approvedById          String?
+  servingsPlanned       Int                    @default(0)
+  evaluationJson        Json?
+  status                DietMealStatus         @default(PLANNED)
+  internalNote          String?
+  patientVisibleNote    String?
+  voidedById            String?
+  voidedAt              DateTime?
+  voidedReason          String?
+  mealEvent             MealEvent              @relation(fields: [mealEventId], references: [id])
+  dietType              DietType               @relation(fields: [dietTypeId], references: [id])
+  approvedBy            User?                  @relation("DietMealApprover", fields: [approvedById], references: [id])
+  voidedBy              User?                  @relation("DietMealVoider", fields: [voidedById], references: [id])
+  evidence              MealEvidence[]
+  inventoryTransactions InventoryTransaction[]
+
+  @@unique([mealEventId, dietTypeId])
+}
+
+model ServingReport {
+  id            String              @id @default(cuid())
+  departmentId  String
+  mealEventId   String
+  submittedById String
+  submittedAt   DateTime?
+  status        ServingReportStatus @default(DRAFT)
+  note          String?
+  department    Department          @relation(fields: [departmentId], references: [id])
+  mealEvent     MealEvent           @relation(fields: [mealEventId], references: [id])
+  submittedBy   User                @relation(fields: [submittedById], references: [id])
+  lines         ServingReportLine[]
+
+  @@unique([departmentId, mealEventId])
+}
+
+model ServingReportLine {
+  id              String        @id @default(cuid())
+  servingReportId String
+  dietTypeId      String
+  quantity        Int
+  servingReport   ServingReport @relation(fields: [servingReportId], references: [id])
+  dietType        DietType      @relation(fields: [dietTypeId], references: [id])
+
+  @@unique([servingReportId, dietTypeId])
+}
+
+model LateMealAddition {
+  id            String       @id @default(cuid())
+  departmentId  String
+  mealEventId   String
+  dietTypeId    String
+  quantity      Int
+  reason        String
+  submittedById String
+  submittedAt   DateTime     @default(now())
+  kind          AdditionKind
+  ackStatus     AckStatus    @default(PENDING)
+  ackById       String?
+  ackAt         DateTime?
+  kitchenNote   String?
+  department    Department   @relation(fields: [departmentId], references: [id])
+  mealEvent     MealEvent    @relation(fields: [mealEventId], references: [id])
+  dietType      DietType     @relation(fields: [dietTypeId], references: [id])
+  submittedBy   User         @relation("AdditionSubmitter", fields: [submittedById], references: [id])
+  ackBy         User?        @relation("AdditionAcknowledger", fields: [ackById], references: [id])
+}
+
+model MealEvidence {
+  id           String       @id @default(cuid())
+  dietMealId   String
+  kind         EvidenceKind
+  storagePath  String
+  uploadedById String
+  uploadedAt   DateTime     @default(now())
+  note         String?
+  dietMeal     DietMeal     @relation(fields: [dietMealId], references: [id])
+  uploadedBy   User         @relation(fields: [uploadedById], references: [id])
+}
+
+model PatientNote {
+  id           String            @id @default(cuid())
+  departmentId String
+  mealDate     DateTime          @db.Date
+  note         String
+  contactName  String?
+  status       PatientNoteStatus @default(RECEIVED)
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
+  ipHash       String?
+  department   Department        @relation(fields: [departmentId], references: [id])
+  reviewedBy   User?             @relation(fields: [reviewedById], references: [id])
+}
+
+model Warehouse {
+  id           String                 @id @default(cuid())
+  code         String                 @unique
+  name         String
+  kind         WarehouseKind
+  status       ActiveStatus           @default(ACTIVE)
+  transactions InventoryTransaction[]
+}
+
+model InventoryTransaction {
+  id                String                     @id @default(cuid())
+  warehouseId       String
+  type              InventoryType
+  occurredAt        DateTime
+  createdById       String
+  note              String?
+  status            String                     @default("ACTIVE")
+  relatedDietMealId String?
+  voidedById        String?
+  voidedAt          DateTime?
+  voidedReason      String?
+  warehouse         Warehouse                  @relation(fields: [warehouseId], references: [id])
+  createdBy         User                       @relation(fields: [createdById], references: [id])
+  relatedDietMeal   DietMeal?                  @relation(fields: [relatedDietMealId], references: [id])
+  lines             InventoryTransactionLine[]
+  documents         Document[]
+}
+
+model InventoryTransactionLine {
+  id            String               @id @default(cuid())
+  transactionId String
+  foodId        String?
+  itemName      String
+  quantity      Decimal              @db.Decimal(14, 3)
+  unit          String
+  unitPrice     Decimal?             @db.Decimal(14, 2)
+  transaction   InventoryTransaction @relation(fields: [transactionId], references: [id])
+  food          Food?                @relation(fields: [foodId], references: [id])
+}
+
+model Document {
+  id            String               @id @default(cuid())
+  transactionId String
+  kind          DocumentKind
+  storagePath   String
+  note          String?
+  transaction   InventoryTransaction @relation(fields: [transactionId], references: [id])
+}
+
+model MenuTemplate {
+  id           String             @id @default(cuid())
+  ownerId      String
+  name         String
+  dietTypeId   String?
+  feedingRoute FeedingRoute?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  owner        User               @relation(fields: [ownerId], references: [id])
+  dietType     DietType?          @relation(fields: [dietTypeId], references: [id])
+  items        MenuTemplateItem[]
+}
+
+model MenuTemplateItem {
+  id           String       @id @default(cuid())
+  templateId   String
+  foodId       String?
+  itemName     String
+  grams        Decimal      @db.Decimal(10, 2)
+  wastePercent Decimal?     @db.Decimal(5, 2)
+  template     MenuTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  food         Food?        @relation(fields: [foodId], references: [id])
+}
+
+model AppSetting {
+  key       String   @id
+  valueJson Json
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  action     String
+  actorId    String
+  actorName  String
+  beforeJson Json?
+  afterJson  Json?
+  reason     String
+  createdAt  DateTime @default(now())
+  actor      User     @relation(fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+}
+
+model Food {
+  id               String                     @id
+  name             String
+  nameNormalized   String
+  source           String?
+  sourceCode       String?
+  sourceNote       String?
+  unit             String?
+  wastePercent     Float?
+  foodType         String?
+  foodGroup        String?
+  proteinOrigin    String?
+  giLevel          Int?
+  purinLevel       Int?
+  cholesterolLevel Int?
+  energyKcal       Float?
+  waterG           Float?
+  proteinG         Float?
+  lipidG           Float?
+  glucidG          Float?
+  sodiumMg         Float?
+  potassiumMg      Float?
+  rawJson          Json
+  inventoryLines   InventoryTransactionLine[]
+  templateItems    MenuTemplateItem[]
+  dishIngredients  DishIngredient[]
+  aliases          FoodAlias[]
+
+  @@index([nameNormalized])
+}
+
+model Dish {
+  id             String           @id
+  name           String
+  nameNormalized String
+  source         String?
+  sourceCode     String?
+  totalWeightG   Float?
+  servingUnit    String?
+  isActive       Boolean          @default(true)
+  rawJson        Json
+  ingredients    DishIngredient[]
+
+  @@index([nameNormalized])
+}
+
+model DishIngredient {
+  id            String  @id
+  dishId        String
+  foodId        String?
+  foodNameRaw   String
+  quantityG     Float
+  sortOrder     Int     @default(0)
+  energyKcalRaw Float?
+  dish          Dish    @relation(fields: [dishId], references: [id])
+  food          Food?   @relation(fields: [foodId], references: [id])
+
+  @@index([dishId])
+}
+
+model FoodAlias {
+  id              String @id
+  alias           String
+  aliasNormalized String
+  foodId          String
+  food            Food   @relation(fields: [foodId], references: [id])
+
+  @@index([aliasNormalized])
+}
+
+model DietCode {
+  id             String     @id
+  code           String     @unique
+  name           String
+  targetGroup    String?
+  diseaseGroup   String?
+  energyKcalMin  Float?
+  energyKcalMax  Float?
+  proteinGMin    Float?
+  proteinGMax    Float?
+  lipidGMin      Float?
+  lipidGMax      Float?
+  glucidGMin     Float?
+  glucidGMax     Float?
+  sodiumMgMin    Float?
+  sodiumMgMax    Float?
+  potassiumMgMin Float?
+  potassiumMgMax Float?
+  waterGMin      Float?
+  waterGMax      Float?
+  mealsMin       Int?
+  mealsMax       Int?
+  rawJson        Json
+  dietTypes      DietType[]
+}
+
+model NutritionRecommendation {
+  id               String  @id
+  ageGroup         String
+  gender           String
+  physicalActivity String?
+  rawJson          Json
+}
+
+model ChildGrowthStandard {
+  id       String  @id
+  standard String
+  sex      String?
+  ageMonth Int?
+  rawJson  Json
+}
