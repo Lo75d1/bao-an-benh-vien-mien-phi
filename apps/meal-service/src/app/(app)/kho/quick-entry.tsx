@@ -1,21 +1,27 @@
 "use client";
-
-import { useState } from "react";
+import { startTransition, useTransition } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useFieldArray, useForm } from "react-hook-form";
+import { z } from "zod";
 import { createTransactionAction } from "./actions";
-
-type WarehouseOption = { id: string; name: string; kind: string };
-type MealOption = { id: string; feedingRoute: string; label: string };
-
+type WarehouseOption = { id: string; name: string; kind: string }; type MealOption = { id: string; feedingRoute: string; label: string };
+const lineSchema = z.object({ itemName: z.string().max(200), foodId: z.string(), quantity: z.string(), unit: z.string().max(30), unitPrice: z.string() }).superRefine((line, context) => { const used = !!(line.itemName.trim() || line.quantity.trim() || line.unit.trim() || line.unitPrice.trim()); if (!used) return; if (!line.itemName.trim()) context.addIssue({ code: "custom", path: ["itemName"], message: "Nhập tên thực phẩm." }); if (!line.quantity.trim() || !Number.isFinite(Number(line.quantity)) || Number(line.quantity) <= 0) context.addIssue({ code: "custom", path: ["quantity"], message: "Số lượng phải lớn hơn 0." }); if (!line.unit.trim()) context.addIssue({ code: "custom", path: ["unit"], message: "Nhập đơn vị." }); if (line.unitPrice.trim() && Number(line.unitPrice) < 0) context.addIssue({ code: "custom", path: ["unitPrice"], message: "Đơn giá không được âm." }); });
+const schema = z.object({ type: z.enum(["IN", "OUT", "ADJUST"]), warehouseId: z.string().min(1, "Chọn kho."), occurredAt: z.string().min(1, "Chọn thời điểm."), relatedDietMealId: z.string(), note: z.string().max(500), lines: z.array(lineSchema) }).superRefine((value, context) => { if (!value.lines.some((line) => line.itemName.trim() || line.quantity.trim() || line.unit.trim())) context.addIssue({ code: "custom", path: ["lines", 0, "itemName"], message: "Cần ít nhất 1 dòng giao dịch." }); });
+type Fields = z.infer<typeof schema>; const emptyLine = { itemName: "", foodId: "", quantity: "", unit: "", unitPrice: "" };
 export function QuickEntry({ warehouses, meals, defaultOccurredAt }: { warehouses: WarehouseOption[]; meals: MealOption[]; defaultOccurredAt: string }) {
-  const [rows, setRows] = useState([0, 1]);
-  return <form action={createTransactionAction} className="warehouse-entry-form">
-    <div className="warehouse-form-head">
-      <label>Loại giao dịch<select name="type" required><option value="IN">Nhập kho</option><option value="OUT">Thực xuất</option><option value="ADJUST">Điều chỉnh</option></select></label>
-      <label>Kho<select name="warehouseId" required>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name} ({warehouse.kind === "GENERAL" ? "Tổng" : warehouse.kind === "KITCHEN" ? "Bếp" : "Sonde"})</option>)}</select></label>
-      <label>Thời điểm<input type="datetime-local" name="occurredAt" defaultValue={defaultOccurredAt} required/></label>
-      <label>Bữa liên kết<select name="relatedDietMealId"><option value="">Không liên kết</option>{meals.map((meal) => <option key={meal.id} value={meal.id}>{meal.label} - {meal.feedingRoute === "SONDE" ? "Sonde" : "Ăn thường"}</option>)}</select></label>
-    </div>
-    <div className="warehouse-lines"><div className="warehouse-line warehouse-line-head"><span>Thực phẩm / tên tự do</span><span>Mã thực phẩm</span><span>Số lượng</span><span>Đơn vị</span><span>Đơn giá</span></div>{rows.map((row) => <div className="warehouse-line" key={row}><input name="itemName" aria-label={`Tên thực phẩm dòng ${row + 1}`} maxLength={200}/><input name="foodId" aria-label={`Mã thực phẩm dòng ${row + 1}`} placeholder="Không bắt buộc"/><input name="quantity" aria-label={`Số lượng dòng ${row + 1}`} type="number" min="0.001" step="0.001" inputMode="decimal"/><input name="unit" aria-label={`Đơn vị dòng ${row + 1}`} placeholder="g, kg, chai" maxLength={30}/><input name="unitPrice" aria-label={`Đơn giá dòng ${row + 1}`} type="number" min="0" step="0.01" inputMode="decimal"/></div>)}</div>
-    <div className="warehouse-form-actions"><button type="button" className="secondary-button" onClick={() => setRows((current) => [...current, Math.max(...current) + 1])}>Thêm dòng</button><label className="warehouse-note">Ghi chú<input name="note" maxLength={500} placeholder="Có thể bổ sung sau"/></label><button className="primary-action">Lưu ngay</button></div>
-  </form>;
+ const [pending, setPending] = useTransition();
+ const { register, control, handleSubmit, formState: { errors } } = useForm<Fields>({ resolver: zodResolver(schema), shouldFocusError: true, defaultValues: { type: "IN", warehouseId: warehouses[0]?.id ?? "", occurredAt: defaultOccurredAt, relatedDietMealId: "", note: "", lines: [{ ...emptyLine }, { ...emptyLine }] } });
+ const { fields, append } = useFieldArray({ control, name: "lines" }); const submit = handleSubmit((_values, event) => { const form = event?.currentTarget; if (form instanceof HTMLFormElement) { const data = new FormData(form); startTransition(() => setPending(() => createTransactionAction(data))); } });
+ return <form onSubmit={submit} noValidate className="warehouse-entry-form"><div className="warehouse-form-head">
+  <label>Loại giao dịch<select {...register("type")}><option value="IN">Nhập kho</option><option value="OUT">Thực xuất</option><option value="ADJUST">Điều chỉnh</option></select></label>
+  <label>Kho<select {...register("warehouseId")} aria-invalid={!!errors.warehouseId}>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name} ({warehouse.kind === "GENERAL" ? "Tổng" : warehouse.kind === "KITCHEN" ? "Bếp" : "Sonde"})</option>)}</select>{errors.warehouseId && <span role="alert" className="field-error">{errors.warehouseId.message}</span>}</label>
+  <label>Thời điểm<input type="datetime-local" {...register("occurredAt")} aria-invalid={!!errors.occurredAt}/>{errors.occurredAt && <span role="alert" className="field-error">{errors.occurredAt.message}</span>}</label>
+  <label>Bữa liên kết<select {...register("relatedDietMealId")}><option value="">Không liên kết</option>{meals.map((meal) => <option key={meal.id} value={meal.id}>{meal.label} - {meal.feedingRoute === "SONDE" ? "Sonde" : "Ăn thường"}</option>)}</select></label>
+ </div><div className="warehouse-lines"><div className="warehouse-line warehouse-line-head"><span>Thực phẩm / tên tự do</span><span>Mã thực phẩm</span><span>Số lượng</span><span>Đơn vị</span><span>Đơn giá</span></div>{fields.map((field, index) => <div className="warehouse-line" key={field.id}>
+  <label><span className="sr-only">Tên thực phẩm dòng {index + 1}</span><input {...register(`lines.${index}.itemName`)} aria-invalid={!!errors.lines?.[index]?.itemName}/>{errors.lines?.[index]?.itemName && <span role="alert" className="field-error">{errors.lines[index]?.itemName?.message}</span>}</label>
+  <label><span className="sr-only">Mã thực phẩm dòng {index + 1}</span><input {...register(`lines.${index}.foodId`)} placeholder="Không bắt buộc…" autoComplete="off"/></label>
+  <label><span className="sr-only">Số lượng dòng {index + 1}</span><input {...register(`lines.${index}.quantity`)} type="number" min="0.001" step="0.001" inputMode="decimal" aria-invalid={!!errors.lines?.[index]?.quantity}/>{errors.lines?.[index]?.quantity && <span role="alert" className="field-error">{errors.lines[index]?.quantity?.message}</span>}</label>
+  <label><span className="sr-only">Đơn vị dòng {index + 1}</span><input {...register(`lines.${index}.unit`)} placeholder="g, kg, chai…" autoComplete="off" aria-invalid={!!errors.lines?.[index]?.unit}/>{errors.lines?.[index]?.unit && <span role="alert" className="field-error">{errors.lines[index]?.unit?.message}</span>}</label>
+  <label><span className="sr-only">Đơn giá dòng {index + 1}</span><input {...register(`lines.${index}.unitPrice`)} type="number" min="0" step="0.01" inputMode="decimal" aria-invalid={!!errors.lines?.[index]?.unitPrice}/></label>
+ </div>)}</div><div className="warehouse-form-actions"><button type="button" className="secondary-button" onClick={() => append({ ...emptyLine })}>Thêm dòng</button><label className="warehouse-note">Ghi chú<input {...register("note")} placeholder="Có thể bổ sung sau…" autoComplete="off"/></label><button className="primary-action" disabled={pending}>{pending ? "Đang lưu…" : "Lưu ngay"}</button></div></form>;
 }

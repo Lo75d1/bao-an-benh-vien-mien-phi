@@ -1,4 +1,12 @@
 @import "tailwindcss";
+
+@layer components {
+  .field-error { display: block; margin-top: 0.25rem; color: #991b1b; font-size: 0.8125rem; line-height: 1.25rem; }
+  [aria-invalid="true"] { border-color: rgb(153 27 27 / 0.55); }
+  @media (max-width: 640px) {
+    input, select, textarea, button, a.primary-action, a.secondary-button { min-height: 44px; touch-action: manipulation; }
+  }
+}
 @import "tw-animate-css";
 @import "@fontsource/noto-sans/400.css";
 @import "@fontsource/noto-sans/600.css";

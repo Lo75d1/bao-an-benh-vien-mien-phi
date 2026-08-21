@@ -1,0 +1,34 @@
+"use client";
+import { startTransition, useTransition } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+
+const error = (id: string, message?: string) => message ? <span id={id} role="alert" className="field-error">{message}</span> : null;
+const settingsSchema = z.object({ advanceEntryDays: z.number().int().min(1, "Tối thiểu 1 ngày.").max(60, "Tối đa 60 ngày."), sondeEnabled: z.boolean(), warehouseMode: z.enum(["A", "B"]), warehouseApprovalRole: z.enum(["ADMIN", "DIETITIAN", "KITCHEN"]), reason: z.string().trim().min(3, "Nêu lý do với ít nhất 3 ký tự.").max(500) });
+type SettingsFields = z.infer<typeof settingsSchema>;
+type MealType = { id: string; name: string; cutoffTime: string; serviceTime: string };
+export function SettingsForm({ settings, mealTypes, action }: { settings: Omit<SettingsFields, "reason">; mealTypes: MealType[]; action: (data: FormData) => Promise<void> }) {
+ const [pending, run] = useTransition(); const { register, handleSubmit, formState: { errors } } = useForm<SettingsFields>({ resolver: zodResolver(settingsSchema), shouldFocusError: true, defaultValues: { ...settings, reason: "" } });
+ return <form onSubmit={handleSubmit((_values, event) => { const form = event?.currentTarget; if (form instanceof HTMLFormElement) { const data = new FormData(form); startTransition(() => run(() => action(data))); } })} noValidate className="admin-form"><div className="admin-grid">
+  <label htmlFor="advanceEntryDays">Số ngày được nhập trước<input id="advanceEntryDays" type="number" min="1" max="60" {...register("advanceEntryDays", { valueAsNumber: true })} aria-invalid={!!errors.advanceEntryDays} aria-describedby={errors.advanceEntryDays ? "advanceEntryDays-error" : undefined}/>{error("advanceEntryDays-error", errors.advanceEntryDays?.message)}</label>
+  <label className="check-field"><input type="checkbox" {...register("sondeEnabled")}/><span>Bật đường nuôi Sonde</span></label>
+  <label htmlFor="warehouseMode">Mode kho<select id="warehouseMode" {...register("warehouseMode")}><option value="A">Mode A · một kho tổng</option><option value="B">Mode B · kho bếp + kho sonde</option></select></label>
+  <label htmlFor="warehouseApprovalRole">Role duyệt kho<select id="warehouseApprovalRole" {...register("warehouseApprovalRole")}><option value="ADMIN">Quản trị</option><option value="DIETITIAN">Dinh dưỡng</option><option value="KITCHEN">Nhà bếp</option></select></label>
+ </div><div className="meal-time-grid">{mealTypes.map((meal) => <fieldset key={meal.id}><legend>{meal.name}</legend><input type="hidden" name="mealTypeId" value={meal.id}/><label>Giờ chốt<input name="cutoffTime" type="time" defaultValue={meal.cutoffTime} required/></label><label>Giờ ăn<input name="serviceTime" type="time" defaultValue={meal.serviceTime} required/></label></fieldset>)}</div>
+ <div className="admin-submit"><label htmlFor="settings-reason">Lý do thay đổi<input id="settings-reason" {...register("reason")} autoComplete="off" aria-invalid={!!errors.reason} aria-describedby={errors.reason ? "settings-reason-error" : undefined} placeholder="Nêu lý do để lưu AuditLog…"/>{error("settings-reason-error", errors.reason?.message)}</label><button className="primary-action" disabled={pending}>{pending ? "Đang áp dụng…" : "Áp dụng cấu hình"}</button></div></form>;
+}
+
+const accountSchema = z.object({ displayName: z.string().trim().min(2, "Họ tên cần ít nhất 2 ký tự.").max(100), email: z.string().trim().email("Nhập email hợp lệ."), role: z.enum(["ADMIN", "DIETITIAN", "NURSE", "KITCHEN"]), departmentId: z.string(), password: z.string().min(10, "Mật khẩu cần ít nhất 10 ký tự.").max(256) }).superRefine((value, context) => { if (value.role === "NURSE" && !value.departmentId) context.addIssue({ code: "custom", path: ["departmentId"], message: "Chọn khoa cho điều dưỡng." }); });
+type AccountFields = z.infer<typeof accountSchema>;
+export function AccountCreateForm({ departments, action }: { departments: { id: string; name: string }[]; action: (data: FormData) => Promise<void> }) {
+ const [pending, run] = useTransition(); const { register, handleSubmit, formState: { errors } } = useForm<AccountFields>({ resolver: zodResolver(accountSchema), shouldFocusError: true, defaultValues: { displayName: "", email: "", role: "NURSE", departmentId: "", password: "" } });
+ return <form onSubmit={handleSubmit((_values, event) => { const form = event?.currentTarget; if (form instanceof HTMLFormElement) { const data = new FormData(form); startTransition(() => run(() => action(data))); } })} noValidate className="admin-grid account-create">
+  <label>Họ tên<input {...register("displayName")} autoComplete="name" aria-invalid={!!errors.displayName} aria-describedby={errors.displayName ? "account-name-error" : undefined}/>{error("account-name-error", errors.displayName?.message)}</label>
+  <label>Email<input type="email" {...register("email")} autoComplete="email" spellCheck={false} aria-invalid={!!errors.email} aria-describedby={errors.email ? "account-email-error" : undefined}/>{error("account-email-error", errors.email?.message)}</label>
+  <label>Vai trò<select {...register("role")}><option value="ADMIN">Quản trị</option><option value="DIETITIAN">Dinh dưỡng</option><option value="NURSE">Điều dưỡng</option><option value="KITCHEN">Nhà bếp</option></select></label>
+  <label>Khoa cho điều dưỡng<select {...register("departmentId")} aria-invalid={!!errors.departmentId} aria-describedby={errors.departmentId ? "account-department-error" : undefined}><option value="">—</option>{departments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>{error("account-department-error", errors.departmentId?.message)}</label>
+  <label>Mật khẩu ban đầu<input type="password" {...register("password")} autoComplete="new-password" aria-invalid={!!errors.password} aria-describedby={errors.password ? "account-password-error" : undefined}/>{error("account-password-error", errors.password?.message)}</label>
+  <button className="primary-action" disabled={pending}>{pending ? "Đang tạo…" : "Tạo tài khoản"}</button>
+ </form>;
+}

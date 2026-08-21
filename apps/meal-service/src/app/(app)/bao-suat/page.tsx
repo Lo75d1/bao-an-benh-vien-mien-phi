@@ -7,6 +7,7 @@ import { isBeforeCutoff, readNurseServingDay } from "@/lib/serving-report";
 import { lockExpiredMealEvent, servingTotal } from "@/lib/late-addition";
 import { readPendingPatientNotes } from "@/lib/patient-note";
 import { addLateMealAction, reviewPatientNoteAction, saveServingReportAction } from "./actions";
+import { ServingForm } from "./serving-form";
 
 const dateLabel = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
 
@@ -30,18 +31,7 @@ export default async function ServingReportPage({ searchParams }: { searchParams
       const editable = isBeforeCutoff(event.mealDate, event.mealType.cutoffTime);
       return <section className="serving-event" key={event.id}>
         <div className="serving-event-head"><div><p className="eyebrow">{event.mealType.name}</p><h2>Chốt lúc {event.mealType.cutoffTime}</h2></div><span className={editable ? "cutoff-state open" : "cutoff-state locked"}>{editable ? "Đang nhận báo suất" : "Đã chốt"}</span></div>
-        {event.dietMeals.length === 0 ? <div className="serving-empty"><strong>Chưa có chế độ ăn</strong><span>Không thể báo suất cho bữa này.</span></div> : <form action={saveServingReportAction}>
-          <input type="hidden" name="mealEventId" value={event.id}/>
-          <div className="serving-table-scroll"><table className="serving-table"><thead><tr><th>Chế độ ăn</th><th>Số suất</th><th>Ghi chú nội bộ</th><th>Ghi chú bệnh nhân thấy</th></tr></thead><tbody>
-            {event.dietMeals.map((meal) => { const line = byDiet.get(meal.dietTypeId); const additions = event.additions.filter((item) => item.dietTypeId === meal.dietTypeId); const total = servingTotal(line?.quantity ?? 0, additions); return <tr key={meal.id}>
-              <td><input type="hidden" name="dietTypeId" value={meal.dietTypeId}/><strong>{meal.dietType.name}</strong><span>{meal.dietType.code} · {meal.feedingRoute === "SONDE" ? "Sonde" : "Ăn thường"}</span></td>
-              <td><input className="quantity-input tabular" aria-label={`Số suất ${meal.dietType.name}`} name={`quantity:${meal.dietTypeId}`} type="number" min="0" step="1" required disabled={!editable} defaultValue={line?.quantity ?? ""} placeholder="—"/>{!editable && <span className="serving-total">Gốc {line?.quantity ?? "—"} + bổ sung {total.additions || "—"} = {line ? total.total : "—"}</span>}</td>
-              <td><textarea aria-label={`Ghi chú nội bộ ${meal.dietType.name}`} name={`internalNote:${meal.dietTypeId}`} maxLength={500} disabled={!editable} defaultValue={line?.internalNote ?? ""} placeholder="Chỉ nhân viên thấy"/></td>
-              <td><textarea aria-label={`Ghi chú bệnh nhân thấy ${meal.dietType.name}`} name={`patientVisibleNote:${meal.dietTypeId}`} maxLength={500} disabled={!editable} defaultValue={line?.patientVisibleNote ?? ""} placeholder="Có thể công khai qua QR"/></td>
-            </tr>; })}
-          </tbody></table></div>
-          <footer className="serving-actions"><p>{editable ? "Có thể sửa và lưu lại trước giờ chốt. Mỗi lần lưu đều được truy vết." : "Số suất gốc đã khóa. Mọi phát sinh được ghi thành bản bổ sung riêng."}</p><button className="primary-action" disabled={!editable}>Lưu báo suất</button></footer>
-        </form>}
+        {event.dietMeals.length === 0 ? <div className="serving-empty"><strong>Chưa có chế độ ăn</strong><span>Không thể báo suất cho bữa này.</span></div> : <ServingForm mealEventId={event.id} editable={editable} action={saveServingReportAction} lines={event.dietMeals.map((meal) => { const line = byDiet.get(meal.dietTypeId); const additions = event.additions.filter((item) => item.dietTypeId === meal.dietTypeId); const total = servingTotal(line?.quantity ?? 0, additions); return { dietTypeId: meal.dietTypeId, name: meal.dietType.name, code: meal.dietType.code, route: meal.feedingRoute, quantity: line ? String(line.quantity) : "", internalNote: line?.internalNote ?? "", patientVisibleNote: line?.patientVisibleNote ?? "", totalLabel: `Gốc ${line?.quantity ?? "—"} + bổ sung ${total.additions || "—"} = ${line ? total.total : "—"}` }; })}/>} {/* Client validation preserves the server action contract. */}
         {!editable && event.dietMeals.length > 0 && <div className="late-addition-area"><form className="late-addition-form" action={addLateMealAction}><input type="hidden" name="mealEventId" value={event.id}/><label>Chế độ ăn<select name="dietTypeId" required>{event.dietMeals.map((meal) => <option key={meal.id} value={meal.dietTypeId}>{meal.dietType.name}</option>)}</select></label><label>Số bổ sung<input name="quantity" type="number" min="1" step="1" required/></label><label className="reason-field">Lý do bắt buộc<input name="reason" maxLength={500} required placeholder="Ví dụ: người bệnh mới nhập viện"/></label><button className="primary-action">Báo bổ sung</button></form>{event.additions.length > 0 && <div className="late-history"><strong>Bổ sung đã gửi</strong>{event.additions.map((item) => <span key={item.id}>+{item.quantity} {item.dietType.name} · {item.kind === "URGENT_POST_SERVE" ? "Khẩn sau phục vụ" : "Sau chốt"} · {item.ackStatus === "PENDING" ? "Bếp chưa xác nhận" : item.ackStatus === "RECEIVED" ? "Đã nhận" : item.ackStatus === "INSUFFICIENT" ? "Không đủ" : "Cần thay thế"}</span>)}</div>}</div>}
       </section>;
     })}</div>
