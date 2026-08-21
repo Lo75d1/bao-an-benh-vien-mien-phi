@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { LoginForm } from "@/components/login-form";
+import { PatientAccessForm } from "@/components/patient-access-form";
 import { getSessionUser } from "@/lib/auth";
 
 const HOME_COPY = {
@@ -19,6 +20,7 @@ export default async function HomePage() {
           <p className="eyebrow">Hệ thống điều phối suất ăn</p>
           <h1>Mỗi bữa ăn được chuẩn bị đúng việc, đúng thời điểm.</h1>
           <p>Lịch tuần chung giúp dinh dưỡng, điều dưỡng, bếp và quản trị phối hợp trên cùng một nguồn dữ liệu.</p>
+          <div className="public-patient-entry"><p className="eyebrow">Dành cho bệnh nhân và người nhà</p><h2>Xem bữa ăn của khoa</h2><PatientAccessForm /></div>
         </section>
         <section className="login-panel" aria-labelledby="login-title">
           <p className="eyebrow">Dành cho nhân viên</p>

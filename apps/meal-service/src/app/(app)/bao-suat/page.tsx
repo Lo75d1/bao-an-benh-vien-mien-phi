@@ -3,7 +3,8 @@ import { AppShell } from "@/components/app-shell";
 import { getSessionUser } from "@/lib/auth";
 import { isBeforeCutoff, readNurseServingDay } from "@/lib/serving-report";
 import { lockExpiredMealEvent, servingTotal } from "@/lib/late-addition";
-import { addLateMealAction, saveServingReportAction } from "./actions";
+import { readPendingPatientNotes } from "@/lib/patient-note";
+import { addLateMealAction, reviewPatientNoteAction, saveServingReportAction } from "./actions";
 
 const dateLabel = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
 
@@ -13,12 +14,14 @@ export default async function ServingReportPage({ searchParams }: { searchParams
   if (user.role !== "NURSE") redirect("/");
   const { saved } = await searchParams;
   let data = await readNurseServingDay(user.id);
+  const pendingNotes = await readPendingPatientNotes(user.id);
   const locked = (await Promise.all(data.events.map((event) => lockExpiredMealEvent(event.id, user)))).some((count) => count > 0);
   if (locked) data = await readNurseServingDay(user.id);
   return <AppShell user={user}><main className="workspace serving-page">
     <header className="page-heading"><div><p className="eyebrow">Báo suất hôm nay</p><h1>{data.departmentName}</h1></div><p className="scope-note">{dateLabel.format(new Date())} · Khoa được gán tự động</p></header>
     {saved && <p className="success-banner" role="status">{saved === "addition" ? "Đã gửi suất bổ sung riêng cho bếp. Số suất gốc không thay đổi." : "Đã lưu báo suất và cập nhật tổng toàn viện."}</p>}
     {data.events.length === 0 && <section className="empty-state"><h2>Chưa có bữa ăn hôm nay</h2><p>Không có số liệu để nhập. Hệ thống không tự tạo hoặc đoán số suất.</p></section>}
+    <section className="patient-note-review" aria-labelledby="pending-note-heading"><div className="section-heading"><div><p className="eyebrow">Ghi chú bệnh nhân</p><h2 id="pending-note-heading">Chờ điều dưỡng duyệt</h2></div><span className="tabular">{pendingNotes.length || "—"} ghi chú</span></div>{pendingNotes.length === 0 ? <p className="review-empty">Không có ghi chú chờ duyệt.</p> : <div className="review-note-list">{pendingNotes.map((note) => <article key={note.id}><div><strong>{note.note}</strong><span>{note.department.name} · {dateLabel.format(note.mealDate)}{note.contactName ? ` · Người gửi tự ghi: ${note.contactName}` : ""}</span></div><form action={reviewPatientNoteAction}><input type="hidden" name="noteId" value={note.id}/><input name="reviewNote" maxLength={100} placeholder="Lý do nếu từ chối"/><button className="secondary-button" name="status" value="REJECTED">Từ chối</button><button className="primary-action" name="status" value="APPROVED">Duyệt tới bếp</button></form></article>)}</div>}</section>
     <div className="serving-event-list">{data.events.map((event) => {
       const report = event.reports[0];
       const byDiet = new Map(report?.lines.map((line) => [line.dietTypeId, line]));

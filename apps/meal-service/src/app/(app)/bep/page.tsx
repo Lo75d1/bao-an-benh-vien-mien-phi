@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { getSessionUser } from "@/lib/auth";
-import { KITCHEN_STATUS_LABEL, nextKitchenStatus, readNextKitchenMeal } from "@/lib/kitchen";
+import { KITCHEN_STATUS_LABEL, nextKitchenStatus, readApprovedKitchenNotes, readNextKitchenMeal } from "@/lib/kitchen";
 import { lockExpiredMealEvent, servingTotal } from "@/lib/late-addition";
 import { acknowledgeAdditionAction, transitionMealAction, uploadEvidenceAction } from "./actions";
 
@@ -13,9 +13,10 @@ const grams = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
 
 export default async function KitchenPage({ searchParams }: { searchParams: Promise<{ updated?: string; storage?: string }> }) {
   const user = await getSessionUser(); if (!user) redirect("/"); if (user.role !== "KITCHEN") redirect("/");
-  let [meal, query] = await Promise.all([readNextKitchenMeal(), searchParams]);
+  let [meal, query, patientNotes] = await Promise.all([readNextKitchenMeal(), searchParams, readApprovedKitchenNotes()]);
   if (meal && await lockExpiredMealEvent(meal.id, user) > 0) meal = await readNextKitchenMeal();
   return <AppShell user={user}><main className="workspace kitchen-page">
+    {patientNotes.length > 0 && <section className="approved-patient-notes" aria-labelledby="approved-note-heading"><div className="section-heading"><div><p className="eyebrow">Đã qua điều dưỡng</p><h2 id="approved-note-heading">Ghi chú bệnh nhân được duyệt</h2></div><span>{patientNotes.length} ghi chú</span></div><div>{patientNotes.map((note) => <article key={note.id}><strong>{note.note}</strong><span>{note.department.name} · {dateLabel.format(note.mealDate)}</span></article>)}</div></section>}
     <header className="page-heading"><div><p className="eyebrow">Bữa tiếp theo</p><h1>{meal ? `${meal.mealType.name} · ${dateLabel.format(meal.mealDate)}` : "Chưa có bữa cần xử lý"}</h1></div>{meal && <p className="scope-note">Phục vụ lúc {meal.mealType.serviceTime} · <span className="tabular">{meal.dietMeals.reduce((sum, item) => sum + item.servingsPlanned, 0)} suất đã báo</span></p>}</header>
     {query.updated && <p className="success-banner" role="status">{query.updated === "status" ? "Đã cập nhật trạng thái và ghi nhật ký." : query.updated === "addition" ? "Đã xác nhận suất bổ sung và ghi nhật ký." : "Đã lưu bằng chứng và ghi nhật ký."}</p>}
     {query.storage === "unavailable" && <p className="storage-notice" role="status">Ảnh đang tạm nằm im vì máy chủ chưa cấu hình nơi lưu. Trạng thái bữa ăn không bị ảnh hưởng.</p>}

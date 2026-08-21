@@ -282,8 +282,12 @@ model PatientNote {
   reviewedAt   DateTime?
   reviewNote   String?
   ipHash       String?
+  createdAt    DateTime          @default(now())
   department   Department        @relation(fields: [departmentId], references: [id])
   reviewedBy   User?             @relation(fields: [reviewedById], references: [id])
+
+  @@index([departmentId, status, createdAt])
+  @@index([departmentId, ipHash, createdAt])
 }
 
 model Warehouse {

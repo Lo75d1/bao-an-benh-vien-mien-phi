@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createLateMealAddition, normalizeAdditionReason } from "@/lib/late-addition";
+import { reviewPatientNote } from "@/lib/patient-note";
 import { normalizeServingNote, requireNurseDepartment, upsertServingReport, type ServingLineInput } from "@/lib/serving-report";
 
 export async function saveServingReportAction(formData: FormData) {
@@ -37,4 +38,15 @@ export async function addLateMealAction(formData: FormData) {
   revalidatePath("/bep");
   revalidatePath("/lich");
   redirect("/bao-suat?saved=addition");
+}
+
+export async function reviewPatientNoteAction(formData: FormData) {
+  const user = await getSessionUser();
+  if (!user) redirect("/");
+  const status = String(formData.get("status") ?? "");
+  if (status !== "APPROVED" && status !== "REJECTED") throw new Error("Trạng thái duyệt không hợp lệ.");
+  await reviewPatientNote({ id: String(formData.get("noteId") ?? ""), status, reviewNote: formData.get("reviewNote") }, user);
+  revalidatePath("/bao-suat");
+  revalidatePath("/bep");
+  redirect("/bao-suat?saved=patient-note");
 }
