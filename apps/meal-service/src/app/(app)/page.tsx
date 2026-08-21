@@ -11,6 +11,15 @@ const HOME_COPY = {
   KITCHEN: { title: "Bữa nào cần xử lý tiếp?", description: "Mở lịch để theo dõi trạng thái và số suất tổng theo từng chế độ.", action: "Xem lịch chế biến" },
 } as const;
 
+const DEMO_ACCOUNTS = process.env.DEMO_LOGIN_BUTTONS === "1"
+  ? [
+      { label: "Quản trị / Trưởng khoa", email: "admin@demo.local", password: "Demo-Admin-2026!" },
+      { label: "Dinh dưỡng", email: "dietitian@demo.local", password: "Demo-Dietitian-2026!" },
+      { label: "Điều dưỡng", email: "nurse@demo.local", password: "Demo-Nurse-2026!" },
+      { label: "Nhà bếp", email: "kitchen@demo.local", password: "Demo-Kitchen-2026!" },
+    ]
+  : [];
+
 export default async function HomePage() {
   const user = await getSessionUser();
   if (!user) {
@@ -25,7 +34,7 @@ export default async function HomePage() {
         <section className="login-panel" aria-labelledby="login-title">
           <p className="eyebrow">Dành cho nhân viên</p>
           <h2 id="login-title">Đăng nhập</h2>
-          <LoginForm />
+          <LoginForm demoAccounts={DEMO_ACCOUNTS} />
         </section>
       </main>
     );

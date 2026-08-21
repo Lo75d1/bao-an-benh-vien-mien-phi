@@ -93,3 +93,9 @@ select { font: inherit; }
 .admin-detail { padding: .9rem; background: #f5f9f7; }
 .status-form { display: grid; grid-template-columns: 1fr auto; gap: .65rem; }
 @media (max-width: 960px) { .admin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.admin-list summary { grid-template-columns: 1fr 1fr; }.admin-submit { grid-template-columns: 1fr; } }
+.demo-logins { margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #cdd8d3; }
+.demo-login-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; margin: .5rem 0; }
+.demo-login-btn { padding: .6rem .5rem; border: 1px solid #0f6e56; background: #e1f5ee; color: #123c36; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.demo-login-btn:hover:not(:disabled) { background: #0f6e56; color: #fff; }
+.demo-login-btn:disabled { opacity: .6; cursor: default; }
+.demo-hint { color: #667772; font-size: .8rem; margin-top: .35rem; }
