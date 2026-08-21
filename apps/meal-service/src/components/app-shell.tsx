@@ -13,6 +13,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
           <Link href="/lich">Lịch tuần</Link>
           {user.role === "NURSE" && <Link href="/bao-suat">Báo suất</Link>}
           {user.role === "DIETITIAN" && <Link href="/thuc-don">Lên thực đơn</Link>}
+          {user.role === "KITCHEN" && <Link href="/bep">Bữa tiếp theo</Link>}
         </nav>
         <div className="user-summary"><strong>{user.displayName}</strong><span>{ROLE_LABEL[user.role]}</span></div>
       </header>
