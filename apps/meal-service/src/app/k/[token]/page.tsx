@@ -1,11 +1,12 @@
 /* eslint-disable @next/next/no-img-element -- evidence URL comes from the configured storage boundary */
 import { notFound } from "next/navigation";
+import { ImageOff } from "lucide-react";
+import { DietName, EvaluationBadge, StatusBadge } from "@/components/presentation";
 import { readPublicDepartment } from "@/lib/patient-note";
 import { submitPatientNoteAction } from "./actions";
 
 const dateLabel = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", weekday: "long", day: "2-digit", month: "2-digit" });
-const overallLabel = { OK: "Đạt", WARN: "Cần lưu ý", FAIL: "Chưa đạt", MISSING: "—" } as const;
-const statusLabel = { PLANNED: "Đã lên kế hoạch", LOCKED: "Đã chốt", PREPARING: "Đang chuẩn bị", PREPARED: "Đã chuẩn bị", SERVED: "Đã phục vụ" } as const;
+const overallStatus = { OK: "OK", WARN: "LOW", FAIL: "HIGH", MISSING: "MISSING" } as const;
 
 export default async function PatientPage({ params, searchParams }: { params: Promise<{ token: string }>; searchParams: Promise<{ note?: string }> }) {
   const [{ token }, query] = await Promise.all([params, searchParams]);
@@ -17,10 +18,10 @@ export default async function PatientPage({ params, searchParams }: { params: Pr
     <section className="patient-section" aria-labelledby="current-meal">
       <div className="patient-section-heading"><div><p className="eyebrow">Bữa gần nhất</p><h2 id="current-meal">{data.current ? `${data.current.mealType.name} · ${data.current.mealType.serviceTime}` : "—"}</h2></div>{data.current && <span className="patient-date">{dateLabel.format(data.current.mealDate)}</span>}</div>
       {!data.current ? <div className="patient-empty" role="status"><strong>—</strong><p>Chưa có dữ liệu bữa ăn đã báo cho khoa.</p></div> : <div className="public-diet-list">{data.current.dietMeals.map((meal) => <article className="public-diet" key={meal.id}>
-        {meal.evidence[0]?.publicUrl ? <img src={meal.evidence[0].publicUrl} alt={`Ảnh bữa ăn ${meal.dietType.name}`}/> : <div className="patient-photo-empty"><strong>—</strong><span>Chưa có ảnh bữa ăn</span></div>}
-        <div className="public-diet-body"><div className="public-diet-title"><div><h3>{meal.dietType.name}</h3><p>{meal.dietType.code}</p></div><span className={`patient-status status-${meal.status.toLowerCase()}`}>{statusLabel[meal.status as keyof typeof statusLabel] ?? "—"}</span></div>
+        {meal.evidence[0]?.publicUrl ? <img src={meal.evidence[0].publicUrl} alt={`Ảnh bữa ăn ${meal.dietType.name}`}/> : <div className="patient-photo-empty"><ImageOff aria-hidden="true"/><strong>—</strong><span>Chưa có ảnh bữa ăn</span></div>}
+        <div className="public-diet-body"><div className="public-diet-title"><div><h3><DietName name={meal.dietType.name} code={meal.dietType.code}/></h3></div><StatusBadge status={meal.status}/></div>
           <div className="patient-menu"><span>Thực đơn</span><strong>{meal.menuItems.length ? meal.menuItems.join(" · ") : "—"}</strong>{meal.menuItems.length === 0 && <small>Chưa có dữ liệu thực đơn.</small>}</div>
-          <details className="patient-evaluation"><summary><span>Mức chỉ tiêu</span><strong className={`overall-${meal.evaluation.overall.toLowerCase()}`}>{overallLabel[meal.evaluation.overall]}</strong></summary>{meal.evaluation.criteria.length ? <ul>{meal.evaluation.criteria.map((criterion) => <li key={criterion.key}><span>{criterion.label}</span><strong>{criterion.status === "OK" ? "Đạt" : criterion.status === "LOW" ? "Thiếu" : criterion.status === "HIGH" ? "Vượt" : "—"}</strong></li>)}</ul> : <p>— · Chưa đủ dữ liệu đánh giá.</p>}</details>
+          <details className="patient-evaluation"><summary><span>Mức chỉ tiêu</span><EvaluationBadge status={overallStatus[meal.evaluation.overall]}/></summary>{meal.evaluation.criteria.length ? <ul>{meal.evaluation.criteria.map((criterion) => <li key={criterion.key}><span>{criterion.label}</span><EvaluationBadge status={criterion.status as "OK" | "LOW" | "HIGH" | "MISSING"}/></li>)}</ul> : <p>— · Chưa đủ dữ liệu đánh giá.</p>}</details>
           {meal.patientVisibleNotes.length > 0 && <div className="patient-visible-note"><span>Thông tin từ khoa</span>{meal.patientVisibleNotes.map((note, index) => <p key={index}>{note}</p>)}</div>}
         </div>
       </article>)}</div>}

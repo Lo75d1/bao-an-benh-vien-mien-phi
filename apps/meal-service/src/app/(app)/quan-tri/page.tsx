@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { PageHeader } from "@/components/presentation";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { readOperationalSettings } from "@/lib/settings";
@@ -22,7 +23,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     prisma.dietCode.findMany({ orderBy: { code: "asc" }, select: { id: true, code: true, name: true } }),
   ]);
   return <AppShell user={user}><main className="workspace admin-page">
-    <header className="page-heading"><div><p className="eyebrow">Quản trị hệ thống</p><h1>Cấu hình, nhân sự và mã chế độ ăn</h1></div><p className="scope-note">Chỉ ADMIN · mọi thay đổi đều được truy vết</p></header>
+    <PageHeader eyebrow="Quản trị hệ thống" title="Cấu hình, nhân sự và mã chế độ ăn" description="Quản lý vận hành, tài khoản và danh mục mà không xóa lịch sử." actions={<p className="scope-note">Chỉ ADMIN · mọi thay đổi đều được truy vết</p>}/>
     {updated && messages[updated] && <p className="success-banner" role="status">{messages[updated]}</p>}
     <nav className="admin-section-nav" aria-label="Mục quản trị"><a href="#settings">Cài đặt</a><a href="#accounts">Nhân sự</a><a href="#diet-types">Mã chế độ</a><a href="/quan-tri/audit">Nhật ký</a></nav>
 

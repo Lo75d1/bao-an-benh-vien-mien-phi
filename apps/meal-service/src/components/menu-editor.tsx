@@ -2,6 +2,7 @@
 import { useMemo, useState } from "react";
 import type { DietCodeThresholds } from "@suat-an/nutrition-engine";
 import { DietEvaluation } from "./diet-evaluation";
+import { ConfirmSubmitButton } from "./confirm-submit-button";
 import { evaluateMenu, type MenuItemInput, type MenuNutrientKey } from "@/lib/menu-logic";
 
 type FoodOption = { id: string; name: string; wastePercent: number | null; nutrients: Record<MenuNutrientKey, number | null> };
@@ -24,6 +25,6 @@ export function MenuEditor({ dietMeal, foods, thresholds, templates, copies, app
       <div className="ingredient-table"><div className="ingredient-head"><span>Thực phẩm</span><span>Gram</span><span>% thải bỏ</span><span></span></div>{items.map((item, index) => <div className="ingredient-row" key={`${index}-${item.foodId}`}><select aria-label={`Thực phẩm dòng ${index + 1}`} value={item.foodId ?? ""} onChange={(event) => updateFood(index, event.target.value)}><option value="">Chọn thực phẩm…</option>{foods.map((food) => <option key={food.id} value={food.id}>{food.name}</option>)}</select><input className="tabular" aria-label={`Gram dòng ${index + 1}`} type="number" min="0.01" step="0.01" value={item.grams} onChange={(event) => setItems((rows) => rows.map((row, i) => i === index ? { ...row, grams: Number(event.target.value) } : row))}/><span className="tabular waste-value">{item.wastePercent === null ? "—" : `${item.wastePercent}%`}</span><button type="button" className="remove-button" onClick={() => setItems((rows) => rows.filter((_, i) => i !== index))}>Xóa</button></div>)}</div>
       {items.length === 0 && <div className="menu-empty"><strong>Chưa có thực phẩm</strong><span>Thêm một dòng hoặc lấy từ mẫu cá nhân.</span></div>}<button type="button" className="add-row" onClick={() => setItems((rows) => [...rows, { foodId: null, itemName: "", grams: 100, wastePercent: null, nutrients: EMPTY_NUTRIENTS }])}>+ Thêm thực phẩm</button>
     </section><DietEvaluation criteria={evaluation.criteria}/></div>
-    <div className="menu-actions"><div className="template-save"><input name="templateName" aria-label="Tên mẫu" placeholder="Tên mẫu cá nhân"/><button className="secondary-button" formAction={saveTemplateAction} disabled={items.length === 0}>Lưu làm mẫu</button></div><button className="primary-action" formAction={approveAction} disabled={items.length === 0}>Duyệt &amp; chuyển sang báo ăn</button></div>
+    <div className="menu-actions"><div className="template-save"><input name="templateName" aria-label="Tên mẫu" placeholder="Tên mẫu cá nhân"/><button className="secondary-button" formAction={saveTemplateAction} disabled={items.length === 0}>Lưu làm mẫu</button></div><ConfirmSubmitButton formAction={approveAction} title="Duyệt thực đơn?" description="Thực đơn sẽ được đóng băng thành snapshot và chuyển sang luồng báo ăn." disabled={items.length === 0}>Duyệt &amp; chuyển sang báo ăn</ConfirmSubmitButton></div>
   </form>;
 }

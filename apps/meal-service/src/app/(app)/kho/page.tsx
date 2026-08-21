@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { PageHeader } from "@/components/presentation";
 import { getSessionUser } from "@/lib/auth";
 import { readWarehousePage } from "@/lib/warehouse";
 import { cancelTransactionAction, updateTransactionAction, uploadDocumentAction } from "./actions";
@@ -22,7 +23,7 @@ export default async function WarehousePage({ searchParams }: { searchParams: Pr
   const mealOptions = data.meals.map((meal) => ({ id: meal.id, feedingRoute: meal.feedingRoute, label: `${meal.mealEvent.mealType.name} ${date.format(meal.mealEvent.mealDate)} - ${meal.dietType.name}` }));
   const success = query.updated === "created" ? "Đã lưu giao dịch và nhật ký." : query.updated === "edited" ? "Đã cập nhật giao dịch và nhật ký." : query.updated === "cancelled" ? "Đã hủy giao dịch, dữ liệu lịch sử vẫn được giữ." : query.updated === "document" ? "Đã lưu chứng từ và nhật ký." : null;
   return <AppShell user={user}><main className="workspace warehouse-page">
-    <header className="page-heading"><div><p className="eyebrow">Kho nguyên liệu</p><h1>Nhập, xuất và điều chỉnh</h1></div><p className="scope-note">Mode {data.mode}: {data.mode === "A" ? "một kho tổng" : "tách kho bếp và kho sonde theo đường nuôi"}</p></header>
+    <PageHeader eyebrow="Kho nguyên liệu" title="Nhập, xuất và điều chỉnh" description="Ghi nhận giao dịch, chứng từ và đối chiếu dự kiến với thực xuất." actions={<p className="scope-note">Mode {data.mode}: {data.mode === "A" ? "một kho tổng" : "tách kho bếp và kho sonde theo đường nuôi"}</p>}/>
     {success && <p className="success-banner" role="status">{success}</p>}
     {query.storage === "unavailable" && <p className="storage-notice" role="status">Chứng từ đang nằm im vì máy chủ chưa cấu hình nơi lưu. Giao dịch kho không bị thay đổi.</p>}
     {data.warehouses.length === 0 ? <section className="empty-state"><h2>—</h2><p>Chưa có kho hoạt động phù hợp với Mode {data.mode}. Cần cấu hình dữ liệu trước khi nhập.</p></section> : <section className="warehouse-entry" aria-labelledby="quick-entry-heading"><div className="section-heading"><div><p className="eyebrow">Nhập nhanh</p><h2 id="quick-entry-heading">Lưu trước, bổ sung sau</h2></div><span>AI đọc bill không bắt buộc</span></div><QuickEntry warehouses={data.warehouses} meals={mealOptions} defaultOccurredAt={localInput(new Date())}/></section>}
