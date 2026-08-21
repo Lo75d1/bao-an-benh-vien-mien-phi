@@ -18,7 +18,7 @@ services:
     restart: "no"
   seed:
     build: { context: ., target: seed }
-    environment: { DATABASE_URL: "postgresql://meal_service:local-compose-only@db:5432/meal_service?schema=public" }
+    environment: { DATABASE_URL: "postgresql://meal_service:local-compose-only@db:5432/meal_service?schema=public", DEMO_SEED: "1" }
     depends_on: { migrate: { condition: service_completed_successfully } }
     restart: "no"
   app:

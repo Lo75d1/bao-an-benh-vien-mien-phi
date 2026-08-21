@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { PrismaClient, Role } from "@prisma/client";
 import { hashPassword } from "../src/lib/password";
+import { seedDemo } from "./seed-demo";
 const prisma = new PrismaClient();
 const dataDir = resolve(process.cwd(), "../../data/reference");
 async function rows(file: string, flush: (batch: any[]) => Promise<void>) { const input = createInterface({ input: createReadStream(resolve(dataDir, file), { encoding: "utf8" }), crlfDelay: Infinity }); let batch: any[] = []; let count = 0; for await (const line of input) { if (!line.trim()) continue; batch.push(JSON.parse(line)); if (batch.length === 500) { await flush(batch); count += batch.length; batch = []; } } if (batch.length) { await flush(batch); count += batch.length; } console.log(`${file}: ${count} dòng`); }
@@ -23,5 +24,5 @@ async function seedWarehouses() {
   }
   await prisma.appSetting.upsert({ where: { key: "warehouseMode" }, create: { key: "warehouseMode", valueJson: { mode: "A" } }, update: {} });
 }
-async function main() { await seedReference(); await seedFoundation(); await seedWarehouses(); }
+async function main() { await seedReference(); await seedFoundation(); await seedWarehouses(); if (process.env.DEMO_SEED === "1") await seedDemo(prisma); }
 main().finally(() => prisma.$disconnect());
