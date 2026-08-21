@@ -15,6 +15,8 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
           {user.role === "DIETITIAN" && <Link href="/thuc-don">Lên thực đơn</Link>}
           {user.role === "KITCHEN" && <Link href="/bep">Bữa tiếp theo</Link>}
           {["ADMIN", "DIETITIAN", "KITCHEN"].includes(user.role) && <Link href="/kho">Kho</Link>}
+          <Link href="/bao-cao">Báo cáo</Link>
+          {user.role === "ADMIN" && <Link href="/quan-tri/audit">Nhật ký</Link>}
         </nav>
         <div className="user-summary"><strong>{user.displayName}</strong><span>{ROLE_LABEL[user.role]}</span></div>
       </header>

@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "./kitchen.css";
 @import "./warehouse.css";
+@import "./reports.css";
 :root { color-scheme: light; background: #f4f6f3; color: #172b27; font-family: Arial, sans-serif; }
 * { box-sizing: border-box; }
 body { margin: 0; background: #f4f6f3; }
