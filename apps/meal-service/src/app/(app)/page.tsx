@@ -35,7 +35,7 @@ export default async function HomePage() {
         <p className="eyebrow">Việc tiếp theo</p>
         <h1>{copy.title}</h1>
         <p className="lead">{copy.description}</p>
-        <Link className="primary-link" href="/lich">{copy.action}</Link>
+        <Link className="primary-link" href={user.role === "DIETITIAN" ? "/thuc-don" : "/lich"}>{copy.action}</Link>
       </main>
     </AppShell>
   );

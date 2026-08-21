@@ -1,0 +1,14 @@
+"use server";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { getSessionUser } from "@/lib/auth";
+import { approveDietMeal } from "@/lib/menu";
+import { createMenuTemplate, deleteMenuTemplate } from "@/lib/menu-template";
+import type { MenuItemInput } from "@/lib/menu-logic";
+
+async function requireDietitian() { const user = await getSessionUser(); if (!user || user.role !== "DIETITIAN") throw new Error("Bạn không có quyền chỉnh thực đơn."); return user; }
+function readItems(formData: FormData): MenuItemInput[] { const raw = formData.get("items"); if (typeof raw !== "string") throw new Error("Dữ liệu thực đơn không hợp lệ."); const value = JSON.parse(raw) as unknown; if (!Array.isArray(value)) throw new Error("Dữ liệu thực đơn không hợp lệ."); return value as MenuItemInput[]; }
+
+export async function approveMenuAction(formData: FormData) { const user = await requireDietitian(); const dietMealId = String(formData.get("dietMealId") ?? ""); await approveDietMeal({ dietMealId, items: readItems(formData), sourceTemplateId: String(formData.get("sourceTemplateId") ?? "") || null }, user); revalidatePath("/thuc-don"); revalidatePath("/lich"); redirect(`/thuc-don?meal=${encodeURIComponent(dietMealId)}&saved=approved`); }
+export async function saveTemplateAction(formData: FormData) { const user = await requireDietitian(); const dietMealId = String(formData.get("dietMealId") ?? ""); await createMenuTemplate({ name: String(formData.get("templateName") ?? ""), dietTypeId: String(formData.get("dietTypeId") ?? "") || null, feedingRoute: formData.get("feedingRoute") === "SONDE" ? "SONDE" : "NORMAL", items: readItems(formData) }, user); revalidatePath("/thuc-don"); redirect(`/thuc-don?meal=${encodeURIComponent(dietMealId)}&saved=template`); }
+export async function deleteTemplateAction(formData: FormData) { const user = await requireDietitian(); await deleteMenuTemplate(String(formData.get("templateId") ?? ""), user); revalidatePath("/thuc-don"); redirect("/thuc-don?saved=deleted"); }

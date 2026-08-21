@@ -190,6 +190,7 @@ model DietMeal {
   approvedById          String?
   servingsPlanned       Int                    @default(0)
   evaluationJson        Json?
+  sourceTemplateId      String?
   status                DietMealStatus         @default(PLANNED)
   internalNote          String?
   patientVisibleNote    String?
@@ -198,12 +199,14 @@ model DietMeal {
   voidedReason          String?
   mealEvent             MealEvent              @relation(fields: [mealEventId], references: [id])
   dietType              DietType               @relation(fields: [dietTypeId], references: [id])
+  sourceTemplate        MenuTemplate?           @relation(fields: [sourceTemplateId], references: [id], onDelete: Restrict)
   approvedBy            User?                  @relation("DietMealApprover", fields: [approvedById], references: [id])
   voidedBy              User?                  @relation("DietMealVoider", fields: [voidedById], references: [id])
   evidence              MealEvidence[]
   inventoryTransactions InventoryTransaction[]
 
   @@unique([mealEventId, dietTypeId])
+  @@index([sourceTemplateId])
 }
 
 model ServingReport {
@@ -341,6 +344,7 @@ model MenuTemplate {
   owner        User               @relation(fields: [ownerId], references: [id])
   dietType     DietType?          @relation(fields: [dietTypeId], references: [id])
   items        MenuTemplateItem[]
+  usedByMeals  DietMeal[]
 }
 
 model MenuTemplateItem {

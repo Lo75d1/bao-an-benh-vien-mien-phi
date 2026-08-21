@@ -11,6 +11,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
         <nav aria-label="Điều hướng chính">
           <Link href="/">Việc tiếp theo</Link>
           <Link href="/lich">Lịch tuần</Link>
+          {user.role === "DIETITIAN" && <Link href="/thuc-don">Lên thực đơn</Link>}
         </nav>
         <div className="user-summary"><strong>{user.displayName}</strong><span>{ROLE_LABEL[user.role]}</span></div>
       </header>
