@@ -199,7 +199,7 @@ model DietMeal {
   voidedReason          String?
   mealEvent             MealEvent              @relation(fields: [mealEventId], references: [id])
   dietType              DietType               @relation(fields: [dietTypeId], references: [id])
-  sourceTemplate        MenuTemplate?           @relation(fields: [sourceTemplateId], references: [id], onDelete: Restrict)
+  sourceTemplate        MenuTemplate?          @relation(fields: [sourceTemplateId], references: [id], onDelete: Restrict)
   approvedBy            User?                  @relation("DietMealApprover", fields: [approvedById], references: [id])
   voidedBy              User?                  @relation("DietMealVoider", fields: [voidedById], references: [id])
   evidence              MealEvidence[]
@@ -226,12 +226,14 @@ model ServingReport {
 }
 
 model ServingReportLine {
-  id              String        @id @default(cuid())
-  servingReportId String
-  dietTypeId      String
-  quantity        Int
-  servingReport   ServingReport @relation(fields: [servingReportId], references: [id])
-  dietType        DietType      @relation(fields: [dietTypeId], references: [id])
+  id                 String        @id @default(cuid())
+  servingReportId    String
+  dietTypeId         String
+  quantity           Int
+  internalNote       String?
+  patientVisibleNote String?
+  servingReport      ServingReport @relation(fields: [servingReportId], references: [id])
+  dietType           DietType      @relation(fields: [dietTypeId], references: [id])
 
   @@unique([servingReportId, dietTypeId])
 }

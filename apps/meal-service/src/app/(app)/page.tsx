@@ -6,7 +6,7 @@ import { getSessionUser } from "@/lib/auth";
 const HOME_COPY = {
   ADMIN: { title: "Kiểm tra vận hành hôm nay", description: "Theo dõi các bữa cần chú ý và mở lịch để kiểm tra theo tuần.", action: "Xem lịch toàn viện" },
   DIETITIAN: { title: "Thực đơn nào cần lên tiếp?", description: "Mở lịch để nhận biết bữa và chế độ chưa có thực đơn. Nhập món sẽ được triển khai ở M2.", action: "Kiểm tra lịch thực đơn" },
-  NURSE: { title: "Chuẩn bị báo suất cho khoa", description: "Lịch chỉ hiển thị số suất thuộc khoa của bạn. Màn nhập báo suất sẽ được triển khai ở milestone sau.", action: "Xem lịch khoa mình" },
+  NURSE: { title: "Bạn cần báo suất hôm nay", description: "Nhập số suất theo từng chế độ cho khoa được gán. Bạn có thể sửa trước giờ chốt.", action: "Báo suất khoa mình" },
   KITCHEN: { title: "Bữa nào cần xử lý tiếp?", description: "Mở lịch để theo dõi trạng thái và số suất tổng theo từng chế độ.", action: "Xem lịch chế biến" },
 } as const;
 
@@ -35,7 +35,7 @@ export default async function HomePage() {
         <p className="eyebrow">Việc tiếp theo</p>
         <h1>{copy.title}</h1>
         <p className="lead">{copy.description}</p>
-        <Link className="primary-link" href={user.role === "DIETITIAN" ? "/thuc-don" : "/lich"}>{copy.action}</Link>
+        <Link className="primary-link" href={user.role === "DIETITIAN" ? "/thuc-don" : user.role === "NURSE" ? "/bao-suat" : "/lich"}>{copy.action}</Link>
       </main>
     </AppShell>
   );
