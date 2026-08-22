@@ -186,3 +186,4 @@
 .schedule-plain-list span { color: #65756f; }
 @media (max-width: 1100px) { .schedule-heading { align-items: flex-start; flex-direction: column; }.schedule-heading-tools { width: 100%; justify-content: space-between; } }
 @media (max-width: 700px) { .schedule-heading-tools { align-items: flex-start; flex-direction: column; }.schedule-heading-tools form { flex-wrap: wrap; }.schedule-dialog-columns { grid-template-columns: 1fr; } }
+.management-section-error { margin: 1rem 0; }
