@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { getSessionUser } from "@/lib/auth";
-import { readManagementDay } from "@/lib/management";
+import { readManagementDay, readManagementSchedule } from "@/lib/management";
 import { CurrentClock } from "./current-clock";
 import { ManagementBoard } from "./management-board";
+import { ScheduleBoard } from "./schedule-board";
 import "./quan-ly.css";
 
 export default async function ManagementPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
@@ -11,6 +12,6 @@ export default async function ManagementPage({ searchParams }: { searchParams: P
   if (!user) redirect("/");
   if (user.role !== "ADMIN") redirect("/");
   const { date } = await searchParams;
-  const data = await readManagementDay(date);
-  return <AppShell user={user}><main className="management-page"><header className="management-page-header"><div><p className="eyebrow">Quản trị · Chỉ xem</p><h1>Quản lý</h1><p>Theo dõi bếp và báo suất của tất cả khoa trên một màn hình.</p></div><div className="management-header-tools"><form method="get"><label htmlFor="management-date">Ngày</label><input id="management-date" name="date" type="date" defaultValue={data.date} /><button type="submit">Xem ngày</button></form><CurrentClock /></div></header><ManagementBoard data={data} /><section className="management-placeholder" aria-labelledby="schedule-heading"><div><p className="eyebrow">Phần 2</p><h2 id="schedule-heading">Lịch xuất ăn</h2></div><p>Sẽ bổ sung ở phần triển khai tiếp theo.</p></section></main></AppShell>;
+  const [data, schedule] = await Promise.all([readManagementDay(date), readManagementSchedule()]);
+  return <AppShell user={user}><main className="management-page"><header className="management-page-header"><div><p className="eyebrow">Quản trị · Chỉ xem</p><h1>Quản lý</h1><p>Theo dõi bếp và báo suất của tất cả khoa trên một màn hình.</p></div><div className="management-header-tools"><form method="get"><label htmlFor="management-date">Ngày</label><input id="management-date" name="date" type="date" defaultValue={data.date} /><button type="submit">Xem ngày</button></form><CurrentClock /></div></header><ManagementBoard data={data} /><ScheduleBoard data={schedule} /></main></AppShell>;
 }
