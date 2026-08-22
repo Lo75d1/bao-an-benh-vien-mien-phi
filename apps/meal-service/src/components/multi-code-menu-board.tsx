@@ -1,82 +1,56 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ClipboardList, Info, PackageOpen, ShoppingBasket } from "lucide-react";
+import type { DietCodeThresholds } from "@suat-an/nutrition-engine";
+import { DietEvaluation } from "./diet-evaluation";
+import { MenuFoodSearch } from "./nutrition-2598/MenuFoodSearch";
+import { foodToMenuItem, type DishResult, type FoodResult } from "./nutrition-2598/types";
+import { calculateMenuTotals, evaluateMenu, type MenuItemInput } from "@/lib/menu-logic";
 
-type MenuRow = { itemName: string; dishName: string; grams: number; wastePercent: number | null };
-type Meal = { id: string; code: string; servings: number; approved: boolean; items: MenuRow[] };
-type WarehouseNote = { id: string; type: string; occurredAt: string; itemCount: number; note: string | null };
+type Meal = { id: string; code: string; name: string; servings: number; approved: boolean; thresholds: DietCodeThresholds | null; items: MenuItemInput[] };
 const number = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
 
-function buyAmount(item: MenuRow, servings: number) {
-  if (servings <= 0 || item.wastePercent === null || item.wastePercent >= 100) return null;
-  return item.grams * servings / (1 - item.wastePercent / 100);
+function summary(items: MenuItemInput[]) {
+  const totals = calculateMenuTotals(items);
+  return totals.energyKcal === null ? "— kcal" : `${number.format(totals.energyKcal)} kcal`;
 }
 
-function dishesOf(meal: Meal) {
-  return [...new Set(meal.items.map((item) => item.dishName))];
-}
+export function MultiCodeMenuBoard({ meals, approveAction }: { meals: Meal[]; approveAction: (data: FormData) => void }) {
+  const [menus, setMenus] = useState<Record<string, MenuItemInput[]>>(() => Object.fromEntries(meals.map((meal) => [meal.id, meal.items])));
+  const [base, setBase] = useState<MenuItemInput[]>(() => meals.find((meal) => meal.items.length)?.items ?? []);
+  const [baseDish, setBaseDish] = useState(() => base[0]?.dishName || "Món 1");
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(meals.filter((meal) => !meal.approved).map((meal) => meal.id)));
+  const [searchKind, setSearchKind] = useState<"food" | "dish">("dish");
+  const eligible = meals.filter((meal) => {
+    const items = menus[meal.id] ?? [];
+    return selected.has(meal.id) && !meal.approved && items.length > 0 && evaluateMenu(items, meal.thresholds).criteria.every((criterion) => criterion.status === "OK");
+  });
+  const payload = JSON.stringify(eligible.map((meal) => ({ dietMealId: meal.id, items: menus[meal.id] })));
 
-export function MultiCodeMenuBoard({ meals, warehouseNotes }: { meals: Meal[]; warehouseNotes: WarehouseNote[] }) {
-  const [scope, setScope] = useState("all");
-  const [openShopping, setOpenShopping] = useState(false);
-  const shopping = useMemo(() => {
-    const rows = new Map<string, { grams: number; missing: boolean; codes: Set<string> }>();
-    for (const meal of meals) {
-      if (scope !== "all" && scope !== meal.id) continue;
-      for (const item of meal.items) {
-        const row = rows.get(item.itemName) ?? { grams: 0, missing: false, codes: new Set<string>() };
-        const grams = buyAmount(item, meal.servings);
-        if (grams === null) row.missing = true; else row.grams += grams;
-        row.codes.add(meal.code);
-        rows.set(item.itemName, row);
-      }
-    }
-    return [...rows.entries()].map(([name, row]) => ({ name, ...row })).sort((a, b) => b.grams - a.grams);
-  }, [meals, scope]);
-  const totalServings = meals.reduce((sum, meal) => sum + meal.servings, 0);
-  const plannedCodes = meals.filter((meal) => meal.items.length > 0).length;
+  function addBaseFood(food: FoodResult) { setBase((rows) => [...rows, foodToMenuItem(food, baseDish)]); }
+  function addBaseDish(dish: DishResult) {
+    const rows = dish.ingredients.flatMap((ingredient) => ingredient.food ? [foodToMenuItem(ingredient.food, dish.name, ingredient.quantityG)] : []);
+    setBase((current) => [...current.filter((row) => row.dishName !== dish.name), ...rows]); setBaseDish(dish.name);
+  }
+  function applyBase() { setMenus((current) => Object.fromEntries(meals.map((meal) => [meal.id, selected.has(meal.id) && !meal.approved ? base.map((item) => ({ ...item, nutrients: { ...item.nutrients } })) : current[meal.id] ?? []]))); }
+  function patchGram(mealId: string, index: number, grams: number) { setMenus((current) => ({ ...current, [mealId]: current[mealId].map((item, itemIndex) => itemIndex === index ? { ...item, grams } : item) })); }
+  function removeItem(mealId: string, index: number) { setMenus((current) => ({ ...current, [mealId]: current[mealId].filter((_, itemIndex) => itemIndex !== index) })); }
 
-  return <section className="multi-ration-board" aria-label="Lập thực đơn nhiều mã">
-    <header className="multi-ration-toolbar">
-      <div><strong>🍽️ Thực đơn nhiều mã</strong><span>Mỗi mã là một khẩu phần độc lập để bếp gom nguyên liệu và đi chợ.</span></div>
-      <div className="multi-ration-total"><span>{meals.length} mã</span><b>{plannedCodes}/{meals.length} đã lên thực đơn</b><em>{totalServings > 0 ? `${number.format(totalServings)} suất` : "— suất"}</em></div>
-    </header>
-
-    <div className="multi-ration-codes">
-      {meals.map((meal, index) => {
-        const dishes = dishesOf(meal);
-        return <article className="ration-code-day" key={meal.id}>
-          <header>
-            <span className="ration-drag" aria-hidden="true">⠿</span>
-            <div className="ration-code-name"><strong>{meal.code}</strong><small>Mã {index + 1}</small></div>
-            <span className="ration-serving-count">{meal.servings > 0 ? `${number.format(meal.servings)} suất` : "— suất"}</span>
-            <div className="ration-code-tools"><Link href={`/thuc-don?mode=single&meal=${meal.id}`}><Info size={15}/> Khuyến nghị</Link><Link href={`/thuc-don?mode=single&meal=${meal.id}`}>Mở mã ↗</Link></div>
-          </header>
-          {dishes.length > 0 ? <div className="ration-code-meals">
-            <section className="ration-meal-card">
-              <div className="ration-meal-grip" aria-hidden="true">⠿</div>
-              <div className="ration-meal-body"><div className="ration-meal-heading"><strong>Khẩu phần</strong><span>{meal.items.length} thực phẩm</span></div>
-                <div className="ration-dish-grid">{dishes.map((dish) => <div className="ration-dish-line" key={dish}><strong>🍽️ {dish}</strong><ul>{meal.items.filter((item) => item.dishName === dish).map((item, itemIndex) => <li key={`${item.itemName}-${itemIndex}`}><span>{item.itemName}</span><b>{number.format(item.grams)} g</b></li>)}</ul></div>)}</div>
-              </div>
-            </section>
-            <Link className="ration-add-meal" href={`/thuc-don?mode=single&meal=${meal.id}`}>＋ món</Link>
-          </div> : <div className="ration-code-empty"><span>Mã này chưa có món.</span><Link href={`/thuc-don?mode=single&meal=${meal.id}`}>＋ Lên thực đơn</Link></div>}
-        </article>;
-      })}
-    </div>
-
-    <div className="multi-ration-bottom">
-      <div><strong>Chọn mã để nhập</strong><span>Thêm món, thực phẩm, nhập tay và AI trong workspace Một mã.</span></div>
-      <select aria-label="Chọn mã để nhập" defaultValue="" onChange={(event) => { if (event.target.value) window.location.href = `/thuc-don?mode=single&meal=${event.target.value}`; }}><option value="">Chọn mã ăn…</option>{meals.map((meal) => <option key={meal.id} value={meal.id}>{meal.code} · {meal.servings > 0 ? `${meal.servings} suất` : "chưa có số suất"}</option>)}</select>
-      <button type="button" onClick={() => setOpenShopping((value) => !value)}><ShoppingBasket size={17}/> Tổng hợp đi chợ</button>
-    </div>
-
-    {openShopping && <section className="multi-shopping-panel">
-      <header><div><ShoppingBasket size={20}/><span><strong>Tổng hợp đi chợ</strong><small>Không trừ số liệu kho theo dõi.</small></span></div><select value={scope} onChange={(event) => setScope(event.target.value)}><option value="all">Toàn bộ mã</option>{meals.map((meal) => <option key={meal.id} value={meal.id}>{meal.code}</option>)}</select></header>
-      {shopping.length > 0 ? <div className="multi-shopping-table"><div><b>Nguyên liệu</b><b>Mã dùng</b><b>Lượng mua</b></div>{shopping.map((item) => <div key={item.name}><strong>{item.name}</strong><span>{[...item.codes].join(", ")}</span><b>{item.missing ? "—" : item.grams >= 1000 ? `${number.format(item.grams / 1000)} kg` : `${number.format(item.grams)} g`}</b></div>)}</div> : <div className="multi-shopping-empty"><ShoppingBasket size={24}/><strong>Chưa tính được nguyên liệu</strong><span>Cần có thực đơn và số suất của ít nhất một mã.</span></div>}
-      <details className="warehouse-peek"><summary><PackageOpen size={17}/> Kho theo dõi · {warehouseNotes.length || "—"} ghi chép</summary>{warehouseNotes.length ? warehouseNotes.map((entry) => <div key={entry.id}><ClipboardList size={15}/><span><strong>{entry.type} · {entry.itemCount} mặt hàng</strong><small>{entry.occurredAt} · {entry.note || "Không có ghi chú"}</small></span></div>) : <p>Chưa có ghi chép kho.</p>}</details>
-    </section>}
+  return <section className="multi-entry-2598">
+    <header className="multi-entry-toolbar"><div><strong>🍽️ Thực đơn nhiều mã</strong><span>Dựng nền một lần, áp dụng rồi chỉnh riêng ngay tại từng mã.</span></div><span>{meals.length} mã · {eligible.length} mã sẵn sàng duyệt</span></header>
+    <section className="base-menu-2598"><header><div><strong>Thực đơn nền</strong><span>{base.length} thực phẩm · {summary(base)}</span></div><button type="button" onClick={applyBase} disabled={base.length === 0 || selected.size === 0}>Áp dụng cho {selected.size} mã đã chọn</button></header>
+      <div className="base-menu-body"><label>Món đang nhập<input value={baseDish} onChange={(event) => setBaseDish(event.target.value)} maxLength={120}/></label><div className="base-items">{base.map((item, index) => <span key={`${item.itemName}-${index}`}>{item.dishName} › {item.itemName} · {number.format(item.grams)}g <button type="button" onClick={() => setBase((rows) => rows.filter((_, rowIndex) => rowIndex !== index))}>×</button></span>)}</div></div>
+      <div className="base-search"><div><button type="button" className={searchKind === "food" ? "active" : ""} onClick={() => setSearchKind("food")}>Thực phẩm</button><button type="button" className={searchKind === "dish" ? "active" : ""} onClick={() => setSearchKind("dish")}>Món ăn</button></div><MenuFoodSearch kind={searchKind} onPickFood={addBaseFood} onPickDish={addBaseDish}/><button type="button" disabled title="Sẽ kết nối công cụ AI sau">✨ AI</button></div>
+    </section>
+    <div className="multi-code-editors">{meals.map((meal) => {
+      const items = menus[meal.id] ?? [];
+      const evaluation = evaluateMenu(items, meal.thresholds);
+      const dishes = [...new Set(items.map((item) => item.dishName || "Món 1"))];
+      return <article className={meal.approved ? "code-editor-2598 approved" : "code-editor-2598"} key={meal.id}><header><input type="checkbox" aria-label={`Chọn mã ${meal.code}`} checked={selected.has(meal.id)} disabled={meal.approved} onChange={(event) => setSelected((current) => { const next = new Set(current); if (event.target.checked) next.add(meal.id); else next.delete(meal.id); return next; })}/><strong>{meal.code}</strong><span>{meal.name}</span><b>{meal.servings > 0 ? `${meal.servings} suất` : "— suất"}</b><em>{meal.approved ? "Đã duyệt" : summary(items)}</em></header>
+        {items.length === 0 ? <div className="code-editor-empty">Chưa có thực đơn. Tick mã rồi áp dụng thực đơn nền.</div> : <div className="code-editor-grid">{dishes.map((dish) => <section key={dish}><header><strong>🍽️ {dish}</strong><span>{items.filter((item) => (item.dishName || "Món 1") === dish).length} TP</span></header>{items.map((item, index) => (item.dishName || "Món 1") === dish && <div className="code-food-row" key={`${item.itemName}-${index}`}><span>{item.itemName}</span><label><input type="number" min="0.01" step="0.01" value={item.grams} disabled={meal.approved} onChange={(event) => patchGram(meal.id, index, Number(event.target.value))}/> g</label><button type="button" disabled={meal.approved} onClick={() => removeItem(meal.id, index)}>×</button></div>)}</section>)}</div>}
+        <details className="parallel-evaluation"><summary>Đánh giá mã · {evaluation.criteria.every((criterion) => criterion.status === "OK") ? "Đạt" : "Cần xem"}</summary><DietEvaluation criteria={evaluation.criteria}/></details>
+      </article>;
+    })}</div>
+    <form action={approveAction} className="multi-approve-bar"><input type="hidden" name="menus" value={payload}/><span><strong>{eligible.length} mã sẽ được duyệt</strong><small>Mỗi mã đóng snapshot và AuditLog riêng.</small></span><button disabled={eligible.length === 0}>Duyệt hàng loạt các mã đã chọn</button></form>
   </section>;
 }

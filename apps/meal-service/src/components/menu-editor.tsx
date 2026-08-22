@@ -4,26 +4,21 @@ import { useMemo, useState } from "react";
 import type { DietCodeThresholds } from "@suat-an/nutrition-engine";
 import { ConfirmSubmitButton } from "./confirm-submit-button";
 import { DietEvaluation } from "./diet-evaluation";
-import { calculateMenuTotals, evaluateMenu, type MenuItemInput, type MenuNutrientKey } from "@/lib/menu-logic";
+import { calculateMenuTotals, evaluateMenu, type MenuItemInput } from "@/lib/menu-logic";
+import { MenuFoodSearch } from "./nutrition-2598/MenuFoodSearch";
+import { foodToMenuItem, type DishResult, type FoodResult } from "./nutrition-2598/types";
 
-type FoodOption = { id: string; name: string; wastePercent: number | null; nutrients: Record<MenuNutrientKey, number | null> };
-type DishOption = { id: string; name: string; totalWeightG: number | null; ingredients: Array<FoodOption & { grams: number }> };
 type SourceItem = { foodId: string | null; itemName: string; dishName?: string; grams: number; wastePercent: number | null };
 type Source = { id: string; label: string; items: SourceItem[] };
 const EMPTY_NUTRIENTS = { energyKcal: null, proteinG: null, lipidG: null, glucidG: null, sodiumMg: null, potassiumMg: null, waterG: null };
 const number = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
 
-function normalize(value: string) {
-  return value.toLocaleLowerCase("vi-VN").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
-}
-
-export function MenuEditor({ dietMeal, foods, dishes: dishOptions, thresholds, templates, copies, approveAction, saveTemplateAction }: { dietMeal: { id: string; dietTypeId: string; feedingRoute: "NORMAL" | "SONDE"; approved?: boolean; existing: SourceItem[] }; foods: FoodOption[]; dishes: DishOption[]; thresholds: DietCodeThresholds | null; templates: Source[]; copies: Source[]; approveAction: (data: FormData) => void; saveTemplateAction: (data: FormData) => void }) {
-  const hydrate = (rows: SourceItem[]): MenuItemInput[] => rows.map((row) => { const food = foods.find((item) => item.id === row.foodId); return { ...row, dishName: row.dishName || "Món 1", nutrients: food?.nutrients ?? EMPTY_NUTRIENTS }; });
+export function MenuEditor({ dietMeal, thresholds, templates, copies, approveAction, saveTemplateAction }: { dietMeal: { id: string; dietTypeId: string; feedingRoute: "NORMAL" | "SONDE"; approved?: boolean; existing: SourceItem[] }; thresholds: DietCodeThresholds | null; templates: Source[]; copies: Source[]; approveAction: (data: FormData) => void; saveTemplateAction: (data: FormData) => void }) {
+  const hydrate = (rows: SourceItem[]): MenuItemInput[] => rows.map((row) => ({ ...row, dishName: row.dishName || "Món 1", nutrients: EMPTY_NUTRIENTS }));
   const [items, setItems] = useState<MenuItemInput[]>(() => hydrate(dietMeal.existing));
   const [activeDish, setActiveDish] = useState(() => dietMeal.existing[0]?.dishName || "Món 1");
   const [newDish, setNewDish] = useState("");
   const [emptyDishes, setEmptyDishes] = useState<string[]>([]);
-  const [query, setQuery] = useState("");
   const [searchKind, setSearchKind] = useState<"food" | "dish">("food");
   const [showManual, setShowManual] = useState(false);
   const [manualName, setManualName] = useState("");
@@ -31,8 +26,6 @@ export function MenuEditor({ dietMeal, foods, dishes: dishOptions, thresholds, t
   const dishes = useMemo(() => [...new Set([...items.map((item) => item.dishName || "Món 1"), ...emptyDishes])], [items, emptyDishes]);
   const totals = useMemo(() => calculateMenuTotals(items), [items]);
   const evaluation = useMemo(() => evaluateMenu(items, thresholds), [items, thresholds]);
-  const visibleFoods = useMemo(() => { const q = normalize(query.trim()); if (!q) return []; return foods.filter((food) => normalize(food.name).includes(q)).slice(0, 8); }, [foods, query]);
-  const visibleDishes = useMemo(() => { const q = normalize(query.trim()); if (!q) return []; return dishOptions.filter((dish) => normalize(dish.name).includes(q)).slice(0, 8); }, [dishOptions, query]);
   const encoded = JSON.stringify(items);
 
   function loadSource(source: Source | undefined, template = false) {
@@ -45,17 +38,15 @@ export function MenuEditor({ dietMeal, foods, dishes: dishOptions, thresholds, t
     setEmptyDishes((rows) => rows.includes(name) ? rows : [...rows, name]);
     setActiveDish(name); setNewDish("");
   }
-  function addFood(food: FoodOption) {
+  function addFood(food: FoodResult) {
     const dishName = activeDish || "Món 1";
-    setItems((rows) => [...rows, { foodId: food.id, itemName: food.name, dishName, grams: 100, wastePercent: food.wastePercent, nutrients: food.nutrients }]);
-    setQuery("");
+    setItems((rows) => [...rows, foodToMenuItem(food, dishName)]);
   }
-  function addDishRecipe(dish: DishOption) {
-    const recipeRows = dish.ingredients.map((food) => ({ foodId: food.id, itemName: food.name, dishName: dish.name, grams: food.grams, wastePercent: food.wastePercent, nutrients: food.nutrients }));
+  function addDishRecipe(dish: DishResult) {
+    const recipeRows = dish.ingredients.flatMap((ingredient) => ingredient.food ? [foodToMenuItem(ingredient.food, dish.name, ingredient.quantityG)] : []);
     setItems((rows) => [...rows.filter((row) => (row.dishName || "Món 1") !== dish.name), ...recipeRows]);
     setEmptyDishes((rows) => rows.filter((name) => name !== dish.name));
     setActiveDish(dish.name);
-    setQuery("");
   }
   function removeDish(name: string) {
     setItems((rows) => rows.filter((item) => (item.dishName || "Món 1") !== name));
@@ -80,7 +71,7 @@ export function MenuEditor({ dietMeal, foods, dishes: dishOptions, thresholds, t
         {!items.some((item) => (item.dishName || "Món 1") === activeDish) && <div className="menu-empty"><strong>Chưa có thực phẩm trong {activeDish}</strong><span>Dùng thanh tìm kiếm phía dưới để thêm; dinh dưỡng tính trên gram sống sạch.</span></div>}
       </section>
     </div>
-    <div className="ration-command-bar"><p>Đang thêm vào: <strong>{activeDish}</strong></p>{showManual && <div className="manual-food-entry"><input value={manualName} onChange={(event) => setManualName(event.target.value)} placeholder="Tên thực phẩm dùng tạm" autoFocus/><button type="button" onClick={addManualFood}>Thêm vào món</button><button type="button" onClick={() => setShowManual(false)}>Đóng</button></div>}<div className="command-row"><button type="button" className={searchKind === "food" ? "active" : ""} onClick={() => setSearchKind("food")}>Thực phẩm</button><button type="button" className={searchKind === "dish" ? "active" : ""} onClick={() => setSearchKind("dish")}>Món ăn</button><div className="command-search"><input id="menu-food-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={searchKind === "food" ? "Tìm thực phẩm; gõ không dấu được" : "Tìm món và đưa toàn bộ công thức vào khẩu phần"} autoComplete="off"/>{searchKind === "food" && query.trim() && <div className="food-results">{visibleFoods.length ? visibleFoods.map((food) => <button type="button" key={food.id} onClick={() => addFood(food)}><span><strong>{food.name}</strong><small>{food.wastePercent === null ? "Chưa có tỷ lệ thải bỏ" : `Thải bỏ ${food.wastePercent}%`}</small></span><em>+ Thêm</em></button>) : <p>Không tìm thấy thực phẩm phù hợp.</p>}</div>}{searchKind === "dish" && query.trim() && <div className="food-results">{visibleDishes.length ? visibleDishes.map((dish) => <button type="button" key={dish.id} onClick={() => addDishRecipe(dish)}><span><strong>{dish.name}</strong><small>{dish.ingredients.length} nguyên liệu{dish.totalWeightG ? ` · ${number.format(dish.totalWeightG)} g` : ""}</small></span><em>+ Dùng công thức</em></button>) : <p>Không tìm thấy món đã liên kết nguyên liệu.</p>}</div>}</div><button type="button" onClick={() => setShowManual((value) => !value)}>Nhập tay</button><button type="button" disabled title="Sẽ kết nối công cụ AI sau">AI</button></div></div>
+    <div className="ration-command-bar"><p>Đang thêm vào: <strong>{activeDish}</strong></p>{showManual && <div className="manual-food-entry"><input value={manualName} onChange={(event) => setManualName(event.target.value)} placeholder="Tên thực phẩm dùng tạm" autoFocus/><button type="button" onClick={addManualFood}>Thêm vào món</button><button type="button" onClick={() => setShowManual(false)}>Đóng</button></div>}<div className="command-row"><button type="button" className={searchKind === "food" ? "active" : ""} onClick={() => setSearchKind("food")}>Thực phẩm</button><button type="button" className={searchKind === "dish" ? "active" : ""} onClick={() => setSearchKind("dish")}>Món ăn</button><div className="command-search"><MenuFoodSearch kind={searchKind} onPickFood={addFood} onPickDish={addDishRecipe}/></div><button type="button" onClick={() => setShowManual((value) => !value)}>Nhập tay</button><button type="button" disabled title="Sẽ kết nối công cụ AI sau">AI</button></div></div>
     <div className="menu-actions"><div className="template-save"><input name="templateName" aria-label="Tên mẫu" placeholder="Tên mẫu cá nhân"/><button className="secondary-button" formAction={saveTemplateAction} disabled={items.length === 0}>Lưu làm mẫu</button></div><ConfirmSubmitButton formAction={approveAction} title="Duyệt thực đơn?" description="Thực đơn sẽ được đóng băng thành snapshot và chuyển sang luồng báo ăn." disabled={items.length === 0}>Duyệt &amp; chuyển sang báo ăn</ConfirmSubmitButton></div>
   </form>;
 }
