@@ -54,10 +54,11 @@ Tài liệu thiết kế trong `docs/bao-an-redesign/` là **NGUỒN SỰ THẬT
 - **Khi dùng:** review bảo mật PR trước merge; ưu tiên authz theo khoa, mass-assignment (Prisma), rate-limit trang QR công khai, secret trong git.
 
 ## 2. QUY TRÌNH (governance — KHÔNG được phá)
-- Làm trên **nhánh riêng** theo milestone → mở **PR / để lại diff** → **chờ Claude review** → Claude đồng ý mới merge.
-- **KHÔNG tự merge vào main. KHÔNG tự deploy. KHÔNG force-push.**
+- Làm trên **nhánh riêng** theo milestone → tự rà diff và phạm vi → chạy đầy đủ nghiệm thu → mở **PR / để lại diff** → Codex tự merge khi mọi kiểm tra đạt.
+- **Codex chịu trách nhiệm cửa duyệt cuối:** kiểm tra trùng lặp, quyền truy cập, dữ liệu, secret, migration, test/build và bằng chứng UI trước khi merge.
+- **Được tự merge vào `main` sau khi tự kiểm tra đạt. KHÔNG tự deploy. KHÔNG force-push.** Deploy production vẫn cần yêu cầu rõ ràng của chủ dự án.
 - Mỗi milestone: chỉ đụng đúng phạm vi của nó; đọc mục "KHÔNG được sửa" của milestone đó.
-- Một agent / một vùng — không sửa chỗ Claude đang sửa.
+- Một agent / một vùng — không ghi đè thay đổi đang làm dở của người khác.
 - Nghiệm thu: chạy test + build thật; nộp **log + ảnh** (màn nhân viên **desktop ~1280px**, bệnh nhân **mobile ~375px**).
 
 ## 3. LUẬT DỮ LIỆU & AN TOÀN (bất di bất dịch)
