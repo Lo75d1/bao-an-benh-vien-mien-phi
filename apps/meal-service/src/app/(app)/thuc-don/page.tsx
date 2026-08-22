@@ -1,3 +1,4 @@
+import { Separator } from "@/components/ui/separator";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { MenuEditor } from "@/components/menu-editor";
@@ -15,8 +16,6 @@ import {
   saveTemplateAction,
 } from "./actions";
 import { formatVnDay } from "@/lib/presentation";
-import "./thuc-don-v13.css";
-import "./thuc-don-v14.css";
 
 function thresholdsOf(
   code: {
@@ -169,8 +168,8 @@ export default async function MenuPage({
   return (
     <AppShell user={user}>
       <main
-        className={`workspace menu-page ${mode === "multiple" ? "multiple-v13-page" : ""}`}
-      >
+        className={`workspace menu-page ${mode === "multiple" ? "multiple-workspace-page" : ""}`}
+      ><Separator className="page-separator" aria-hidden="true"/>
         {message && (
           <p className="success-banner" role="status">
             {message}
@@ -184,7 +183,7 @@ export default async function MenuPage({
           />
         ) : (
           <>
-            <div className="menu-v13-top">
+            <div className="menu-workspace-top">
               <nav
                 className="menu-mode-switch"
                 aria-label="Chế độ lập thực đơn"
@@ -203,7 +202,7 @@ export default async function MenuPage({
                 </a>
               </nav>
               <nav
-                className="menu-wizard-v13"
+                className="menu-wizard-workspace"
                 aria-label="Các bước lập thực đơn"
               >
                 <a
@@ -216,7 +215,7 @@ export default async function MenuPage({
                 <a href="#analysis">② Phân tích &amp; báo cáo</a>
               </nav>
             </div>
-            {mode === "single" && <form className="single-meal-picker-v14" method="get"><input type="hidden" name="mode" value="single"/><label>Mã đang xử lý<select name="meal" defaultValue={selected.id}>{meals.map((meal) => <option key={meal.id} value={meal.id}>{meal.approvedAt ? "✓" : "○"} {formatVnDay(meal.mealEvent.mealDate)} · {meal.mealEvent.mealType.name} · {meal.feedingRoute === "SONDE" ? "Sonde" : "Ăn thường"} · {meal.dietType.name} ({meal.dietType.code})</option>)}</select></label><button>Chuyển việc</button></form>}
+            {mode === "single" && <form className="single-meal-picker-workspace" method="get"><input type="hidden" name="mode" value="single"/><label>Mã đang xử lý<select name="meal" defaultValue={selected.id}>{meals.map((meal) => <option key={meal.id} value={meal.id}>{meal.approvedAt ? "✓" : "○"} {formatVnDay(meal.mealEvent.mealDate)} · {meal.mealEvent.mealType.name} · {meal.feedingRoute === "SONDE" ? "Sonde" : "Ăn thường"} · {meal.dietType.name} ({meal.dietType.code})</option>)}</select></label><button>Chuyển việc</button></form>}
             {mode === "single" ? (
               <MenuEditor
                 dietMeal={{
@@ -265,7 +264,7 @@ export default async function MenuPage({
               />
             ) : (
               <>
-                <form className="multi-meal-picker-v13" method="get">
+                <form className="multi-meal-picker-workspace" method="get">
                   <input type="hidden" name="mode" value="multiple" />
                   <label>
                     Bữa đang xử lý
@@ -325,7 +324,7 @@ export default async function MenuPage({
                   }))}
                   approveAction={approveMenusAction}
                 />
-                <section id="analysis" className="analysis-v13">
+                <section id="analysis" className="analysis-workspace">
                   <p className="eyebrow">Bước ②</p>
                   <h2>Phân tích &amp; báo cáo</h2>
                   <p>

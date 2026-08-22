@@ -1,3 +1,4 @@
+import { Separator } from "@/components/ui/separator";
 import { ChefHat } from "lucide-react";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
@@ -28,7 +29,7 @@ export default async function KitchenPage({ searchParams }: { searchParams: Prom
   const meal = workspace.selected;
   const selectedTotal = meal?.dietMeals.reduce((sum, item) => sum + servingTotal(item.servingsPlanned, meal.additions.filter((addition) => addition.dietTypeId === item.dietTypeId)).total, 0) ?? null;
 
-  return <AppShell user={user}><main className="workspace kitchen-page">
+  return <AppShell user={user}><main className="workspace kitchen-page"><Separator className="page-separator" aria-hidden="true"/>
     <PageHeader eyebrow="Bàn làm việc bếp" title={meal ? `${meal.mealType.name} · ${dateLabel.format(meal.mealDate)}` : "Chưa có bữa cần xử lý"} description="Chọn bữa, kiểm tra số suất và cập nhật tiến độ ngay trên một màn hình." actions={meal ? <p className="scope-note">Phục vụ lúc {meal.mealType.serviceTime} · <strong className="tabular">{selectedTotal === null ? "—" : `${numberFormat.format(selectedTotal)} suất`}</strong></p> : undefined}/>
     {query.updated && <p className="success-banner" role="status" aria-live="polite">{query.updated === "status" ? "Đã cập nhật trạng thái và ghi nhật ký." : query.updated === "addition" ? "Đã xác nhận suất bổ sung và ghi nhật ký." : "Đã lưu bằng chứng và ghi nhật ký."}</p>}
     {query.storage === "unavailable" && <p className="storage-notice" role="status" aria-live="polite">Ảnh đang tạm nằm im vì máy chủ chưa cấu hình nơi lưu. Trạng thái bữa ăn không bị ảnh hưởng.</p>}

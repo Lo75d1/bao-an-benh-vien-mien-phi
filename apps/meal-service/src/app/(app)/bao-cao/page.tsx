@@ -1,3 +1,4 @@
+import { Separator } from "@/components/ui/separator";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { getSessionUser } from "@/lib/auth";
@@ -14,7 +15,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   if (!user) redirect("/");
   const params = await searchParams;
   const preview = params.preview === "1" && params.from && params.to && params.content ? await readReport(parseReportContent(params.content), parseReportRange(params.from, params.to), user) : null;
-  return <AppShell user={user}><main className="workspace report-page">
+  return <AppShell user={user}><main className="workspace report-page"><Separator className="page-separator" aria-hidden="true"/>
     <PageHeader eyebrow="Bàn làm việc báo cáo" title="Xem trước rồi xuất đúng dữ liệu" description="Chọn phạm vi một lần; hệ thống giữ nguyên dữ liệu gốc và không tự điền ô thiếu." actions={<p className="scope-note">{user.role === "NURSE" ? "Theo khoa được phân công" : "Phạm vi toàn viện"}</p>}/>
     <section className="report-builder" aria-labelledby="report-builder-title">
       <div className="report-builder-copy"><span><FileDown aria-hidden="true"/></span><div><h2 id="report-builder-title">Thiết lập báo cáo</h2><p>Xem trước ngay trên màn hình hoặc tải Excel, PDF và bản in.</p></div></div>

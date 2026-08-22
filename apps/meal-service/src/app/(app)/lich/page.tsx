@@ -1,3 +1,4 @@
+import { Separator } from "@/components/ui/separator";
 import { redirect } from "next/navigation";
 import type { FeedingRoute } from "@prisma/client";
 import { AppShell } from "@/components/app-shell";
@@ -24,7 +25,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
 
   return (
     <AppShell user={user}>
-      <main className="workspace calendar-page">
+      <main className="workspace calendar-page"><Separator className="page-separator" aria-hidden="true"/>
         <PageHeader eyebrow="Lịch tuần" title={`${formatVnDay(weekStart)} đến ${formatVnDay(end)}`} description="Theo dõi trạng thái bữa, thực đơn và số suất đã ghi nhận." actions={user.role === "NURSE" ? <p className={memberships.length ? "scope-note" : "scope-note warning"}>{memberships.length ? `Phạm vi: ${memberships.map((item) => item.department.name).join(", ")}` : "Chưa được gán khoa; số suất hiển thị —"}</p> : <p className="scope-note">Phạm vi: Toàn viện</p>}/>
         <WeeklyCalendar events={events} weekStart={weekStart} role={user.role} route={route} sondeEnabled={settings.sondeEnabled} />
       </main>

@@ -1,3 +1,4 @@
+import { Separator } from "@/components/ui/separator";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/presentation";
@@ -8,7 +9,6 @@ import { accountStatusAction, dietTypeStatusAction, saveAccountAction, saveDietT
 import { AccountCreateForm, SettingsForm } from "./admin-forms";
 import { AccountTable } from "./account-table";
 import { DietTypeTable } from "./diet-type-table";
-import "./quan-tri.css";
 
 const roleLabel = { ADMIN: "Quản trị", DIETITIAN: "Dinh dưỡng", NURSE: "Điều dưỡng", KITCHEN: "Nhà bếp" } as const;
 const messages: Record<string, string> = { settings: "Đã áp dụng cấu hình và ghi nhật ký.", created: "Đã tạo tài khoản với mật khẩu được băm scrypt.", account: "Đã cập nhật tài khoản.", status: "Đã đổi trạng thái tài khoản, không xóa lịch sử.", diet: "Đã lưu mã chế độ ăn.", "diet-status": "Đã đổi trạng thái mã chế độ ăn, không xóa lịch sử." };
@@ -28,7 +28,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   ]);
   const activeUsers = users.filter((account) => account.status === "ACTIVE").length;
   const activeDiets = dietTypes.filter((diet) => diet.status === "ACTIVE").length;
-  return <AppShell user={user}><main className="workspace admin-page admin-workspace">
+  return <AppShell user={user}><main className="workspace admin-page admin-workspace"><Separator className="page-separator" aria-hidden="true"/>
     <PageHeader eyebrow="Trung tâm quản trị" title="Thiết lập để hệ thống vận hành đúng" description="Theo dõi cấu hình đang áp dụng, quản lý nhân sự và danh mục từ một nơi." actions={<p className="scope-note">Chỉ ADMIN · mọi thay đổi đều được truy vết</p>}/>
     {updated && messages[updated] && <p className="success-banner" role="status">{messages[updated]}</p>}
     <section className="admin-status-strip" aria-label="Trạng thái cấu hình"><div><span>Tài khoản hoạt động</span><strong className="tabular">{activeUsers}<small> / {users.length}</small></strong></div><div><span>Khoa đang dùng</span><strong className="tabular">{departments.length}</strong></div><div><span>Mã chế độ hoạt động</span><strong className="tabular">{activeDiets}<small> / {dietTypes.length}</small></strong></div><div><span>Cửa sổ nhập liệu</span><strong className="tabular">{settings.advanceEntryDays}<small> ngày</small></strong></div><div><span>Đường nuôi Sonde</span><strong className={settings.sondeEnabled ? "status-on" : "status-off"}>{settings.sondeEnabled ? "Đang bật" : "Đang tắt"}</strong></div><div><span>Mô hình kho</span><strong>Mode {settings.warehouseMode}</strong></div></section>

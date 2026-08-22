@@ -1,3 +1,4 @@
+import { Separator } from "@/components/ui/separator";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState, PageHeader } from "@/components/presentation";
@@ -8,7 +9,6 @@ import { lockExpiredMealEvent, servingTotal } from "@/lib/late-addition";
 import { readPendingPatientNotes } from "@/lib/patient-note";
 import { addLateMealAction, reviewPatientNoteAction, saveServingReportAction } from "./actions";
 import { ServingForm } from "./serving-form";
-import "./bao-suat.css";
 
 const dateLabel = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
 
@@ -22,7 +22,7 @@ export default async function ServingReportPage({ searchParams }: { searchParams
   const locked = (await Promise.all(data.events.map((event) => lockExpiredMealEvent(event.id, user)))).some((count) => count > 0);
   if (locked) data = await readNurseServingDay(user.id);
   const selectedEvent = data.events.find((event) => event.id === meal) ?? data.events.find((event) => isBeforeCutoff(event.mealDate, event.mealType.cutoffTime)) ?? data.events.at(-1);
-  return <AppShell user={user}><main className="workspace serving-page serving-workspace">
+  return <AppShell user={user}><main className="workspace serving-page serving-workspace"><Separator className="page-separator" aria-hidden="true"/>
     <PageHeader eyebrow="Báo suất hôm nay" title={data.departmentName} description="Chọn một bữa, nhập số suất và gửi ngay trong cùng một bàn làm việc." actions={<p className="scope-note">{dateLabel.format(new Date())} · Khoa được gán tự động</p>}/>
     {saved && <p className="success-banner" role="status">{saved === "addition" ? "Đã gửi suất bổ sung riêng cho bếp. Số suất gốc không thay đổi." : "Đã lưu báo suất và cập nhật tổng toàn viện."}</p>}
     {data.events.length === 0 && <EmptyState icon={Utensils} title="Chưa có bữa ăn hôm nay" description="Không có số liệu để nhập. Hệ thống không tự tạo hoặc đoán số suất."/>}

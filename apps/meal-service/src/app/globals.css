@@ -8,9 +8,7 @@
   }
 }
 @import "tw-animate-css";
-@import "./kitchen.css";
-@import "./warehouse.css";
-@import "./reports.css";
+@import "./operations.css";
 
 @theme inline {
   --font-sans: "Times New Roman", Times, serif;
@@ -78,6 +76,7 @@
   --radius: 0.875rem;
   --fs-xs: 0.75rem;
   --fs-sm: 0.8125rem;
+  --fs-table: 0.875rem;
   --fs-base: 0.9375rem;
   --fs-md: 1rem;
   --fs-lg: 1.1875rem;
@@ -107,6 +106,10 @@ button, input, textarea { font: inherit; }
 select { font: inherit; }
 button, a, input, select, textarea { transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease; }
 button:not(:disabled):active, a:active { transform: translateY(1px); }
+.page-separator { width: 100%; height: 1px; margin: 0 0 .75rem; border: 0; background: var(--clinical-line); }
+table { font-size: var(--fs-table); line-height: 1.35; }
+th, td { min-height: var(--row-height); padding: var(--space-cell-y) var(--space-cell-x); }
+td:is(:has(input[type="number"]), :has(.tabular)), .tabular { font-variant-numeric: tabular-nums; }
 .eyebrow { margin: 0 0 .65rem; color: var(--accent); font-size: var(--fs-sm); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .login-page { min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(360px, .8fr); }
 .login-intro { display: flex; flex-direction: column; justify-content: center; padding: clamp(3rem, 8vw, 8rem); background: var(--primary); color: var(--card); }
