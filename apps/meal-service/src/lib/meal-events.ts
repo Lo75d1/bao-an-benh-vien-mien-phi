@@ -20,6 +20,42 @@ export type CalendarEvent = Prisma.MealEventGetPayload<{
 
 const STATUS_ORDER: DietMealStatus[] = ["PLANNED", "LOCKED", "PREPARING", "PREPARED", "SERVED"];
 
+export type DisplayMealState = {
+  key: "UPCOMING" | "RECEIVING" | "PREPARING" | "COOKING" | "SERVING" | "SERVED" | "INCOMPLETE";
+  label: string;
+  tone: "muted" | "neutral" | "warning" | "active" | "done" | "danger";
+  isCurrent: boolean;
+};
+
+function hospitalDayKey(now: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}
+
+function atVietnamTime(mealDate: Date, value: string): number | null {
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return null;
+  return Date.UTC(mealDate.getUTCFullYear(), mealDate.getUTCMonth(), mealDate.getUTCDate(), hour - 7, minute);
+}
+
+export function displayMealState(mealDate: Date, cutoffTime: string, serviceTime: string, storedStatus: DietMealStatus | null, now = new Date()): DisplayMealState | null {
+  if (storedStatus === null || storedStatus === "CANCELLED") return null;
+  const cutoffAt = atVietnamTime(mealDate, cutoffTime);
+  const serviceAt = atVietnamTime(mealDate, serviceTime);
+  if (cutoffAt === null || serviceAt === null) return { key: "INCOMPLETE", label: "⚠ Chưa hoàn tất", tone: "danger", isCurrent: false };
+  if (storedStatus === "SERVED") return { key: "SERVED", label: "Đã phục vụ", tone: "done", isCurrent: false };
+  const nowMs = now.getTime();
+  if (nowMs >= serviceAt + 60 * 60 * 1000) return { key: "INCOMPLETE", label: "⚠ Chưa hoàn tất", tone: "danger", isCurrent: false };
+  if (storedStatus === "PREPARED" && nowMs < serviceAt) return { key: "COOKING", label: "Đang nấu", tone: "warning", isCurrent: true };
+  if (["LOCKED", "PREPARING"].includes(storedStatus) && nowMs < cutoffAt) return { key: "PREPARING", label: "Đang chuẩn bị", tone: "warning", isCurrent: true };
+  if (nowMs >= serviceAt) return { key: "SERVING", label: "Đang phục vụ", tone: "active", isCurrent: true };
+  if (nowMs >= cutoffAt) return { key: "PREPARING", label: "Đang chuẩn bị", tone: "warning", isCurrent: true };
+  if (toDateKey(mealDate) > hospitalDayKey(now)) return { key: "UPCOMING", label: "Chưa tới", tone: "muted", isCurrent: false };
+  return { key: "RECEIVING", label: "Đang nhận báo suất", tone: "neutral", isCurrent: false };
+}
+
 export function rollupMealEventStatus(statuses: DietMealStatus[]): DietMealStatus | null {
   if (statuses.length === 0) return null;
   const active = statuses.filter((status) => status !== "CANCELLED");

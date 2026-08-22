@@ -23,6 +23,17 @@ function atVietnamTime(date: Date, hour: number, minute = 0): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), hour - 7, minute));
 }
 
+function demoMealStatus(mealDate: Date, cutoffTime: string, serviceTime: string, now: Date, intentionallyIncomplete = false): DietMealStatus {
+  const [cutoffHour, cutoffMinute] = cutoffTime.split(":").map(Number);
+  const [serviceHour, serviceMinute] = serviceTime.split(":").map(Number);
+  const cutoffAt = atVietnamTime(mealDate, cutoffHour, cutoffMinute).getTime();
+  const serviceAt = atVietnamTime(mealDate, serviceHour, serviceMinute).getTime();
+  if (now.getTime() >= serviceAt + 60 * 60 * 1000) return intentionallyIncomplete ? "PREPARED" : "SERVED";
+  if (now.getTime() >= serviceAt) return "PREPARED";
+  if (now.getTime() >= cutoffAt) return "PREPARING";
+  return "PLANNED";
+}
+
 function json(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
 }
@@ -62,7 +73,6 @@ export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<
   });
 
   const weekStart = mondayOfCurrentWeek(now);
-  const statuses: DietMealStatus[] = ["SERVED", "PREPARED", "PREPARING", "LOCKED", "PLANNED"];
   const mealsByKey = new Map<string, { id: string; eventId: string; dietTypeId: string }>();
 
   for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
@@ -92,7 +102,8 @@ export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<
           return [key, Number(values.reduce<number>((sum, value, index) => sum + (value as number) * grams[index] / 100, 0).toFixed(2))];
         }));
         const evaluation = evaluateDiet({ ...totals, sodiumMg: null, potassiumMg: null, waterG: null, meals: 1 }, null);
-        const status = statuses[(dayIndex * mealTypes.length + mealIndex + dietIndex) % statuses.length];
+        const intentionallyIncomplete = dayIndex === 0 && mealIndex === 0 && dietIndex === 0;
+        const status = demoMealStatus(mealDate, mealType.cutoffTime, mealType.serviceTime, now, intentionallyIncomplete);
         const id = `demo-meal-${dateKey(mealDate)}-${mealType.code.toLowerCase()}-${dietType.code.toLowerCase()}`;
         const meal = await prisma.dietMeal.upsert({
           where: { mealEventId_dietTypeId: { mealEventId: event.id, dietTypeId: dietType.id } },
@@ -120,6 +131,19 @@ export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<
             patientVisibleNote: dietIndex === 2 ? "Suất ăn hạn chế đường, phục vụ theo chỉ định của khoa." : null,
           },
         });
+        const milestoneAt = status === "SERVED" || status === "PREPARED" ? atVietnamTime(mealDate, Number(mealType.serviceTime.slice(0, 2)), Number(mealType.serviceTime.slice(3))) : atVietnamTime(mealDate, Number(mealType.cutoffTime.slice(0, 2)), Number(mealType.cutoffTime.slice(3)));
+        await prisma.auditLog.upsert({
+          where: { id: `demo-kitchen-status-${id}` },
+          create: { id: `demo-kitchen-status-${id}`, entityType: "DietMeal", entityId: meal.id, action: "KITCHEN_STATUS_CHANGE", actorId: kitchen.id, actorName: kitchen.displayName, afterJson: json({ status }), reason: "Dữ liệu demo theo khung giờ bữa ăn", createdAt: milestoneAt },
+          update: { entityId: meal.id, actorId: kitchen.id, actorName: kitchen.displayName, afterJson: json({ status }), createdAt: milestoneAt },
+        });
+        if (status === "SERVED") {
+          for (const kind of ["MEAL_PHOTO", "FOOD_SAMPLE"] as const) await prisma.mealEvidence.upsert({
+            where: { id: `demo-evidence-${kind.toLowerCase()}-${id}` },
+            create: { id: `demo-evidence-${kind.toLowerCase()}-${id}`, dietMealId: meal.id, kind, storagePath: `demo/bua-an/${id}-${kind.toLowerCase()}.jpg`, uploadedById: kitchen.id, uploadedAt: milestoneAt, note: kind === "MEAL_PHOTO" ? "Ảnh bữa ăn demo." : "Mẫu lưu bữa ăn demo." },
+            update: { dietMealId: meal.id, kind, uploadedById: kitchen.id, uploadedAt: milestoneAt },
+          });
+        }
         mealsByKey.set(`${dateKey(mealDate)}:${mealType.code}:${dietType.code}`, { id: meal.id, eventId: event.id, dietTypeId: dietType.id });
       }
 

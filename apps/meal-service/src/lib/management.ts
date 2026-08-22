@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { FeedingRoute } from "@prisma/client";
 import { prisma } from "./prisma";
 import { hospitalDate } from "./serving-report";
 import { addDays } from "./meal-events";
@@ -150,17 +151,17 @@ function serviceAt(day: Date, time: string): number | null {
   return Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), hour - 7, minute);
 }
 
-export async function readManagementDay(date?: string, now = new Date()): Promise<ManagementDay> {
+export async function readManagementDay(date?: string, now = new Date(), departmentIds?: string[], feedingRoute?: FeedingRoute): Promise<ManagementDay> {
   const day = parseHospitalDay(date, now);
   const [departments, events] = await Promise.all([
-    prisma.department.findMany({ where: { status: "ACTIVE" }, orderBy: [{ code: "asc" }, { name: "asc" }], select: { id: true, code: true, name: true } }),
+    prisma.department.findMany({ where: { status: "ACTIVE", ...(departmentIds ? { id: { in: departmentIds } } : {}) }, orderBy: [{ code: "asc" }, { name: "asc" }], select: { id: true, code: true, name: true } }),
     prisma.mealEvent.findMany({
       where: { mealDate: day }, orderBy: { mealType: { sortOrder: "asc" } },
       select: {
         id: true, mealType: { select: { name: true, cutoffTime: true, serviceTime: true } },
-        dietMeals: { where: { voidedAt: null, status: { not: "CANCELLED" } }, orderBy: { dietType: { sortOrder: "asc" } }, select: { id: true, status: true, servingsPlanned: true, approvedAt: true, menuSnapshotJson: true, evaluationJson: true, approvedBy: { select: { displayName: true } }, dietType: { select: { code: true, name: true } }, evidence: { where: { kind: { in: ["MEAL_PHOTO", "FOOD_SAMPLE"] } }, orderBy: { uploadedAt: "desc" }, select: { id: true, kind: true, storagePath: true, note: true, uploadedAt: true, uploadedBy: { select: { displayName: true } } } } } },
-        reports: { where: { status: "SUBMITTED" }, select: { id: true, departmentId: true, submittedAt: true, submittedBy: { select: { displayName: true } }, lines: { orderBy: { dietType: { sortOrder: "asc" } }, select: { quantity: true, dietType: { select: { code: true, name: true } } } } } },
-        additions: { orderBy: { submittedAt: "desc" }, select: { id: true, departmentId: true, quantity: true, reason: true, ackStatus: true, submittedAt: true, submittedBy: { select: { displayName: true } }, department: { select: { name: true } }, dietType: { select: { code: true, name: true } } } },
+        dietMeals: { where: { voidedAt: null, status: { not: "CANCELLED" }, ...(feedingRoute ? { feedingRoute } : {}) }, orderBy: { dietType: { sortOrder: "asc" } }, select: { id: true, status: true, servingsPlanned: true, approvedAt: true, menuSnapshotJson: true, evaluationJson: true, approvedBy: { select: { displayName: true } }, dietType: { select: { code: true, name: true } }, evidence: { where: { kind: { in: ["MEAL_PHOTO", "FOOD_SAMPLE"] } }, orderBy: { uploadedAt: "desc" }, select: { id: true, kind: true, storagePath: true, note: true, uploadedAt: true, uploadedBy: { select: { displayName: true } } } } } },
+        reports: { where: { status: "SUBMITTED", ...(departmentIds ? { departmentId: { in: departmentIds } } : {}) }, select: { id: true, departmentId: true, submittedAt: true, submittedBy: { select: { displayName: true } }, lines: { orderBy: { dietType: { sortOrder: "asc" } }, select: { quantity: true, dietType: { select: { code: true, name: true } } } } } },
+        additions: { where: departmentIds ? { departmentId: { in: departmentIds } } : undefined, orderBy: { submittedAt: "desc" }, select: { id: true, departmentId: true, quantity: true, reason: true, ackStatus: true, submittedAt: true, submittedBy: { select: { displayName: true } }, department: { select: { name: true } }, dietType: { select: { code: true, name: true } } } },
       },
     }),
   ]);
@@ -179,12 +180,14 @@ export async function readManagementDay(date?: string, now = new Date()): Promis
   }
 
   return { date: day.toISOString().slice(0, 10), generatedAt: now.toISOString(), isToday: selectedIsToday, departmentCount: departments.length, meals: events.map((event) => {
+    const visibleDietCodes = new Set(event.dietMeals.map((meal) => meal.dietType.code));
     const reportByDepartment = new Map(event.reports.map((report) => [report.departmentId, report]));
     const statusCounts = Object.fromEntries(MANAGEMENT_STATUSES.map((status) => [status, 0])) as ManagementMeal["statusCounts"];
     for (const meal of event.dietMeals) statusCounts[meal.status as ManagementStatus] += 1;
     const departmentRows = departments.map((department) => {
       const report = reportByDepartment.get(department.id);
-      return { ...department, reportId: report?.id ?? null, submittedAt: report?.submittedAt?.toISOString() ?? null, submittedBy: report?.submittedBy.displayName ?? null, totalServings: report ? report.lines.reduce((sum, line) => sum + line.quantity, 0) : null, lines: report?.lines.map((line) => ({ dietCode: line.dietType.code, dietName: line.dietType.name, quantity: line.quantity })) ?? [] };
+      const lines = report?.lines.filter((line) => visibleDietCodes.has(line.dietType.code)) ?? [];
+      return { ...department, reportId: report?.id ?? null, submittedAt: report?.submittedAt?.toISOString() ?? null, submittedBy: report?.submittedBy.displayName ?? null, totalServings: report ? lines.reduce((sum, line) => sum + line.quantity, 0) : null, lines: lines.map((line) => ({ dietCode: line.dietType.code, dietName: line.dietType.name, quantity: line.quantity })) };
     });
     const submitted = departmentRows.filter((department) => department.reportId !== null);
     const cutoff = serviceAt(day, event.mealType.cutoffTime);
