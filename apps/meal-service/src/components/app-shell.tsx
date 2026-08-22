@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarRail, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarRail, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 
 const ROLE_LABEL = { ADMIN: "Quản trị", DIETITIAN: "Dinh dưỡng", NURSE: "Điều dưỡng", KITCHEN: "Nhà bếp" } as const;
 type NavItem = { href: string; label: string; icon: LucideIcon };
@@ -51,7 +51,7 @@ function AccountMenu({ user, compact = false, align = "start", side = "top" }: {
 
 function ShellNavigation({ user, pathname }: { user: SessionUser; pathname: string }) {
   const { setOpenMobile } = useSidebar();
-  return <><SidebarHeader className="border-b border-sidebar-border p-2"><Brand href={user.role === "ADMIN" ? "/quan-ly" : "/"} /></SidebarHeader><SidebarContent className="px-1 py-2"><nav aria-label="Điều hướng chính">{NAVIGATION[user.role].map((group) => <SidebarGroup key={group.label} className="py-1.5"><SidebarGroupLabel className="text-[0.68rem] uppercase tracking-[0.1em]">{group.label}</SidebarGroupLabel><SidebarGroupContent><SidebarMenu>{group.items.map(({ href, label, icon: Icon }) => { const active = href === "/" ? pathname === "/" : pathname.startsWith(href); return <SidebarMenuItem key={href}><SidebarMenuButton asChild isActive={active} tooltip={label}><Link href={href} aria-current={active ? "page" : undefined} onClick={() => setOpenMobile(false)}><Icon aria-hidden="true" strokeWidth={1.8} /><span>{label}</span></Link></SidebarMenuButton></SidebarMenuItem>; })}</SidebarMenu></SidebarGroupContent></SidebarGroup>)}</nav></SidebarContent><SidebarFooter className="border-t border-sidebar-border p-2"><AccountMenu user={user} /></SidebarFooter></>;
+  return <><SidebarHeader className="border-b border-sidebar-border p-2"><Brand href={user.role === "ADMIN" ? "/quan-ly" : "/"} /></SidebarHeader><SidebarContent className="px-1 py-2"><nav aria-label="Điều hướng chính">{NAVIGATION[user.role].map((group) => <SidebarGroup key={group.label} className="py-1.5"><SidebarGroupLabel className="text-[0.68rem] uppercase tracking-[0.1em]">{group.label}</SidebarGroupLabel><SidebarGroupContent><SidebarMenu>{group.items.map(({ href, label, icon: Icon }) => { const active = href === "/" ? pathname === "/" : pathname.startsWith(href); return <SidebarMenuItem key={href}><SidebarMenuButton asChild isActive={active} tooltip={label}><Link href={href} aria-current={active ? "page" : undefined} onClick={() => setOpenMobile(false)}><Icon aria-hidden="true" strokeWidth={1.8} /><span>{label}</span></Link></SidebarMenuButton></SidebarMenuItem>; })}</SidebarMenu></SidebarGroupContent></SidebarGroup>)}</nav></SidebarContent></>;
 }
 
 function ShellHeader({ user, currentLabel }: { user: SessionUser; currentLabel: string }) {
