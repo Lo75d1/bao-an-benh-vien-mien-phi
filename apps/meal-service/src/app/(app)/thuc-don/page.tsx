@@ -2,9 +2,7 @@ import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { MenuEditor } from "@/components/menu-editor";
 import { MultiCodeMenuBoard } from "@/components/multi-code-menu-board";
-import { DietName, EmptyState, PageHeader } from "@/components/presentation";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/presentation";
 import { Utensils } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { parseMenuItems } from "@/lib/menu-logic";
@@ -18,6 +16,7 @@ import {
 } from "./actions";
 import { formatVnDay } from "@/lib/presentation";
 import "./thuc-don-v13.css";
+import "./thuc-don-v14.css";
 
 function thresholdsOf(
   code: {
@@ -172,21 +171,6 @@ export default async function MenuPage({
       <main
         className={`workspace menu-page ${mode === "multiple" ? "multiple-v13-page" : ""}`}
       >
-        {mode === "single" && (
-          <PageHeader
-            eyebrow="Bàn làm việc dinh dưỡng"
-            title="Lập thực đơn bệnh viện"
-            description="Chỉnh sâu từng mã hoặc phối hợp nhiều mã trong cùng một bữa để chuẩn bị nguyên liệu."
-            actions={
-              <p className="scope-note">
-                <strong>
-                  {meals.filter((meal) => !meal.approvedAt).length}
-                </strong>{" "}
-                thực đơn chưa duyệt
-              </p>
-            }
-          />
-        )}
         {message && (
           <p className="success-banner" role="status">
             {message}
@@ -232,71 +216,7 @@ export default async function MenuPage({
                 <a href="#analysis">② Phân tích &amp; báo cáo</a>
               </nav>
             </div>
-            {mode === "single" && (
-              <Card className="menu-context-card">
-                <CardContent>
-                  <form className="menu-selector" method="get">
-                    <input type="hidden" name="mode" value={mode} />
-                    <label>
-                      Mã đang xử lý
-                      <select name="meal" defaultValue={selected.id}>
-                        {meals.map((meal) => (
-                          <option key={meal.id} value={meal.id}>
-                            {meal.approvedAt ? "✓" : "○"}{" "}
-                            {formatVnDay(meal.mealEvent.mealDate)} ·{" "}
-                            {meal.mealEvent.mealType.name} ·{" "}
-                            {meal.feedingRoute === "SONDE"
-                              ? "Sonde"
-                              : "Ăn thường"}{" "}
-                            · {meal.dietType.name} ({meal.dietType.code})
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <button className="secondary-button">Chuyển việc</button>
-                  </form>
-                  <div className="selected-context">
-                    <div>
-                      <span>Ngày / bữa</span>
-                      <strong>
-                        {formatVnDay(selected.mealEvent.mealDate)} ·{" "}
-                        {selected.mealEvent.mealType.name}
-                      </strong>
-                    </div>
-                    <div>
-                      <span>Đường ăn</span>
-                      <strong>
-                        {selected.feedingRoute === "SONDE"
-                          ? "Sonde"
-                          : "Ăn thường"}
-                      </strong>
-                    </div>
-                    <div>
-                      <span>Chế độ</span>
-                      <strong>
-                        <DietName
-                          name={selected.dietType.name}
-                          code={selected.dietType.code}
-                        />
-                      </strong>
-                    </div>
-                    <div>
-                      <span>Trạng thái</span>
-                      <Badge
-                        variant="outline"
-                        className={
-                          selected.approvedAt
-                            ? "status-badge status-served"
-                            : "status-badge status-planned"
-                        }
-                      >
-                        {selected.approvedAt ? "Đã duyệt" : "Chưa duyệt"}
-                      </Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            {mode === "single" && <form className="single-meal-picker-v14" method="get"><input type="hidden" name="mode" value="single"/><label>Mã đang xử lý<select name="meal" defaultValue={selected.id}>{meals.map((meal) => <option key={meal.id} value={meal.id}>{meal.approvedAt ? "✓" : "○"} {formatVnDay(meal.mealEvent.mealDate)} · {meal.mealEvent.mealType.name} · {meal.feedingRoute === "SONDE" ? "Sonde" : "Ăn thường"} · {meal.dietType.name} ({meal.dietType.code})</option>)}</select></label><button>Chuyển việc</button></form>}
             {mode === "single" ? (
               <MenuEditor
                 dietMeal={{
@@ -304,7 +224,17 @@ export default async function MenuPage({
                   dietTypeId: selected.dietTypeId,
                   feedingRoute: selected.feedingRoute,
                   approved: Boolean(selected.approvedAt),
-                  existing: parseMenuItems(selected.menuSnapshotJson),
+                  existing: parseMenuItems(selected.menuSnapshotJson).map((item) => ({
+                    ...item,
+                    nutrients: item.foodId ? nutrientsByFood.get(item.foodId) : undefined,
+                  })),
+                }}
+                context={{
+                  date: formatVnDay(selected.mealEvent.mealDate),
+                  mealName: selected.mealEvent.mealType.name,
+                  dietCode: selected.dietType.code,
+                  dietName: selected.dietType.name,
+                  servings: selected.servingsPlanned,
                 }}
                 thresholds={thresholdsOf(selected.dietType.dietCodeRef)}
                 templates={templates.map((template) => ({
