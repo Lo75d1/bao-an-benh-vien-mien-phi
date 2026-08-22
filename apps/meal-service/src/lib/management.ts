@@ -18,7 +18,8 @@ export type ManagementDay = { date: string; generatedAt: string; isToday: boolea
 export type ManagementSchedulePhase = "SERVED" | "PREPARING" | "SERVING";
 export type ManagementScheduleRoute = "NORMAL" | "SONDE";
 export type ManagementScheduleNote = { source: "MENU" | "SERVING" | "PATIENT"; department: string | null; text: string };
-export type ManagementScheduleDepartment = { id: string; code: string; name: string; quantity: number };
+export type ManagementLateAddition = { id: string; quantity: number; reason: string; department: string };
+export type ManagementInventoryEntry = { id: string; warehouse: string; type: string; occurredAt: string; note: string | null };
 export type ManagementScheduleDiet = {
   id: string;
   code: string;
@@ -26,9 +27,12 @@ export type ManagementScheduleDiet = {
   feedingRoute: ManagementScheduleRoute;
   servings: number | null;
   status: ManagementStatus;
-  departments: ManagementScheduleDepartment[];
-  menuItems: string[];
+  menuItems: ManagementMenuItem[];
+  criteria: ManagementCriterion[];
+  evidence: { mealPhoto: boolean; foodSample: boolean };
   notes: ManagementScheduleNote[];
+  lateAdditions: ManagementLateAddition[];
+  inventory: ManagementInventoryEntry[];
 };
 export type ManagementScheduleCell = { id: string; phase: ManagementSchedulePhase; serviceTime: string; diets: ManagementScheduleDiet[] };
 export type ManagementScheduleDay = { date: string; label: string; isToday: boolean; cells: Record<string, ManagementScheduleCell | null> };
@@ -51,11 +55,6 @@ function schedulePhase(day: Date, serviceTime: string, allServiceTimes: string[]
   return "PREPARING";
 }
 
-function menuItemNames(value: unknown): string[] {
-  if (!value || typeof value !== "object" || !("items" in value) || !Array.isArray(value.items)) return [];
-  return value.items.flatMap((item) => item && typeof item === "object" && "itemName" in item && typeof item.itemName === "string" && item.itemName.trim() ? [item.itemName.trim()] : []);
-}
-
 function managementMenuItems(value: unknown): ManagementMenuItem[] {
   if (!value || typeof value !== "object" || !("items" in value) || !Array.isArray(value.items)) return [];
   return value.items.flatMap((item) => {
@@ -76,8 +75,9 @@ function managementCriteria(value: unknown): ManagementCriterion[] {
   });
 }
 
-export async function readManagementSchedule(now = new Date()): Promise<ManagementSchedule> {
-  const start = hospitalDate(now);
+export async function readManagementSchedule(centerDate?: string, now = new Date()): Promise<ManagementSchedule> {
+  const center = parseHospitalDay(centerDate, now);
+  const start = addDays(center, -1);
   const end = addDays(start, 3);
   const [mealTypes, events, patientNotes, inventory] = await Promise.all([
     prisma.mealType.findMany({ where: { status: "ACTIVE" }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true, serviceTime: true } }),
@@ -86,12 +86,13 @@ export async function readManagementSchedule(now = new Date()): Promise<Manageme
       orderBy: [{ mealDate: "asc" }, { mealType: { sortOrder: "asc" } }],
       select: {
         id: true, mealDate: true, mealTypeId: true, mealType: { select: { serviceTime: true } },
-        dietMeals: { where: { voidedAt: null, status: { not: "CANCELLED" } }, orderBy: { dietType: { sortOrder: "asc" } }, select: { id: true, dietTypeId: true, feedingRoute: true, status: true, servingsPlanned: true, menuSnapshotJson: true, internalNote: true, patientVisibleNote: true, dietType: { select: { code: true, name: true } } } },
-        reports: { where: { status: "SUBMITTED" }, select: { departmentId: true, note: true, department: { select: { id: true, code: true, name: true } }, lines: { select: { dietTypeId: true, quantity: true, internalNote: true, patientVisibleNote: true } } } },
+        dietMeals: { where: { voidedAt: null, status: { not: "CANCELLED" } }, orderBy: { dietType: { sortOrder: "asc" } }, select: { id: true, dietTypeId: true, feedingRoute: true, status: true, servingsPlanned: true, menuSnapshotJson: true, evaluationJson: true, patientVisibleNote: true, dietType: { select: { code: true, name: true } }, evidence: { where: { kind: { in: ["MEAL_PHOTO", "FOOD_SAMPLE"] } }, select: { kind: true } } } },
+        reports: { where: { status: "SUBMITTED" }, select: { departmentId: true, note: true, department: { select: { id: true, code: true, name: true } }, lines: { select: { dietTypeId: true, quantity: true, patientVisibleNote: true } } } },
+        additions: { select: { id: true, dietTypeId: true, quantity: true, reason: true, department: { select: { name: true } } } },
       },
     }),
     prisma.patientNote.findMany({ where: { mealDate: { gte: start, lt: end }, status: "APPROVED" }, orderBy: { createdAt: "asc" }, select: { departmentId: true, mealDate: true, note: true, department: { select: { name: true } } } }),
-    prisma.inventoryTransaction.findMany({ where: { type: "IN", status: "ACTIVE", warehouse: { status: "ACTIVE", kind: { in: ["KITCHEN", "SONDE"] } } }, orderBy: { occurredAt: "desc" }, select: { occurredAt: true, note: true, warehouse: { select: { kind: true, name: true } }, _count: { select: { lines: true } } } }),
+    prisma.inventoryTransaction.findMany({ where: { status: "ACTIVE", warehouse: { status: "ACTIVE", kind: { in: ["KITCHEN", "SONDE"] } } }, orderBy: { occurredAt: "desc" }, select: { id: true, type: true, occurredAt: true, note: true, relatedDietMealId: true, warehouse: { select: { kind: true, name: true } }, _count: { select: { lines: true } } } }),
   ]);
   const notesByDayDepartment = new Map<string, Array<{ text: string; department: string }>>();
   for (const note of patientNotes) {
@@ -108,24 +109,26 @@ export async function readManagementSchedule(now = new Date()): Promise<Manageme
       const event = eventByKey.get(`${key}:${mealType.id}`);
       if (!event) return [mealType.id, null];
       const diets = event.dietMeals.map((meal): ManagementScheduleDiet => {
-        const departments: ManagementScheduleDepartment[] = [];
         const notes: ManagementScheduleNote[] = [];
-        for (const text of [meal.internalNote, meal.patientVisibleNote]) if (text) notes.push({ source: "MENU", department: null, text });
+        if (meal.patientVisibleNote) notes.push({ source: "MENU", department: null, text: meal.patientVisibleNote });
         for (const report of event.reports) {
           const line = report.lines.find((item) => item.dietTypeId === meal.dietTypeId);
           if (!line || line.quantity <= 0) continue;
-          departments.push({ ...report.department, quantity: line.quantity });
-          for (const text of [report.note, line.internalNote, line.patientVisibleNote]) if (text) notes.push({ source: "SERVING", department: report.department.name, text });
+          for (const text of [report.note, line.patientVisibleNote]) if (text) notes.push({ source: "SERVING", department: report.department.name, text });
           for (const patientNote of notesByDayDepartment.get(`${key}:${report.departmentId}`) ?? []) notes.push({ source: "PATIENT", department: patientNote.department, text: patientNote.text });
         }
-        return { id: meal.id, code: meal.dietType.code, name: meal.dietType.name, feedingRoute: meal.feedingRoute, servings: meal.servingsPlanned > 0 ? meal.servingsPlanned : null, status: meal.status as ManagementStatus, departments, menuItems: menuItemNames(meal.menuSnapshotJson), notes };
+        const routeKind = meal.feedingRoute === "NORMAL" ? "KITCHEN" : "SONDE";
+        const routeInventory = inventory.filter((item) => item.warehouse.kind === routeKind);
+        const directlyRelated = routeInventory.filter((item) => item.relatedDietMealId === meal.id);
+        const relatedInventory = (directlyRelated.length > 0 ? directlyRelated : routeInventory.slice(0, 5)).map((item) => ({ id: item.id, warehouse: item.warehouse.name, type: item.type, occurredAt: item.occurredAt.toISOString(), note: item.note }));
+        return { id: meal.id, code: meal.dietType.code, name: meal.dietType.name, feedingRoute: meal.feedingRoute, servings: meal.servingsPlanned > 0 ? meal.servingsPlanned : null, status: meal.status as ManagementStatus, menuItems: managementMenuItems(meal.menuSnapshotJson), criteria: managementCriteria(meal.evaluationJson), evidence: { mealPhoto: meal.evidence.some((item) => item.kind === "MEAL_PHOTO"), foodSample: meal.evidence.some((item) => item.kind === "FOOD_SAMPLE") }, notes, lateAdditions: event.additions.filter((item) => item.dietTypeId === meal.dietTypeId).map((item) => ({ id: item.id, quantity: item.quantity, reason: item.reason, department: item.department.name })), inventory: relatedInventory };
       });
       return [mealType.id, { id: event.id, phase: schedulePhase(day, event.mealType.serviceTime, mealTypes.map((item) => item.serviceTime), diets.map((diet) => diet.status), now), serviceTime: event.mealType.serviceTime, diets }];
     }));
-    return { date: key, label: dateLabel.format(day), isToday: offset === 0, cells };
+    return { date: key, label: dateLabel.format(day), isToday: day.getTime() === hospitalDate(now).getTime(), cells };
   });
   const warehouseFor = (kind: "KITCHEN" | "SONDE"): ManagementWarehouseStatus => {
-    const transaction = inventory.find((item) => item.warehouse.kind === kind);
+    const transaction = inventory.find((item) => item.warehouse.kind === kind && item.type === "IN");
     return transaction ? { name: transaction.warehouse.name, occurredAt: transaction.occurredAt.toISOString(), lineCount: transaction._count.lines, note: transaction.note } : null;
   };
   return { generatedAt: now.toISOString(), mealTypes, days, routes: { NORMAL: { warehouse: warehouseFor("KITCHEN") }, SONDE: { warehouse: warehouseFor("SONDE") } } };
