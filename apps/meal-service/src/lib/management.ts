@@ -7,13 +7,13 @@ import { evidenceStorage } from "./evidence-storage";
 
 export const MANAGEMENT_STATUSES = ["PLANNED", "LOCKED", "PREPARING", "PREPARED", "SERVED"] as const;
 export type ManagementStatus = (typeof MANAGEMENT_STATUSES)[number];
-export type ManagementMenuItem = { name: string; grams: number | null };
+export type ManagementMenuItem = { name: string; dishName: string; grams: number | null };
 export type ManagementCriterion = { key: string; label: string; status: "OK" | "LOW" | "HIGH" | "MISSING"; actual: number | null; unit: string; target: string };
 export type ManagementEvidence = { id: string; kind: "MEAL_PHOTO" | "FOOD_SAMPLE"; note: string | null; uploadedAt: string; uploadedBy: string; publicUrl: string | null };
-export type ManagementDiet = { id: string; code: string; name: string; status: ManagementStatus; servings: number | null; menuItems: ManagementMenuItem[]; criteria: ManagementCriterion[]; approvedBy: string | null; reportedBy: string[]; kitchenLead: string | null; evidence: ManagementEvidence[] };
+export type ManagementDiet = { id: string; code: string; name: string; status: ManagementStatus; servings: number | null; approved: boolean; menuItems: ManagementMenuItem[]; criteria: ManagementCriterion[]; approvedBy: string | null; reportedBy: string[]; kitchenLead: string | null; kitchenTimes: Partial<Record<ManagementStatus, string>>; evidence: ManagementEvidence[] };
 export type ManagementDepartment = { id: string; code: string; name: string; reportId: string | null; submittedAt: string | null; submittedBy: string | null; totalServings: number | null; lines: Array<{ dietCode: string; dietName: string; quantity: number }> };
-export type ManagementAddition = { id: string; departmentId: string; departmentName: string; dietCode: string; dietName: string; quantity: number; reason: string; ackStatus: "PENDING" | "RECEIVED" | "INSUFFICIENT" | "SUBSTITUTE"; submittedAt: string };
-export type ManagementMeal = { id: string; name: string; cutoffTime: string; serviceTime: string; cutoffAt: string | null; serviceAt: string | null; totalDiets: number; statusCounts: Record<(typeof MANAGEMENT_STATUSES)[number], number>; diets: ManagementDiet[]; departments: ManagementDepartment[]; additions: ManagementAddition[]; reportedDepartmentCount: number; totalDepartmentCount: number; reportedServings: number | null };
+export type ManagementAddition = { id: string; departmentId: string; departmentName: string; dietCode: string; dietName: string; quantity: number; reason: string; ackStatus: "PENDING" | "RECEIVED" | "INSUFFICIENT" | "SUBSTITUTE"; submittedAt: string; submittedBy: string };
+export type ManagementMeal = { id: string; name: string; cutoffTime: string; serviceTime: string; cutoffAt: string | null; serviceAt: string | null; totalDiets: number; unapprovedDiets: number; plannedServings: number | null; statusCounts: Record<(typeof MANAGEMENT_STATUSES)[number], number>; diets: ManagementDiet[]; departments: ManagementDepartment[]; additions: ManagementAddition[]; reportedDepartmentCount: number; totalDepartmentCount: number; reportedServings: number | null };
 export type ManagementDay = { date: string; generatedAt: string; isToday: boolean; meals: ManagementMeal[]; departmentCount: number };
 
 export type ManagementSchedulePhase = "SERVED" | "PREPARING" | "SERVING";
@@ -62,7 +62,7 @@ function managementMenuItems(value: unknown): ManagementMenuItem[] {
     if (!item || typeof item !== "object") return [];
     const row = item as Record<string, unknown>;
     if (typeof row.itemName !== "string" || !row.itemName.trim()) return [];
-    return [{ name: row.itemName.trim(), grams: typeof row.grams === "number" && Number.isFinite(row.grams) ? row.grams : null }];
+    return [{ name: row.itemName.trim(), dishName: typeof row.dishName === "string" && row.dishName.trim() ? row.dishName.trim() : "Món 1", grams: typeof row.grams === "number" && Number.isFinite(row.grams) ? row.grams : null }];
   });
 }
 
@@ -158,17 +158,25 @@ export async function readManagementDay(date?: string, now = new Date()): Promis
       where: { mealDate: day }, orderBy: { mealType: { sortOrder: "asc" } },
       select: {
         id: true, mealType: { select: { name: true, cutoffTime: true, serviceTime: true } },
-        dietMeals: { where: { voidedAt: null, status: { not: "CANCELLED" } }, orderBy: { dietType: { sortOrder: "asc" } }, select: { id: true, status: true, servingsPlanned: true, menuSnapshotJson: true, evaluationJson: true, approvedBy: { select: { displayName: true } }, dietType: { select: { code: true, name: true } }, evidence: { where: { kind: { in: ["MEAL_PHOTO", "FOOD_SAMPLE"] } }, orderBy: { uploadedAt: "desc" }, select: { id: true, kind: true, storagePath: true, note: true, uploadedAt: true, uploadedBy: { select: { displayName: true } } } } } },
+        dietMeals: { where: { voidedAt: null, status: { not: "CANCELLED" } }, orderBy: { dietType: { sortOrder: "asc" } }, select: { id: true, status: true, servingsPlanned: true, approvedAt: true, menuSnapshotJson: true, evaluationJson: true, approvedBy: { select: { displayName: true } }, dietType: { select: { code: true, name: true } }, evidence: { where: { kind: { in: ["MEAL_PHOTO", "FOOD_SAMPLE"] } }, orderBy: { uploadedAt: "desc" }, select: { id: true, kind: true, storagePath: true, note: true, uploadedAt: true, uploadedBy: { select: { displayName: true } } } } } },
         reports: { where: { status: "SUBMITTED" }, select: { id: true, departmentId: true, submittedAt: true, submittedBy: { select: { displayName: true } }, lines: { orderBy: { dietType: { sortOrder: "asc" } }, select: { quantity: true, dietType: { select: { code: true, name: true } } } } } },
-        additions: { orderBy: { submittedAt: "desc" }, select: { id: true, departmentId: true, quantity: true, reason: true, ackStatus: true, submittedAt: true, department: { select: { name: true } }, dietType: { select: { code: true, name: true } } } },
+        additions: { orderBy: { submittedAt: "desc" }, select: { id: true, departmentId: true, quantity: true, reason: true, ackStatus: true, submittedAt: true, submittedBy: { select: { displayName: true } }, department: { select: { name: true } }, dietType: { select: { code: true, name: true } } } },
       },
     }),
   ]);
   const selectedIsToday = day.getTime() === hospitalDate(now).getTime();
   const dietMealIds = events.flatMap((event) => event.dietMeals.map((meal) => meal.id));
-  const servedLogs = dietMealIds.length === 0 ? [] : await prisma.auditLog.findMany({ where: { entityType: "DietMeal", entityId: { in: dietMealIds }, action: "KITCHEN_STATUS_CHANGE", afterJson: { path: ["status"], equals: "SERVED" } }, orderBy: { createdAt: "desc" }, select: { entityId: true, actorName: true } });
+  const servedLogs = dietMealIds.length === 0 ? [] : await prisma.auditLog.findMany({ where: { entityType: "DietMeal", entityId: { in: dietMealIds }, action: "KITCHEN_STATUS_CHANGE" }, orderBy: { createdAt: "asc" }, select: { entityId: true, actorName: true, createdAt: true, afterJson: true } });
   const kitchenLeadByDiet = new Map<string, string>();
-  for (const log of servedLogs) if (!kitchenLeadByDiet.has(log.entityId)) kitchenLeadByDiet.set(log.entityId, log.actorName);
+  const kitchenTimesByDiet = new Map<string, Partial<Record<ManagementStatus, string>>>();
+  for (const log of servedLogs) {
+    const value = log.afterJson && typeof log.afterJson === "object" && !Array.isArray(log.afterJson) ? (log.afterJson as Record<string, unknown>).status : null;
+    if (!MANAGEMENT_STATUSES.includes(value as ManagementStatus)) continue;
+    const times = kitchenTimesByDiet.get(log.entityId) ?? {};
+    times[value as ManagementStatus] = log.createdAt.toISOString();
+    kitchenTimesByDiet.set(log.entityId, times);
+    if (value === "SERVED") kitchenLeadByDiet.set(log.entityId, log.actorName);
+  }
 
   return { date: day.toISOString().slice(0, 10), generatedAt: now.toISOString(), isToday: selectedIsToday, departmentCount: departments.length, meals: events.map((event) => {
     const reportByDepartment = new Map(event.reports.map((report) => [report.departmentId, report]));
@@ -181,6 +189,7 @@ export async function readManagementDay(date?: string, now = new Date()): Promis
     const submitted = departmentRows.filter((department) => department.reportId !== null);
     const cutoff = serviceAt(day, event.mealType.cutoffTime);
     const service = serviceAt(day, event.mealType.serviceTime);
-    return { id: event.id, name: event.mealType.name, cutoffTime: event.mealType.cutoffTime, serviceTime: event.mealType.serviceTime, cutoffAt: cutoff === null ? null : new Date(cutoff).toISOString(), serviceAt: service === null ? null : new Date(service).toISOString(), totalDiets: event.dietMeals.length, statusCounts, diets: event.dietMeals.map((meal) => ({ id: meal.id, code: meal.dietType.code, name: meal.dietType.name, status: meal.status as ManagementStatus, servings: meal.servingsPlanned > 0 ? meal.servingsPlanned : null, menuItems: managementMenuItems(meal.menuSnapshotJson), criteria: managementCriteria(meal.evaluationJson), approvedBy: meal.approvedBy?.displayName ?? null, reportedBy: [...new Set(event.reports.filter((report) => report.lines.some((line) => line.dietType.code === meal.dietType.code && line.quantity > 0)).map((report) => report.submittedBy.displayName))], kitchenLead: kitchenLeadByDiet.get(meal.id) ?? null, evidence: meal.evidence.map((item) => ({ id: item.id, kind: item.kind as ManagementEvidence["kind"], note: item.note, uploadedAt: item.uploadedAt.toISOString(), uploadedBy: item.uploadedBy.displayName, publicUrl: evidenceStorage.publicUrl(item.storagePath) })) })), departments: departmentRows, additions: event.additions.map((item) => ({ id: item.id, departmentId: item.departmentId, departmentName: item.department.name, dietCode: item.dietType.code, dietName: item.dietType.name, quantity: item.quantity, reason: item.reason, ackStatus: item.ackStatus, submittedAt: item.submittedAt.toISOString() })), reportedDepartmentCount: submitted.length, totalDepartmentCount: departments.length, reportedServings: submitted.length > 0 ? submitted.reduce((sum, department) => sum + (department.totalServings ?? 0), 0) : null };
+    const plannedTotal = event.dietMeals.reduce((sum, meal) => sum + meal.servingsPlanned, 0);
+    return { id: event.id, name: event.mealType.name, cutoffTime: event.mealType.cutoffTime, serviceTime: event.mealType.serviceTime, cutoffAt: cutoff === null ? null : new Date(cutoff).toISOString(), serviceAt: service === null ? null : new Date(service).toISOString(), totalDiets: event.dietMeals.length, unapprovedDiets: event.dietMeals.filter((meal) => meal.approvedAt === null).length, plannedServings: event.dietMeals.length ? plannedTotal : null, statusCounts, diets: event.dietMeals.map((meal) => ({ id: meal.id, code: meal.dietType.code, name: meal.dietType.name, status: meal.status as ManagementStatus, servings: meal.servingsPlanned > 0 ? meal.servingsPlanned : null, approved: meal.approvedAt !== null, menuItems: managementMenuItems(meal.menuSnapshotJson), criteria: managementCriteria(meal.evaluationJson), approvedBy: meal.approvedBy?.displayName ?? null, reportedBy: [...new Set(event.reports.filter((report) => report.lines.some((line) => line.dietType.code === meal.dietType.code && line.quantity > 0)).map((report) => report.submittedBy.displayName))], kitchenLead: kitchenLeadByDiet.get(meal.id) ?? null, kitchenTimes: kitchenTimesByDiet.get(meal.id) ?? {}, evidence: meal.evidence.map((item) => ({ id: item.id, kind: item.kind as ManagementEvidence["kind"], note: item.note, uploadedAt: item.uploadedAt.toISOString(), uploadedBy: item.uploadedBy.displayName, publicUrl: evidenceStorage.publicUrl(item.storagePath) })) })), departments: departmentRows, additions: event.additions.map((item) => ({ id: item.id, departmentId: item.departmentId, departmentName: item.department.name, dietCode: item.dietType.code, dietName: item.dietType.name, quantity: item.quantity, reason: item.reason, ackStatus: item.ackStatus, submittedAt: item.submittedAt.toISOString(), submittedBy: item.submittedBy.displayName })), reportedDepartmentCount: submitted.length, totalDepartmentCount: departments.length, reportedServings: submitted.length > 0 ? submitted.reduce((sum, department) => sum + (department.totalServings ?? 0), 0) : null };
   }) };
 }

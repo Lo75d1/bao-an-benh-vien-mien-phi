@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { ChevronDown, KeyRound, LogOut, UserRound } from "lucide-react";
+import { Bell, ChevronDown, KeyRound, LogOut, UserRound } from "lucide-react";
 import type { SessionUser } from "@/lib/auth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -26,5 +26,5 @@ function AccountMenu({ user }: { user: SessionUser }) {
 
 export function AppShell({ user, children }: { user: SessionUser; children: React.ReactNode }) {
   const pathname = usePathname();
-  return <div className="app-frame"><a href="#main-content" className="skip-link">Đi tới nội dung chính</a><header className="top-shell"><Link href={user.role === "ADMIN" ? "/quan-ly" : "/"} className="top-brand"><span>SA</span><strong>Suất ăn bệnh viện</strong></Link><nav aria-label="Điều hướng chính">{NAVIGATION[user.role].map((item) => { const active = pathname.startsWith(item.href); return <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}>{item.label}</Link>; })}</nav><AccountMenu user={user}/></header><div id="main-content" tabIndex={-1} className="app-main">{children}</div></div>;
+  return <div className="app-frame"><a href="#main-content" className="skip-link">Đi tới nội dung chính</a><header className="top-shell"><Link href={user.role === "ADMIN" ? "/quan-ly" : "/"} className="top-brand"><span>SA</span><strong>Suất ăn bệnh viện</strong></Link><nav aria-label="Điều hướng chính">{NAVIGATION[user.role].map((item) => { const active = pathname.startsWith(item.href); return <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}>{item.label}</Link>; })}</nav><div className="top-shell-actions">{user.role === "ADMIN" && <button type="button" className="top-notifications" aria-label="Thông báo, chưa có dữ liệu"><Bell aria-hidden="true"/><span>—</span></button>}<AccountMenu user={user}/></div></header><div id="main-content" tabIndex={-1} className="app-main">{children}</div></div>;
 }
