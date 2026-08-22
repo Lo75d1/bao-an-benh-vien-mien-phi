@@ -25,9 +25,10 @@ type DataTableProps<TData, TValue> = {
   emptyMessage?: string;
   pageSize?: number;
   getRowId?: (row: TData) => string;
+  className?: string;
 };
 
-export function DataTable<TData, TValue>({ columns, data, filterPlaceholder = "Lọc nhanh…", emptyMessage = "Chưa có dữ liệu.", pageSize = 10, getRowId }: DataTableProps<TData, TValue>) {
+export function DataTable<TData, TValue>({ columns, data, filterPlaceholder = "Lọc nhanh…", emptyMessage = "Chưa có dữ liệu.", pageSize = 10, getRowId, className }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
   // TanStack Table intentionally returns stateful callbacks; React Compiler skips this hook.
@@ -47,7 +48,7 @@ export function DataTable<TData, TValue>({ columns, data, filterPlaceholder = "L
   });
   const filteredCount = table.getFilteredRowModel().rows.length;
 
-  return <div className="grid gap-3">
+  return <div className={cn("grid gap-3", className)}>
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <label className="relative block w-full sm:max-w-sm">
         <span className="sr-only">Lọc nhanh bảng</span>

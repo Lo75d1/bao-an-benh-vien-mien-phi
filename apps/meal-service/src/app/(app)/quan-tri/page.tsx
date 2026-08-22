@@ -8,6 +8,7 @@ import { accountStatusAction, dietTypeStatusAction, saveAccountAction, saveDietT
 import { AccountCreateForm, SettingsForm } from "./admin-forms";
 import { AccountTable } from "./account-table";
 import { DietTypeTable } from "./diet-type-table";
+import "./quan-tri.css";
 
 const roleLabel = { ADMIN: "Quản trị", DIETITIAN: "Dinh dưỡng", NURSE: "Điều dưỡng", KITCHEN: "Nhà bếp" } as const;
 const messages: Record<string, string> = { settings: "Đã áp dụng cấu hình và ghi nhật ký.", created: "Đã tạo tài khoản với mật khẩu được băm scrypt.", account: "Đã cập nhật tài khoản.", status: "Đã đổi trạng thái tài khoản, không xóa lịch sử.", diet: "Đã lưu mã chế độ ăn.", "diet-status": "Đã đổi trạng thái mã chế độ ăn, không xóa lịch sử." };
@@ -25,7 +26,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     prisma.dietType.findMany({ orderBy: [{ status: "asc" }, { sortOrder: "asc" }], include: { dietCodeRef: true } }),
     prisma.dietCode.findMany({ orderBy: { code: "asc" }, select: { id: true, code: true, name: true } }),
   ]);
-  return <AppShell user={user}><main className="workspace admin-page">
+  return <AppShell user={user}><main className="workspace admin-page admin-workspace">
     <PageHeader eyebrow="Quản trị hệ thống" title="Cấu hình, nhân sự và mã chế độ ăn" description="Quản lý vận hành, tài khoản và danh mục mà không xóa lịch sử." actions={<p className="scope-note">Chỉ ADMIN · mọi thay đổi đều được truy vết</p>}/>
     {updated && messages[updated] && <p className="success-banner" role="status">{messages[updated]}</p>}
     <nav className="admin-section-nav" aria-label="Mục quản trị"><a href="#settings">Cài đặt</a><a href="#accounts">Nhân sự</a><a href="#diet-types">Mã chế độ</a><a href="/quan-tri/audit">Nhật ký</a></nav>
@@ -40,7 +41,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     </section>
 
     <section id="diet-types" className="admin-panel"><div className="section-heading"><div><p className="eyebrow">Mã chế độ / quy định</p><h2>Danh mục DietType</h2></div><span>Vô hiệu hóa, không hard-delete</span></div>
-      <form action={saveDietTypeAction} className="admin-grid"><label>Mã<input name="code" pattern="[A-Za-z0-9_-]{2,20}" required/></label><label>Tên chế độ<input name="name" required/></label><label>Đường nuôi<select name="feedingRoute"><option value="NORMAL">Ăn thường</option><option value="SONDE">Sonde</option></select></label><label>Quy định dinh dưỡng<select name="dietCodeRefId"><option value="">—</option>{dietCodes.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select></label><label>Thứ tự<input name="sortOrder" type="number" min="0" max="999" defaultValue="0" required/></label><button className="primary-action">Tạo mã chế độ</button></form>
+      <form action={saveDietTypeAction} className="admin-grid diet-create"><label>Mã<input name="code" pattern="[A-Za-z0-9_-]{2,20}" autoComplete="off" spellCheck={false} required/></label><label>Tên chế độ<input name="name" autoComplete="off" required/></label><label>Đường nuôi<select name="feedingRoute"><option value="NORMAL">Ăn thường</option><option value="SONDE">Sonde</option></select></label><label>Quy định dinh dưỡng<select name="dietCodeRefId"><option value="">—</option>{dietCodes.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select></label><label>Thứ tự<input name="sortOrder" type="number" min="0" max="999" defaultValue="0" required/></label><button className="primary-action">Tạo mã chế độ</button></form>
       <DietTypeTable dietCodes={dietCodes} saveAction={saveDietTypeAction} statusAction={dietTypeStatusAction} data={dietTypes.map((diet) => ({ id: diet.id, code: diet.code, name: diet.name, feedingRoute: diet.feedingRoute, routeLabel: diet.feedingRoute === "SONDE" ? "Sonde" : "Ăn thường", dietCodeRefId: diet.dietCodeRefId ?? "", dietCode: diet.dietCodeRef?.code ?? "—", sortOrder: diet.sortOrder, status: diet.status, statusLabel: diet.status === "ACTIVE" ? "Đang dùng" : "Đã vô hiệu" }))}/>
     </section>
   </main></AppShell>;
