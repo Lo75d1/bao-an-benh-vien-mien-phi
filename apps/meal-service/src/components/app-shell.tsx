@@ -18,9 +18,7 @@ type NavGroup = { label: "Vận hành" | "Kho & Báo cáo" | "Quản trị"; ite
 
 const NAVIGATION: Record<SessionUser["role"], NavGroup[]> = {
   ADMIN: [
-    { label: "Vận hành", items: [{ href: "/", label: "Hôm nay", icon: Home }, { href: "/lich", label: "Lịch tuần", icon: CalendarDays }] },
-    { label: "Kho & Báo cáo", items: [{ href: "/kho", label: "Kho", icon: Warehouse }, { href: "/bao-cao", label: "Báo cáo", icon: FileChartColumn }] },
-    { label: "Quản trị", items: [{ href: "/quan-tri", label: "Quản trị", icon: Settings }] },
+    { label: "Quản trị", items: [{ href: "/quan-ly", label: "Quản lý", icon: ClipboardList }, { href: "/quan-tri", label: "Cài đặt hệ thống", icon: Settings }] },
   ],
   DIETITIAN: [
     { label: "Vận hành", items: [{ href: "/", label: "Việc tiếp theo", icon: Home }, { href: "/lich", label: "Lịch tuần", icon: CalendarDays }, { href: "/thuc-don", label: "Thực đơn", icon: Utensils }] },
@@ -36,8 +34,8 @@ const NAVIGATION: Record<SessionUser["role"], NavGroup[]> = {
   ],
 };
 
-function Brand() {
-  return <Link href="/" className="flex min-w-0 items-center gap-3 rounded-md px-1.5 py-1.5 text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"><span className="grid size-9 shrink-0 place-items-center rounded-md border border-white/20 bg-white text-xs font-semibold tracking-[0.04em] text-[#123c36]">SA</span><span className="grid min-w-0 leading-tight group-data-[collapsible=icon]:hidden"><strong className="truncate text-sm font-semibold">Suất ăn bệnh viện</strong><span className="truncate text-xs text-sidebar-foreground/65">Điều phối bữa ăn</span></span></Link>;
+function Brand({ href = "/" }: { href?: string }) {
+  return <Link href={href} className="flex min-w-0 items-center gap-3 rounded-md px-1.5 py-1.5 text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"><span className="grid size-9 shrink-0 place-items-center rounded-md border border-white/20 bg-white text-xs font-semibold tracking-[0.04em] text-[#123c36]">SA</span><span className="grid min-w-0 leading-tight group-data-[collapsible=icon]:hidden"><strong className="truncate text-sm font-semibold">Suất ăn bệnh viện</strong><span className="truncate text-xs text-sidebar-foreground/65">Điều phối bữa ăn</span></span></Link>;
 }
 
 function AccountMenu({ user, compact = false, align = "start", side = "top" }: { user: SessionUser; compact?: boolean; align?: "start" | "end"; side?: "top" | "bottom" }) {
@@ -53,7 +51,7 @@ function AccountMenu({ user, compact = false, align = "start", side = "top" }: {
 
 function ShellNavigation({ user, pathname }: { user: SessionUser; pathname: string }) {
   const { setOpenMobile } = useSidebar();
-  return <><SidebarHeader className="border-b border-sidebar-border p-2"><Brand /></SidebarHeader><SidebarContent className="px-1 py-2"><nav aria-label="Điều hướng chính">{NAVIGATION[user.role].map((group) => <SidebarGroup key={group.label} className="py-1.5"><SidebarGroupLabel className="text-[0.68rem] uppercase tracking-[0.1em]">{group.label}</SidebarGroupLabel><SidebarGroupContent><SidebarMenu>{group.items.map(({ href, label, icon: Icon }) => { const active = href === "/" ? pathname === "/" : pathname.startsWith(href); return <SidebarMenuItem key={href}><SidebarMenuButton asChild isActive={active} tooltip={label}><Link href={href} aria-current={active ? "page" : undefined} onClick={() => setOpenMobile(false)}><Icon aria-hidden="true" strokeWidth={1.8} /><span>{label}</span></Link></SidebarMenuButton></SidebarMenuItem>; })}</SidebarMenu></SidebarGroupContent></SidebarGroup>)}</nav></SidebarContent><SidebarFooter className="border-t border-sidebar-border p-2"><AccountMenu user={user} /></SidebarFooter></>;
+  return <><SidebarHeader className="border-b border-sidebar-border p-2"><Brand href={user.role === "ADMIN" ? "/quan-ly" : "/"} /></SidebarHeader><SidebarContent className="px-1 py-2"><nav aria-label="Điều hướng chính">{NAVIGATION[user.role].map((group) => <SidebarGroup key={group.label} className="py-1.5"><SidebarGroupLabel className="text-[0.68rem] uppercase tracking-[0.1em]">{group.label}</SidebarGroupLabel><SidebarGroupContent><SidebarMenu>{group.items.map(({ href, label, icon: Icon }) => { const active = href === "/" ? pathname === "/" : pathname.startsWith(href); return <SidebarMenuItem key={href}><SidebarMenuButton asChild isActive={active} tooltip={label}><Link href={href} aria-current={active ? "page" : undefined} onClick={() => setOpenMobile(false)}><Icon aria-hidden="true" strokeWidth={1.8} /><span>{label}</span></Link></SidebarMenuButton></SidebarMenuItem>; })}</SidebarMenu></SidebarGroupContent></SidebarGroup>)}</nav></SidebarContent><SidebarFooter className="border-t border-sidebar-border p-2"><AccountMenu user={user} /></SidebarFooter></>;
 }
 
 function ShellHeader({ user, currentLabel }: { user: SessionUser; currentLabel: string }) {

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { AlertTriangle, ArrowRight, CalendarDays, ChefHat, ClipboardCheck, NotebookPen, PackageSearch, Stethoscope, Utensils, type LucideIcon } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { LoginForm } from "@/components/login-form";
@@ -89,6 +90,7 @@ export default async function HomePage() {
       </main>
     );
   }
+  if (user.role === "ADMIN") redirect("/quan-ly");
   const overview = await readRoleOverview(user.role, user.id);
   return (
     <AppShell user={user}>
