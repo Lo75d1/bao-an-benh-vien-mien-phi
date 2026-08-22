@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
 COPY package.json package-lock.json ./
 COPY packages/nutrition-engine/package.json packages/nutrition-engine/package.json
 COPY apps/meal-service/package.json apps/meal-service/package.json
-RUN npm ci
+RUN npm ci --no-audit --no-fund --fetch-retries=6 --fetch-retry-mintimeout=15000 --fetch-retry-maxtimeout=120000
 
 FROM base AS builder
 COPY packages packages
