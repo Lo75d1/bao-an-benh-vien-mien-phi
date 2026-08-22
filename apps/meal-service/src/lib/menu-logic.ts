@@ -2,8 +2,8 @@ import { evaluateDiet, type DietCodeThresholds } from "@suat-an/nutrition-engine
 
 export const NUTRIENT_KEYS = ["energyKcal", "proteinG", "lipidG", "glucidG", "sodiumMg", "potassiumMg", "waterG"] as const;
 export type MenuNutrientKey = (typeof NUTRIENT_KEYS)[number];
-export type MenuItemInput = { foodId: string | null; itemName: string; grams: number; wastePercent: number | null; nutrients: Record<MenuNutrientKey, number | null> };
-export type MenuSnapshot = { version: 1; items: Array<{ foodId: string | null; itemName: string; grams: number; wastePercent: number | null }> };
+export type MenuItemInput = { foodId: string | null; itemName: string; dishName?: string; grams: number; wastePercent: number | null; nutrients: Record<MenuNutrientKey, number | null> };
+export type MenuSnapshot = { version: 2; items: Array<{ foodId: string | null; itemName: string; dishName: string; grams: number; wastePercent: number | null }> };
 
 export function calculateMenuTotals(items: MenuItemInput[]) {
   return Object.fromEntries(NUTRIENT_KEYS.map((key) => {
@@ -13,5 +13,5 @@ export function calculateMenuTotals(items: MenuItemInput[]) {
   })) as Record<MenuNutrientKey, number | null>;
 }
 export function evaluateMenu(items: MenuItemInput[], thresholds: DietCodeThresholds | null) { return evaluateDiet({ ...calculateMenuTotals(items), meals: 1 }, thresholds); }
-export function createMenuSnapshot(items: MenuItemInput[]): MenuSnapshot { return { version: 1, items: items.map(({ foodId, itemName, grams, wastePercent }) => ({ foodId, itemName, grams, wastePercent })) }; }
-export function parseMenuItems(value: unknown): MenuSnapshot["items"] { if (!value || typeof value !== "object" || !("items" in value) || !Array.isArray(value.items)) return []; return value.items.flatMap((item) => { if (!item || typeof item !== "object") return []; const row = item as Record<string, unknown>; if (typeof row.itemName !== "string" || typeof row.grams !== "number") return []; return [{ foodId: typeof row.foodId === "string" ? row.foodId : null, itemName: row.itemName, grams: row.grams, wastePercent: typeof row.wastePercent === "number" ? row.wastePercent : null }]; }); }
+export function createMenuSnapshot(items: MenuItemInput[]): MenuSnapshot { return { version: 2, items: items.map(({ foodId, itemName, dishName, grams, wastePercent }) => ({ foodId, itemName, dishName: dishName?.trim() || "Món 1", grams, wastePercent })) }; }
+export function parseMenuItems(value: unknown): MenuSnapshot["items"] { if (!value || typeof value !== "object" || !("items" in value) || !Array.isArray(value.items)) return []; return value.items.flatMap((item) => { if (!item || typeof item !== "object") return []; const row = item as Record<string, unknown>; if (typeof row.itemName !== "string" || typeof row.grams !== "number") return []; return [{ foodId: typeof row.foodId === "string" ? row.foodId : null, itemName: row.itemName, dishName: typeof row.dishName === "string" && row.dishName.trim() ? row.dishName : "Món 1", grams: row.grams, wastePercent: typeof row.wastePercent === "number" ? row.wastePercent : null }]; }); }
