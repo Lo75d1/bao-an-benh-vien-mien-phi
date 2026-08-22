@@ -1,6 +1,9 @@
 .warehouse-page { display: grid; gap: 1rem; }
 .warehouse-page .page-heading { margin-bottom: .35rem; }
 .warehouse-entry, .warehouse-history { overflow: hidden; border: 1px solid #cdd8d3; border-radius: 1rem; background: #fff; }
+.warehouse-entry > summary { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .65rem 1rem; cursor: pointer; list-style: none; }
+.warehouse-entry > summary::-webkit-details-marker { display: none; }
+.warehouse-entry > summary span { display: grid; gap: .1rem; }.warehouse-entry > summary small { color: #0f6e56; font-size: .66rem; font-weight: 800; text-transform: uppercase; }.warehouse-entry > summary strong { color: #123c36; font-size: .88rem; }.warehouse-entry > summary em { color: #52645f; font-size: .72rem; font-style: normal; font-weight: 700; }.warehouse-entry[open] > summary { border-bottom: 1px solid #d7e0dc; background: #eaf3ee; }.warehouse-entry[open] > summary em { color: #0f6e56; }
 .warehouse-entry-form { display: grid; }
 .warehouse-form-head { display: grid; grid-template-columns: .7fr 1fr 1fr 1.4fr; gap: .65rem; padding: .85rem 1rem; background: #f7f9f7; border-bottom: 1px solid #d7e0dc; }
 .warehouse-form-head label, .transaction-meta label { display: grid; gap: .3rem; color: #52645f; font-size: .72rem; font-weight: 700; }

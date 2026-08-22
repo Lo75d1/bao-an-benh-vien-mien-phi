@@ -1,10 +1,10 @@
 .report-page, .audit-page { max-width: 1280px; }
 .report-builder { overflow: hidden; border: 1px solid #123c3624; border-radius: 1rem; background: #fff; }
-.report-builder-copy { display: grid; grid-template-columns: 52px 1fr; gap: 1rem; padding: 1.25rem; border-bottom: 1px solid #d8e2dd; background: #eaf3ee; }
-.report-builder-copy > span { display: grid; width: 42px; height: 42px; place-items: center; border-radius: .65rem; background: #123c36; color: #fff; font-weight: 700; }
+.report-builder-copy { display: grid; grid-template-columns: 42px 1fr; gap: .75rem; padding: .8rem 1rem; border-bottom: 1px solid #d8e2dd; background: #eaf3ee; }
+.report-builder-copy > span { display: grid; width: 36px; height: 36px; place-items: center; border-radius: .5rem; background: #123c36; color: #fff; font-weight: 700; }
 .report-builder-copy h2 { margin: 0; color: #123c36; font-size: 1.15rem; font-weight: 600; }
 .report-builder-copy p { max-width: 720px; margin: .4rem 0 0; color: #52645f; font-size: .85rem; line-height: 1.55; }
-.report-flow { display: grid; grid-template-columns: .8fr .8fr 1.25fr 1fr auto; gap: .75rem; align-items: end; padding: 1.25rem; }
+.report-flow { display: grid; grid-template-columns: .8fr .8fr 1.25fr 1fr auto auto; gap: .65rem; align-items: end; padding: 1rem; }
 .report-flow label { display: grid; gap: .45rem; color: #52645f; font-size: .72rem; font-weight: 700; letter-spacing: .025em; text-transform: uppercase; }
 .report-flow input, .report-flow select { width: 100%; min-height: 44px; padding: .55rem .65rem; border: 1px solid #afc0b9; border-radius: .55rem; background: #fff; color: #172b27; }
 .report-flow input:focus, .report-flow select:focus { outline: 3px solid #b6dfd1; outline-offset: 1px; border-color: #0f6e56; }
