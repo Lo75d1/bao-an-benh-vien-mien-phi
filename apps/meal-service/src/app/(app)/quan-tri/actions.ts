@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { createAccount, setAccountStatus, updateAccount } from "@/lib/accounts";
 import { getSessionUser } from "@/lib/auth";
 import { saveDietType, setDietTypeStatus } from "@/lib/diet-types";
+import { saveMealType, setMealTypeStatus } from "@/lib/meal-types";
 import { updateOperationalSettings } from "@/lib/settings";
 
 async function admin() { const user = await getSessionUser(); if (!user || user.role !== "ADMIN") throw new Error("Chỉ quản trị viên được thực hiện thao tác này."); return user; }
@@ -49,4 +50,19 @@ export async function dietTypeStatusAction(formData: FormData) {
   await setDietTypeStatus(String(formData.get("dietTypeId")), formData.get("active") === "true", String(formData.get("reason") ?? ""), actor);
   revalidatePath("/quan-tri"); revalidatePath("/lich");
   redirect("/quan-tri?updated=diet-status");
+}
+
+export async function saveMealTypeAction(formData: FormData) {
+  const actor = await admin();
+  const id = String(formData.get("mealTypeId") ?? "") || null;
+  await saveMealType(id, { code: formData.get("code"), name: formData.get("name"), cutoffTime: formData.get("cutoffTime"), serviceTime: formData.get("serviceTime"), sortOrder: formData.get("sortOrder") }, actor);
+  revalidatePath("/", "layout");
+  redirect("/quan-tri?updated=meal");
+}
+
+export async function mealTypeStatusAction(formData: FormData) {
+  const actor = await admin();
+  await setMealTypeStatus(String(formData.get("mealTypeId")), formData.get("active") === "true", String(formData.get("reason") ?? ""), actor);
+  revalidatePath("/", "layout");
+  redirect("/quan-tri?updated=meal-status");
 }

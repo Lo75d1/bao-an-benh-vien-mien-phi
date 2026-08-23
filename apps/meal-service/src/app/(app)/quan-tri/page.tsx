@@ -5,13 +5,14 @@ import { PageHeader } from "@/components/presentation";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { readOperationalSettings } from "@/lib/settings";
-import { accountStatusAction, dietTypeStatusAction, saveAccountAction, saveDietTypeAction, saveSettingsAction } from "./actions";
+import { accountStatusAction, dietTypeStatusAction, mealTypeStatusAction, saveAccountAction, saveDietTypeAction, saveMealTypeAction, saveSettingsAction } from "./actions";
 import { AccountCreateForm, SettingsForm } from "./admin-forms";
 import { AccountTable } from "./account-table";
 import { DietTypeTable } from "./diet-type-table";
+import { MealTypeTable } from "./meal-type-table";
 
 const roleLabel = { ADMIN: "Quản trị", DIETITIAN: "Dinh dưỡng", NURSE: "Điều dưỡng", KITCHEN: "Nhà bếp" } as const;
-const messages: Record<string, string> = { settings: "Đã áp dụng cấu hình và ghi nhật ký.", created: "Đã tạo tài khoản với mật khẩu được băm scrypt.", account: "Đã cập nhật tài khoản.", status: "Đã đổi trạng thái tài khoản, không xóa lịch sử.", diet: "Đã lưu mã chế độ ăn.", "diet-status": "Đã đổi trạng thái mã chế độ ăn, không xóa lịch sử." };
+const messages: Record<string, string> = { settings: "Đã áp dụng cấu hình và ghi nhật ký.", created: "Đã tạo tài khoản với mật khẩu được băm scrypt.", account: "Đã cập nhật tài khoản.", status: "Đã đổi trạng thái tài khoản, không xóa lịch sử.", diet: "Đã lưu mã chế độ ăn.", "diet-status": "Đã đổi trạng thái mã chế độ ăn, không xóa lịch sử.", meal: "Đã lưu bữa ăn.", "meal-status": "Đã đổi trạng thái bữa ăn, lịch sử cũ được giữ nguyên." };
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ updated?: string }> }) {
   const user = await getSessionUser();
@@ -20,7 +21,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const [{ updated }, settings, mealTypes, users, departments, dietTypes, dietCodes] = await Promise.all([
     searchParams,
     readOperationalSettings(),
-    prisma.mealType.findMany({ where: { status: "ACTIVE" }, orderBy: { sortOrder: "asc" } }),
+    prisma.mealType.findMany({ orderBy: [{ status: "asc" }, { sortOrder: "asc" }] }),
     prisma.user.findMany({ orderBy: [{ status: "asc" }, { displayName: "asc" }], include: { memberships: { include: { department: true } } } }),
     prisma.department.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" } }),
     prisma.dietType.findMany({ orderBy: [{ status: "asc" }, { sortOrder: "asc" }], include: { dietCodeRef: true } }),
@@ -36,7 +37,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     <div className="admin-command-layout"><aside className="admin-context-rail"><p>Đi tới</p><nav className="admin-section-nav" aria-label="Mục quản trị"><a href="#settings"><strong>Cài đặt vận hành</strong><span>Giờ chốt, Sonde, kho</span></a><a href="#accounts"><strong>Nhân sự</strong><span>{activeUsers} tài khoản hoạt động</span></a><a href="#diet-types"><strong>Mã chế độ</strong><span>{activeDiets} mã đang dùng</span></a></nav><div className="admin-rail-links"><a href="/quan-ly">Mở bàn điều phối</a><a href="/quan-tri/audit">Xem nhật ký thay đổi</a></div></aside><div className="admin-command-content">
 
     <section id="settings" className="admin-panel"><div className="section-heading"><div><p className="eyebrow">Cài đặt vận hành</p><h2>Áp dụng cho các luồng nghiệp vụ</h2></div><span>Giờ chốt · Sonde · Kho</span></div>
-      <SettingsForm settings={{ advanceEntryDays: settings.advanceEntryDays, sondeEnabled: settings.sondeEnabled, warehouseMode: settings.warehouseMode, warehouseApprovalRole: settings.warehouseApprovalRole as "ADMIN" | "DIETITIAN" | "KITCHEN" }} mealTypes={mealTypes} action={saveSettingsAction}/>
+      <SettingsForm settings={{ advanceEntryDays: settings.advanceEntryDays, sondeEnabled: settings.sondeEnabled, warehouseMode: settings.warehouseMode, warehouseApprovalRole: settings.warehouseApprovalRole as "ADMIN" | "DIETITIAN" | "KITCHEN" }} mealTypes={mealTypes.filter((meal) => meal.status === "ACTIVE")} action={saveSettingsAction}/>
+    </section>
+
+    <section id="meal-types" className="admin-panel"><div className="section-heading"><div><p className="eyebrow">Bữa ăn</p><h2>Danh mục giờ phục vụ</h2></div><span>Tạo · sửa · vô hiệu hóa</span></div>
+      <details className="admin-create-drawer"><summary><span><strong>Tạo bữa ăn mới</strong><small>Thêm phụ sáng, phụ chiều, tối hoặc ăn đêm theo vận hành thực tế</small></span><em>Mở biểu mẫu</em></summary><div className="admin-create-body"><form action={saveMealTypeAction} className="admin-grid"><label>Mã<input name="code" pattern="[A-Za-z0-9_-]{2,20}" autoComplete="off" spellCheck={false} required/></label><label>Tên bữa<input name="name" autoComplete="off" required/></label><label>Giờ chốt<input name="cutoffTime" type="time" required/></label><label>Giờ phục vụ<input name="serviceTime" type="time" required/></label><label>Thứ tự<input name="sortOrder" type="number" min="0" max="999" defaultValue="0" required/></label><button className="primary-action">Tạo bữa ăn</button></form></div></details>
+      <MealTypeTable saveAction={saveMealTypeAction} statusAction={mealTypeStatusAction} data={mealTypes.map((meal) => ({ id: meal.id, code: meal.code, name: meal.name, cutoffTime: meal.cutoffTime, serviceTime: meal.serviceTime, sortOrder: meal.sortOrder, status: meal.status, statusLabel: meal.status === "ACTIVE" ? "Đang dùng" : "Đã vô hiệu" }))}/>
     </section>
 
     <section id="accounts" className="admin-panel"><div className="section-heading"><div><p className="eyebrow">Nhân sự & tài khoản</p><h2>Danh sách người dùng</h2></div><span>{activeUsers} hoạt động · {users.length - activeUsers} vô hiệu</span></div>

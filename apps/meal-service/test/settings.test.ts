@@ -3,10 +3,18 @@ import test from "node:test";
 import { canApproveWarehouse, entryWindowEnd, parseOperationalSettings, routeVisible, validateMealTimes, validateOperationalSettings } from "../src/lib/settings";
 import { validateAccountInput } from "../src/lib/accounts";
 import { hashPassword, verifyPassword } from "../src/lib/password";
+import { validateMealTypeInput } from "../src/lib/meal-types";
 
 test("setting giờ chốt chỉ nhận HH:mm hợp lệ", () => {
   assert.deepEqual(validateMealTimes([{ id: "breakfast", cutoffTime: "05:30", serviceTime: "06:30" }])[0].cutoffTime, "05:30");
   assert.throws(() => validateMealTimes([{ id: "breakfast", cutoffTime: "25:00", serviceTime: "06:30" }]));
+});
+
+test("bữa ăn bắt buộc giờ chốt trước giờ phục vụ", () => {
+  const meal = validateMealTypeInput({ code: "phu_chieu", name: "Phụ chiều", cutoffTime: "14:30", serviceTime: "15:30", sortOrder: 25 });
+  assert.equal(meal.code, "PHU_CHIEU");
+  assert.throws(() => validateMealTypeInput({ ...meal, cutoffTime: "16:00" }));
+  assert.throws(() => validateMealTypeInput({ ...meal, cutoffTime: "25:00" }));
 });
 
 test("sonde toggle ẩn đường nuôi sonde nhưng giữ ăn thường", () => {
