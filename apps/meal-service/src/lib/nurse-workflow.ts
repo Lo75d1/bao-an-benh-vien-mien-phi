@@ -1,5 +1,5 @@
 export type NurseWorkflowMeal = { id: string; name: string; mealDate: string; cutoffTime: string; serviceTime: string };
-export type NurseWorkflowPhase = "REPORTING" | "PREPARING" | "SERVING";
+export type NurseWorkflowPhase = "REPORTING" | "PREPARING" | "SERVING" | "ENDED";
 
 function at(mealDate: string, time: string) { return new Date(`${mealDate}T${time}:00+07:00`).getTime(); }
 
@@ -13,7 +13,7 @@ export function currentNurseWorkflow(meals: NurseWorkflowMeal[], completionMinut
     if (nowMs < service) return { meal, phase: "PREPARING" as NurseWorkflowPhase };
     if (nowMs < service + completionMinutes * 60_000) return { meal, phase: "SERVING" as NurseWorkflowPhase };
   }
-  return { meal: ordered[0], phase: "REPORTING" as NurseWorkflowPhase };
+  return { meal: ordered[ordered.length - 1], phase: "ENDED" as NurseWorkflowPhase };
 }
 
-export const NURSE_PHASE_LABEL: Record<NurseWorkflowPhase, string> = { REPORTING: "Báo suất ăn", PREPARING: "Bếp đang chuẩn bị", SERVING: "Đang phục vụ" };
+export const NURSE_PHASE_LABEL: Record<NurseWorkflowPhase, string> = { REPORTING: "Báo suất ăn", PREPARING: "Bếp đang chuẩn bị", SERVING: "Đang phục vụ", ENDED: "Đã kết thúc" };
