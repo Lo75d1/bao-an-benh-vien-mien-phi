@@ -1,6 +1,7 @@
 import { Separator } from "@/components/ui/separator";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { CurrentMealLifecycle } from "@/components/current-meal-lifecycle";
 import { MenuEditor } from "@/components/menu-editor";
 import { MultiCodeMenuBoard } from "@/components/multi-code-menu-board";
 import { ContextMetrics, EmptyState, PageHeader } from "@/components/presentation";
@@ -171,6 +172,7 @@ export default async function MenuPage({
       <main
         className={`workspace menu-page ${mode === "multiple" ? "multiple-workspace-page" : ""}`}
       ><Separator className="page-separator" aria-hidden="true"/>
+        <CurrentMealLifecycle role={user.role}/>
         <PageHeader eyebrow="Bàn làm việc dinh dưỡng" title="Lập và duyệt thực đơn" description="Chọn một hoặc nhiều mã chế độ để lên thực đơn trong cùng một bàn làm việc."/>
         <ContextMetrics items={[{ label: "Ngày × chế độ chưa có thực đơn duyệt", value: overview.kind === "DIETITIAN" && overview.missingDateDietCount !== null ? `${overview.missingDateDietCount} mục` : "—" }]}/>
         {message && (

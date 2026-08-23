@@ -1,6 +1,7 @@
 import { Separator } from "@/components/ui/separator";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { CurrentMealLifecycle } from "@/components/current-meal-lifecycle";
 import { ContextMetrics, EmptyState, PageHeader } from "@/components/presentation";
 import { Utensils } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
@@ -23,6 +24,7 @@ export default async function ServingReportPage({ searchParams }: { searchParams
   if (locked) data = await readNurseServingDay(user.id);
   const selectedEvent = data.events.find((event) => event.id === meal) ?? data.events.find((event) => isBeforeCutoff(event.mealDate, event.mealType.cutoffTime)) ?? data.events.at(-1);
   return <AppShell user={user}><main className="workspace serving-page serving-workspace"><Separator className="page-separator" aria-hidden="true"/>
+    <CurrentMealLifecycle role={user.role}/>
     <PageHeader eyebrow="Báo suất hôm nay" title={data.departmentName} description="Chọn một bữa, nhập số suất và gửi ngay trong cùng một bàn làm việc." actions={<p className="scope-note">{dateLabel.format(new Date())} · Khoa được gán tự động</p>}/>
     <ContextMetrics items={[{ label: "Tiến độ báo suất", value: `${overview.kind === "NURSE" && overview.reportedMealCount !== null ? overview.reportedMealCount : "—"} / ${overview.kind === "NURSE" && overview.mealCount !== null ? overview.mealCount : "—"} bữa` }, { label: "Ghi chú chờ duyệt", value: `${overview.kind === "NURSE" && overview.pendingNoteCount !== null ? overview.pendingNoteCount : "—"} ghi chú` }]}/>
     {saved && <p className="success-banner" role="status">{saved === "addition" ? "Đã gửi suất bổ sung riêng cho bếp. Số suất gốc không thay đổi." : "Đã lưu báo suất và cập nhật tổng toàn viện."}</p>}

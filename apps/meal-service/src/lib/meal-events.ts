@@ -27,7 +27,7 @@ export type DisplayMealState = {
   isCurrent: boolean;
 };
 
-function hospitalDayKey(now: Date): string {
+export function hospitalDayKey(now: Date): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
 }
 

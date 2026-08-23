@@ -46,7 +46,13 @@ export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<
     prisma.user.findMany({ where: { email: { in: ["dietitian@demo.local", "nurse@demo.local", "kitchen@demo.local"] } } }),
     prisma.warehouse.findUnique({ where: { code: "TONG" } }),
     prisma.food.findMany({
-      where: { name: { not: "" } },
+      where: { OR: [
+        { nameNormalized: { contains: "gao te" } }, { nameNormalized: { contains: "thit heo" } },
+        { nameNormalized: { contains: "thit ga" } }, { nameNormalized: { contains: "ca loc" } },
+        { nameNormalized: { contains: "trung ga" } }, { nameNormalized: { contains: "rau muong" } },
+        { nameNormalized: { contains: "bi do" } }, { nameNormalized: { contains: "dau an" } },
+        { nameNormalized: { contains: "sua tuoi" } },
+      ] },
       orderBy: { nameNormalized: "asc" },
       take: 9,
       select: { id: true, name: true, wastePercent: true, energyKcal: true, proteinG: true, lipidG: true, glucidG: true },

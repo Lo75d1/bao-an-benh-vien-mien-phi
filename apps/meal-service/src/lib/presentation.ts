@@ -13,6 +13,13 @@ export function dietDisplayName(name: string, code?: string | null) {
   return { name, code: code || null };
 }
 
+const massNumber = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
+
+export function formatMass(grams: number | null) {
+  if (grams === null || !Number.isFinite(grams)) return "—";
+  return grams >= 1000 ? `${massNumber.format(grams / 1000)} kg` : `${massNumber.format(grams)} g`;
+}
+
 export const mealStatusLabel = {
   PLANNED: "Dự kiến",
   LOCKED: "Đã chốt",
