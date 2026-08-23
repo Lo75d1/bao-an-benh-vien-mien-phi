@@ -3,10 +3,11 @@ import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { MenuEditor } from "@/components/menu-editor";
 import { MultiCodeMenuBoard } from "@/components/multi-code-menu-board";
-import { EmptyState } from "@/components/presentation";
+import { ContextMetrics, EmptyState, PageHeader } from "@/components/presentation";
 import { Utensils } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { parseMenuItems } from "@/lib/menu-logic";
+import { readRoleOverview } from "@/lib/overview";
 import { prisma } from "@/lib/prisma";
 import { entryWindowEnd, readOperationalSettings } from "@/lib/settings";
 import {
@@ -68,7 +69,7 @@ export default async function MenuPage({
   if (!user) redirect("/");
   if (user.role !== "DIETITIAN") redirect("/");
   const params = await searchParams;
-  const settings = await readOperationalSettings();
+  const [settings, overview] = await Promise.all([readOperationalSettings(), readRoleOverview(user.role, user.id)]);
   const [meals, templates] = await Promise.all([
     prisma.dietMeal.findMany({
       where: {
@@ -170,6 +171,8 @@ export default async function MenuPage({
       <main
         className={`workspace menu-page ${mode === "multiple" ? "multiple-workspace-page" : ""}`}
       ><Separator className="page-separator" aria-hidden="true"/>
+        <PageHeader eyebrow="Bàn làm việc dinh dưỡng" title="Lập và duyệt thực đơn" description="Chọn một hoặc nhiều mã chế độ để lên thực đơn trong cùng một bàn làm việc."/>
+        <ContextMetrics items={[{ label: "Ngày × chế độ chưa có thực đơn duyệt", value: overview.kind === "DIETITIAN" && overview.missingDateDietCount !== null ? `${overview.missingDateDietCount} mục` : "—" }]}/>
         {message && (
           <p className="success-banner" role="status">
             {message}

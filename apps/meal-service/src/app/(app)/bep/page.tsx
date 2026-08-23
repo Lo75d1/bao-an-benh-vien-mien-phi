@@ -2,8 +2,9 @@ import { Separator } from "@/components/ui/separator";
 import { ChefHat } from "lucide-react";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { EmptyState, PageHeader } from "@/components/presentation";
+import { ContextMetrics, EmptyState, PageHeader } from "@/components/presentation";
 import { getSessionUser } from "@/lib/auth";
+import { readRoleOverview } from "@/lib/overview";
 import { KITCHEN_STATUS_LABEL, nextKitchenStatus, readApprovedKitchenNotes } from "@/lib/kitchen";
 import { lockExpiredMealEvent, servingTotal } from "@/lib/late-addition";
 import { transitionMealAction } from "./actions";
@@ -24,13 +25,14 @@ export default async function KitchenPage({ searchParams }: { searchParams: Prom
   if (!user) redirect("/");
   if (user.role !== "KITCHEN") redirect("/");
   const query = await searchParams;
-  let [workspace, patientNotes] = await Promise.all([readKitchenWorkspace(query.meal), readApprovedKitchenNotes()]);
+  let [workspace, patientNotes, overview] = await Promise.all([readKitchenWorkspace(query.meal), readApprovedKitchenNotes(), readRoleOverview(user.role, user.id)]);
   if (workspace.selected && await lockExpiredMealEvent(workspace.selected.id, user) > 0) workspace = await readKitchenWorkspace(query.meal);
   const meal = workspace.selected;
   const selectedTotal = meal?.dietMeals.reduce((sum, item) => sum + servingTotal(item.servingsPlanned, meal.additions.filter((addition) => addition.dietTypeId === item.dietTypeId)).total, 0) ?? null;
 
   return <AppShell user={user}><main className="workspace kitchen-page"><Separator className="page-separator" aria-hidden="true"/>
     <PageHeader eyebrow="Bàn làm việc bếp" title={meal ? `${meal.mealType.name} · ${dateLabel.format(meal.mealDate)}` : "Chưa có bữa cần xử lý"} description="Chọn bữa, kiểm tra số suất và cập nhật tiến độ ngay trên một màn hình." actions={meal ? <p className="scope-note">Phục vụ lúc {meal.mealType.serviceTime} · <strong className="tabular">{selectedTotal === null ? "—" : `${numberFormat.format(selectedTotal)} suất`}</strong></p> : undefined}/>
+    <ContextMetrics items={[{ label: "Bữa đang xử lý", value: overview.kind === "KITCHEN" && overview.nextMealName ? overview.nextMealName : "—", detail: overview.kind === "KITCHEN" && overview.nextMealDate ? dateLabel.format(overview.nextMealDate) : "Chưa có lịch phù hợp" }, { label: "Giờ phục vụ", value: overview.kind === "KITCHEN" && overview.serviceTime ? overview.serviceTime : "—" }]}/>
     {query.updated && <p className="success-banner" role="status" aria-live="polite">{query.updated === "status" ? "Đã cập nhật trạng thái và ghi nhật ký." : query.updated === "addition" ? "Đã xác nhận suất bổ sung và ghi nhật ký." : "Đã lưu bằng chứng và ghi nhật ký."}</p>}
     {query.storage === "unavailable" && <p className="storage-notice" role="status" aria-live="polite">Ảnh đang tạm nằm im vì máy chủ chưa cấu hình nơi lưu. Trạng thái bữa ăn không bị ảnh hưởng.</p>}
     {workspace.events.length > 0 && <nav className="kitchen-meal-selector" aria-label="Chọn bữa ăn">{workspace.events.map((event) => { const state = workspaceStatus[event.status]; const active = event.id === meal?.id; return <a key={event.id} href={`/bep?meal=${encodeURIComponent(event.id)}`} className={active ? "kitchen-meal-option active" : "kitchen-meal-option"} aria-current={active ? "page" : undefined}><span className={`kitchen-meal-dot ${state.className}`} aria-hidden="true"/><span><strong>{event.name}</strong><small>{event.serviceTime}</small></span><em className={state.className}>{state.label}</em></a>; })}</nav>}

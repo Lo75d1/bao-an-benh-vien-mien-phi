@@ -10,6 +10,10 @@ export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?:
   return <header className="page-heading ui-page-header"><div>{eyebrow && <p className="eyebrow">{eyebrow}</p>}<h1>{title}</h1>{description && <p className="page-description">{description}</p>}</div>{actions && <div className="page-header-actions">{actions}</div>}</header>;
 }
 
+export function ContextMetrics({ items, label = "Tóm tắt công việc" }: { items: Array<{ label: string; value: ReactNode; detail?: ReactNode }>; label?: string }) {
+  return <dl aria-label={label} className="mb-5 grid overflow-hidden rounded-lg border border-border bg-secondary/60 sm:grid-flow-col sm:auto-cols-fr sm:divide-x sm:divide-border">{items.map((item) => <div key={item.label} className="grid min-w-0 gap-0.5 border-b border-border px-4 py-2.5 last:border-b-0 sm:border-b-0"><dt className="text-xs font-semibold uppercase tracking-[0.04em] text-muted-foreground">{item.label}</dt><dd className="truncate text-base font-semibold tabular-nums text-primary">{item.value}</dd>{item.detail && <dd className="text-xs text-muted-foreground">{item.detail}</dd>}</div>)}</dl>;
+}
+
 const statusTone = { PLANNED: "planned", LOCKED: "locked", PREPARING: "preparing", PREPARED: "prepared", SERVED: "served", CANCELLED: "cancelled" } as const;
 export function StatusBadge({ status }: { status: keyof typeof mealStatusLabel }) {
   return <Badge variant="outline" className={`status-badge status-${statusTone[status]}`}>{mealStatusLabel[status]}</Badge>;

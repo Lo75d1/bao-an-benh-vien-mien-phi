@@ -1,9 +1,10 @@
 import { Separator } from "@/components/ui/separator";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { EmptyState, PageHeader } from "@/components/presentation";
+import { ContextMetrics, EmptyState, PageHeader } from "@/components/presentation";
 import { Utensils } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
+import { readRoleOverview } from "@/lib/overview";
 import { isBeforeCutoff, readNurseServingDay } from "@/lib/serving-report";
 import { lockExpiredMealEvent, servingTotal } from "@/lib/late-addition";
 import { readPendingPatientNotes } from "@/lib/patient-note";
@@ -17,13 +18,13 @@ export default async function ServingReportPage({ searchParams }: { searchParams
   if (!user) redirect("/");
   if (user.role !== "NURSE") redirect("/");
   const { saved, meal } = await searchParams;
-  let data = await readNurseServingDay(user.id);
-  const pendingNotes = await readPendingPatientNotes(user.id);
+  let [data, pendingNotes, overview] = await Promise.all([readNurseServingDay(user.id), readPendingPatientNotes(user.id), readRoleOverview(user.role, user.id)]);
   const locked = (await Promise.all(data.events.map((event) => lockExpiredMealEvent(event.id, user)))).some((count) => count > 0);
   if (locked) data = await readNurseServingDay(user.id);
   const selectedEvent = data.events.find((event) => event.id === meal) ?? data.events.find((event) => isBeforeCutoff(event.mealDate, event.mealType.cutoffTime)) ?? data.events.at(-1);
   return <AppShell user={user}><main className="workspace serving-page serving-workspace"><Separator className="page-separator" aria-hidden="true"/>
     <PageHeader eyebrow="Báo suất hôm nay" title={data.departmentName} description="Chọn một bữa, nhập số suất và gửi ngay trong cùng một bàn làm việc." actions={<p className="scope-note">{dateLabel.format(new Date())} · Khoa được gán tự động</p>}/>
+    <ContextMetrics items={[{ label: "Tiến độ báo suất", value: `${overview.kind === "NURSE" && overview.reportedMealCount !== null ? overview.reportedMealCount : "—"} / ${overview.kind === "NURSE" && overview.mealCount !== null ? overview.mealCount : "—"} bữa` }, { label: "Ghi chú chờ duyệt", value: `${overview.kind === "NURSE" && overview.pendingNoteCount !== null ? overview.pendingNoteCount : "—"} ghi chú` }]}/>
     {saved && <p className="success-banner" role="status">{saved === "addition" ? "Đã gửi suất bổ sung riêng cho bếp. Số suất gốc không thay đổi." : "Đã lưu báo suất và cập nhật tổng toàn viện."}</p>}
     {data.events.length === 0 && <EmptyState icon={Utensils} title="Chưa có bữa ăn hôm nay" description="Không có số liệu để nhập. Hệ thống không tự tạo hoặc đoán số suất."/>}
     {data.events.length > 0 && <nav className="meal-timeline" aria-label="Chọn bữa ăn hôm nay">{data.events.map((event) => {
