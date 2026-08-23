@@ -10,7 +10,6 @@ const steps = [
   { label: "Báo suất", icon: ClipboardList },
   { label: "Bếp chuẩn bị", icon: ChefHat },
   { label: "Phục vụ", icon: Utensils },
-  { label: "Kết thúc", icon: Check },
 ];
 
 function statusOf(meal: ManagementMeal) {
@@ -20,12 +19,24 @@ function statusOf(meal: ManagementMeal) {
 export function MealLifecycleStrip({ data, role, selectedMealId }: { data: ManagementDay; role: Role; selectedMealId?: string }) {
   const [now, setNow] = useState(() => new Date(data.generatedAt));
   useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 30_000); return () => window.clearInterval(timer); }, []);
-  const current = useMemo(() => data.meals.find((meal) => meal.id === selectedMealId) ?? data.meals.find((meal) => displayMealState(new Date(`${data.date}T00:00:00.000Z`), meal.cutoffTime, meal.serviceTime, statusOf(meal), now)?.isCurrent) ?? data.meals.find((meal) => statusOf(meal) !== "SERVED") ?? data.meals.at(-1), [data, now, selectedMealId]);
-  if (!current) return null;
-  const state = displayMealState(new Date(`${data.date}T00:00:00.000Z`), current.cutoffTime, current.serviceTime, statusOf(current), now);
-  const ended = state?.key === "SERVED" || state?.key === "INCOMPLETE";
-  const activeIndex = ended ? 3 : state?.key === "RECEIVING" || state?.key === "UPCOMING" ? 0 : state?.key === "PREPARING" || state?.key === "COOKING" ? 1 : 2;
+  const dayDate = useMemo(() => new Date(`${data.date}T00:00:00.000Z`), [data.date]);
+  const picked = useMemo(() => {
+    const stateOf = (meal: ManagementMeal) => displayMealState(dayDate, meal.cutoffTime, meal.serviceTime, statusOf(meal), now);
+    const chosen = selectedMealId ? data.meals.find((meal) => meal.id === selectedMealId) : undefined;
+    if (chosen) return { meal: chosen, nextCycle: false };
+    const running = data.meals.find((meal) => stateOf(meal)?.isCurrent);
+    if (running) return { meal: running, nextCycle: false };
+    const upcoming = data.meals.find((meal) => { const key = stateOf(meal)?.key; return key === "RECEIVING" || key === "UPCOMING"; });
+    if (upcoming) return { meal: upcoming, nextCycle: false };
+    // Hết bữa trong ngày: vòng phục vụ chạy tiếp sang bữa đầu của ngày mai.
+    return data.meals[0] ? { meal: data.meals[0], nextCycle: true } : undefined;
+  }, [data.meals, dayDate, now, selectedMealId]);
+  if (!picked) return null;
+  const { meal: current, nextCycle } = picked;
+  const state = displayMealState(dayDate, current.cutoffTime, current.serviceTime, statusOf(current), now);
+  // Bữa đã qua (đã phục vụ hoặc quá giờ): cả ba chặng đều xong, không chặng nào đang chạy.
+  const ended = !nextCycle && (state?.key === "SERVED" || state?.key === "INCOMPLETE");
+  const activeIndex = ended ? steps.length : nextCycle || state?.key === "RECEIVING" || state?.key === "UPCOMING" ? 0 : state?.key === "PREPARING" || state?.key === "COOKING" ? 1 : 2;
   const focus = role === "NURSE" ? 0 : role === "KITCHEN" ? 1 : role === "DIETITIAN" ? 0 : -1;
-  const nextMeal = ended ? data.meals[data.meals.findIndex((meal) => meal.id === current.id) + 1] : undefined;
-  return <section className="meal-lifecycle shared-lifecycle" aria-label={`Vòng đời bữa ${current.name}`}><header><div><span>Đang theo dõi</span><strong>{current.name} · {state?.label ?? "—"}</strong></div><p>Chốt {current.cutoffTime} · Phục vụ {current.serviceTime}{nextMeal ? ` · ↻ Bữa kế: ${nextMeal.name} (chốt ${nextMeal.cutoffTime})` : ""}</p></header><ol>{steps.map(({ label, icon: Icon }, index) => <li key={label} className={`${index < activeIndex ? "done" : index === activeIndex ? "active" : "upcoming"}${index === 3 && state?.key === "INCOMPLETE" ? " warn" : ""}${index === focus ? " role-focus" : ""}`}><span>{index < activeIndex ? <Check aria-hidden="true"/> : <Icon aria-hidden="true"/>}</span><strong>{label}</strong></li>)}</ol></section>;
+  return <section className="meal-lifecycle shared-lifecycle" aria-label={`Vòng đời bữa ${current.name}`}><header><div><span>{nextCycle ? "Các bữa hôm nay đã kết thúc · bữa kế" : "Đang theo dõi"}</span><strong>{current.name} · {nextCycle ? "Chưa tới" : state?.label ?? "—"}</strong></div><p>{nextCycle ? "Ngày mai · " : ""}Chốt {current.cutoffTime} · Phục vụ {current.serviceTime}</p></header><ol>{steps.map(({ label, icon: Icon }, index) => <li key={label} className={`${index < activeIndex ? "done" : index === activeIndex ? "active" : "upcoming"}${index === focus ? " role-focus" : ""}`}><span>{index < activeIndex ? <Check aria-hidden="true"/> : <Icon aria-hidden="true"/>}</span><strong>{label}</strong></li>)}</ol></section>;
 }

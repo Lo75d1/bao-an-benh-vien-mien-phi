@@ -13,7 +13,8 @@ export function currentNurseWorkflow(meals: NurseWorkflowMeal[], completionMinut
     if (nowMs < service) return { meal, phase: "PREPARING" as NurseWorkflowPhase };
     if (nowMs < service + completionMinutes * 60_000) return { meal, phase: "SERVING" as NurseWorkflowPhase };
   }
-  return { meal: ordered[ordered.length - 1], phase: "ENDED" as NurseWorkflowPhase };
+  // Hết bữa trong ngày: vòng phục vụ chạy tiếp sang bữa đầu của ngày mai.
+  return { meal: ordered[0], phase: "ENDED" as NurseWorkflowPhase };
 }
 
-export const NURSE_PHASE_LABEL: Record<NurseWorkflowPhase, string> = { REPORTING: "Báo suất ăn", PREPARING: "Bếp đang chuẩn bị", SERVING: "Đang phục vụ", ENDED: "Đã kết thúc" };
+export const NURSE_PHASE_LABEL: Record<NurseWorkflowPhase, string> = { REPORTING: "Báo suất ăn", PREPARING: "Bếp đang chuẩn bị", SERVING: "Đang phục vụ", ENDED: "Chưa tới" };
