@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { aggregateHospitalServings, buildServingSnapshot, cutoffAt, hospitalDate, isBeforeCutoff, normalizeServingNote, requireNurseDepartment } from "../src/lib/serving-report";
+import { aggregateHospitalServings, assertServingReportNotSubmitted, buildServingSnapshot, cutoffAt, hospitalDate, isBeforeCutoff, normalizeServingNote, requireNurseDepartment } from "../src/lib/serving-report";
 
 test("cộng báo suất đa khoa theo từng chế độ", () => {
   const totals = aggregateHospitalServings([{ dietTypeId: "thuong", quantity: 20 }, { dietTypeId: "dtd", quantity: 8 }, { dietTypeId: "thuong", quantity: 13 }, { dietTypeId: "dtd", quantity: 4 }]);
@@ -42,4 +42,9 @@ test("audit before/after giữ riêng số suất và hai loại ghi chú", () =
   assert.equal(after.lines[0].quantity, 22);
   assert.equal(after.lines[0].internalNote, "Nội bộ mới");
   assert.equal(after.lines[0].patientVisibleNote, "Ít muối");
+});
+
+test("mỗi khoa chỉ được xác nhận báo suất một lần cho một bữa", () => {
+  assert.doesNotThrow(() => assertServingReportNotSubmitted(null));
+  assert.throws(() => assertServingReportNotSubmitted("report-da-gui"), /đã được xác nhận/);
 });
