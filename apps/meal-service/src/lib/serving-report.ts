@@ -12,10 +12,6 @@ export function normalizeReporterName(value: unknown): string {
   return name;
 }
 
-export function assertServingReportNotSubmitted(existingId: string | null | undefined): void {
-  if (existingId) throw new Error("Báo suất của bữa này đã được xác nhận và không thể gửi lại.");
-}
-
 export function requireNurseDepartment(role: Role, departmentIds: string[]): string {
   if (role !== "NURSE") throw new Error("Chỉ điều dưỡng được báo suất.");
   const unique = [...new Set(departmentIds)];
@@ -76,7 +72,7 @@ export async function readNurseServingDay(userId: string, now = new Date()) {
   return { departmentId, departmentName: memberships[0]?.department.name ?? "—", events, serviceCompletionMinutes: settings.serviceCompletionMinutes };
 }
 
-export async function createServingReport(input: { mealEventId: string; departmentId: string; reportedByName: string; lines: ServingLineInput[] }, actor: { id: string; displayName: string; role: Role }, now = new Date()) {
+export async function saveServingReport(input: { mealEventId: string; departmentId: string; reportedByName: string; lines: ServingLineInput[] }, actor: { id: string; displayName: string; role: Role }, now = new Date()) {
   requireNurseDepartment(actor.role, [input.departmentId]);
   if (input.lines.length === 0) throw new Error("Bữa ăn chưa có chế độ để báo suất.");
   if (new Set(input.lines.map((line) => line.dietTypeId)).size !== input.lines.length) throw new Error("Có mã chế độ bị lặp.");
@@ -89,12 +85,11 @@ export async function createServingReport(input: { mealEventId: string; departme
   const expected = new Set(event.dietMeals.map((meal) => meal.dietTypeId));
   if (input.lines.length !== expected.size || input.lines.some((line) => !expected.has(line.dietTypeId))) throw new Error("Danh sách chế độ không khớp với bữa ăn hiện tại.");
   return prisma.$transaction(async (tx) => {
-    const existing = await tx.servingReport.findUnique({ where: { departmentId_mealEventId: { departmentId: input.departmentId, mealEventId: input.mealEventId } }, select: { id: true } });
-    assertServingReportNotSubmitted(existing?.id);
+    const existing = await tx.servingReport.findUnique({ where: { departmentId_mealEventId: { departmentId: input.departmentId, mealEventId: input.mealEventId } }, include: { lines: true } });
     const reportedByName = normalizeReporterName(input.reportedByName);
-    const report = await tx.servingReport.create({ data: { departmentId: input.departmentId, mealEventId: input.mealEventId, submittedById: actor.id, submittedAt: now, reportedByName, status: "SUBMITTED" } });
+    const report = await tx.servingReport.upsert({ where: { departmentId_mealEventId: { departmentId: input.departmentId, mealEventId: input.mealEventId } }, create: { departmentId: input.departmentId, mealEventId: input.mealEventId, submittedById: actor.id, submittedAt: now, reportedByName, status: "SUBMITTED" }, update: { submittedById: actor.id, submittedAt: now, reportedByName, status: "SUBMITTED" } });
     for (const line of input.lines) await tx.servingReportLine.upsert({ where: { servingReportId_dietTypeId: { servingReportId: report.id, dietTypeId: line.dietTypeId } }, create: { servingReportId: report.id, ...line }, update: { quantity: line.quantity, internalNote: line.internalNote, patientVisibleNote: line.patientVisibleNote } });
-    await tx.auditLog.create({ data: { entityType: "ServingReport", entityId: report.id, action: "CREATE", actorId: actor.id, actorName: actor.displayName, afterJson: buildServingSnapshot({ ...report, lines: input.lines }) as unknown as Prisma.InputJsonValue, reason: `Điều dưỡng ${reportedByName} xác nhận báo suất` } });
+    await tx.auditLog.create({ data: { entityType: "ServingReport", entityId: report.id, action: existing ? "UPDATE" : "CREATE", actorId: actor.id, actorName: actor.displayName, beforeJson: existing ? buildServingSnapshot({ ...existing, lines: existing.lines }) as unknown as Prisma.InputJsonValue : undefined, afterJson: buildServingSnapshot({ ...report, lines: input.lines }) as unknown as Prisma.InputJsonValue, reason: `Điều dưỡng ${reportedByName} xác nhận báo suất` } });
     const submittedLines = await tx.servingReportLine.findMany({ where: { servingReport: { mealEventId: input.mealEventId, status: "SUBMITTED" } }, select: { dietTypeId: true, quantity: true } });
     const totals = aggregateHospitalServings(submittedLines);
     for (const meal of event.dietMeals) {
