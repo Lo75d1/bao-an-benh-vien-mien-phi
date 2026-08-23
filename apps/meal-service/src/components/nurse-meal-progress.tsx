@@ -1,13 +1,20 @@
 "use client";
 import { ChefHat, ClipboardList, Utensils } from "lucide-react";
-import { useEffect, useState } from "react";
-import { currentNurseWorkflow, NURSE_PHASE_LABEL, type NurseWorkflowMeal } from "@/lib/nurse-workflow";
-const steps = [{ phase: "REPORTING", label: "Báo suất ăn", icon: ClipboardList }, { phase: "PREPARING", label: "Bếp chuẩn bị", icon: ChefHat }, { phase: "SERVING", label: "Phục vụ", icon: Utensils }] as const;
-export function NurseMealProgress({ meals, completionMinutes }: { meals: NurseWorkflowMeal[]; completionMinutes: number }) {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 30_000); return () => window.clearInterval(timer); }, []);
-  const current = currentNurseWorkflow(meals, completionMinutes, now); if (!current) return null;
-  const ended = current.phase === "ENDED";
-  const active = ended ? 0 : steps.findIndex((step) => step.phase === current.phase);
-  return <section className="nurse-progress-card" aria-label={`Tiến trình ${current.meal.name}`}><header><span>{ended ? "Các bữa hôm nay đã kết thúc · bữa kế" : "Suất cần phục vụ hiện tại"}</span><strong>{current.meal.name} — {NURSE_PHASE_LABEL[current.phase]}</strong><small>Chốt {current.meal.cutoffTime} · Phục vụ {current.meal.serviceTime}</small></header><ol>{steps.map(({ phase, label, icon: Icon }, index) => <li key={phase} className={index === active ? "active" : index < active ? "done" : "upcoming"}><span><Icon aria-hidden="true"/><b>{label}</b></span></li>)}</ol></section>;
+import { MEAL_PHASE_LABEL, type MealTimePhase } from "@/lib/meal-events";
+
+const steps = [
+  { phase: "BEFORE_CUTOFF", label: "Báo suất ăn", icon: ClipboardList },
+  { phase: "PREPARING", label: "Bếp chuẩn bị", icon: ChefHat },
+  { phase: "SERVING", label: "Phục vụ", icon: Utensils },
+] as const;
+
+/**
+ * Thanh vòng đời của điều dưỡng — component "câm": mốc giờ do trang tính sẵn bằng
+ * `mealTimePhase` trong lib/meal-events (nguồn sự thật DUY NHẤT về thời gian).
+ * `phase = null` nghĩa là các bữa hôm nay đã xong, vòng kế bắt đầu ở bữa đầu ngày.
+ */
+export function NurseMealProgress({ mealName, phase, cutoffTime, serviceTime }: { mealName: string; phase: MealTimePhase | null; cutoffTime: string; serviceTime: string }) {
+  const nextCycle = phase === null || phase === "PASSED";
+  const active = nextCycle ? 0 : steps.findIndex((step) => step.phase === phase);
+  return <section className="nurse-progress-card" aria-label={`Tiến trình ${mealName}`}><header><span>{nextCycle ? "Các bữa hôm nay đã kết thúc · bữa kế" : "Suất cần phục vụ hiện tại"}</span><strong>{mealName} — {nextCycle ? "Chưa tới" : MEAL_PHASE_LABEL[phase]}</strong><small>Chốt {cutoffTime} · Phục vụ {serviceTime}</small></header><ol>{steps.map(({ phase: stepPhase, label, icon: Icon }, index) => <li key={stepPhase} className={index === active ? "active" : index < active ? "done" : "upcoming"}><span><Icon aria-hidden="true"/><b>{label}</b></span></li>)}</ol></section>;
 }

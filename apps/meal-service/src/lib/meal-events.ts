@@ -40,20 +40,56 @@ function atVietnamTime(mealDate: Date, value: string): number | null {
   return Date.UTC(mealDate.getUTCFullYear(), mealDate.getUTCMonth(), mealDate.getUTCDate(), hour - 7, minute);
 }
 
-export function displayMealState(mealDate: Date, cutoffTime: string, serviceTime: string, storedStatus: DietMealStatus | null, now = new Date()): DisplayMealState | null {
-  if (storedStatus === null || storedStatus === "CANCELLED") return null;
+export const DEFAULT_SERVICE_COMPLETION_MINUTES = 60;
+
+/**
+ * Mốc giờ của một bữa — NGUỒN SỰ THẬT DUY NHẤT về thời gian trong toàn hệ thống.
+ * Thuần thời gian, không xét trạng thái lưu. Mọi màn (điều dưỡng / bếp / dinh dưỡng /
+ * admin / lịch) phải dùng hàm này; KHÔNG viết bộ logic giờ thứ hai.
+ */
+export type MealTimePhase = "BEFORE_CUTOFF" | "PREPARING" | "SERVING" | "PASSED";
+
+export const MEAL_PHASE_LABEL: Record<MealTimePhase, string> = { BEFORE_CUTOFF: "Báo suất ăn", PREPARING: "Bếp đang chuẩn bị", SERVING: "Đang phục vụ", PASSED: "Đã kết thúc" };
+
+export function mealTimePhase(mealDate: Date, cutoffTime: string, serviceTime: string, now = new Date(), completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES): MealTimePhase | null {
   const cutoffAt = atVietnamTime(mealDate, cutoffTime);
   const serviceAt = atVietnamTime(mealDate, serviceTime);
-  if (cutoffAt === null || serviceAt === null) return { key: "INCOMPLETE", label: "⚠ Chưa hoàn tất", tone: "danger", isCurrent: false };
-  if (storedStatus === "SERVED") return { key: "SERVED", label: "Đã phục vụ", tone: "done", isCurrent: false };
+  if (cutoffAt === null || serviceAt === null) return null;
   const nowMs = now.getTime();
-  if (nowMs >= serviceAt + 60 * 60 * 1000) return { key: "INCOMPLETE", label: "⚠ Chưa hoàn tất", tone: "danger", isCurrent: false };
-  if (storedStatus === "PREPARED" && nowMs < serviceAt) return { key: "COOKING", label: "Đang nấu", tone: "warning", isCurrent: true };
-  if (["LOCKED", "PREPARING"].includes(storedStatus) && nowMs < cutoffAt) return { key: "PREPARING", label: "Đang chuẩn bị", tone: "warning", isCurrent: true };
-  if (nowMs >= serviceAt) return { key: "SERVING", label: "Đang phục vụ", tone: "active", isCurrent: true };
-  if (nowMs >= cutoffAt) return { key: "PREPARING", label: "Đang chuẩn bị", tone: "warning", isCurrent: true };
+  if (nowMs < cutoffAt) return "BEFORE_CUTOFF";
+  if (nowMs < serviceAt) return "PREPARING";
+  if (nowMs < serviceAt + completionMinutes * 60_000) return "SERVING";
+  return "PASSED";
+}
+
+export function displayMealState(mealDate: Date, cutoffTime: string, serviceTime: string, storedStatus: DietMealStatus | null, now = new Date(), completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES): DisplayMealState | null {
+  if (storedStatus === null || storedStatus === "CANCELLED") return null;
+  const phase = mealTimePhase(mealDate, cutoffTime, serviceTime, now, completionMinutes);
+  if (phase === null) return { key: "INCOMPLETE", label: "⚠ Chưa hoàn tất", tone: "danger", isCurrent: false };
+  if (storedStatus === "SERVED") return { key: "SERVED", label: "Đã phục vụ", tone: "done", isCurrent: false };
+  if (phase === "PASSED") return { key: "INCOMPLETE", label: "⚠ Chưa hoàn tất", tone: "danger", isCurrent: false };
+  if (storedStatus === "PREPARED" && phase !== "SERVING") return { key: "COOKING", label: "Đang nấu", tone: "warning", isCurrent: true };
+  if (["LOCKED", "PREPARING"].includes(storedStatus) && phase === "BEFORE_CUTOFF") return { key: "PREPARING", label: "Đang chuẩn bị", tone: "warning", isCurrent: true };
+  if (phase === "SERVING") return { key: "SERVING", label: "Đang phục vụ", tone: "active", isCurrent: true };
+  if (phase === "PREPARING") return { key: "PREPARING", label: "Đang chuẩn bị", tone: "warning", isCurrent: true };
   if (toDateKey(mealDate) > hospitalDayKey(now)) return { key: "UPCOMING", label: "Chưa tới", tone: "muted", isCurrent: false };
   return { key: "RECEIVING", label: "Đang nhận báo suất", tone: "neutral", isCurrent: false };
+}
+
+/**
+ * Chọn bữa để hiển thị trên thanh vòng đời: bữa đang chạy → bữa sắp tới → hết bữa
+ * trong ngày thì cuốn sang bữa đầu của vòng kế (nextCycle = true).
+ */
+export type LifecycleMeal = { cutoffTime: string; serviceTime: string; mealDate: Date; status: DietMealStatus | null };
+
+export function pickLifecycleMeal<T extends LifecycleMeal>(meals: T[], now = new Date(), completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES): { meal: T; nextCycle: boolean } | null {
+  if (meals.length === 0) return null;
+  const stateOf = (meal: T) => displayMealState(meal.mealDate, meal.cutoffTime, meal.serviceTime, meal.status, now, completionMinutes);
+  const running = meals.find((meal) => stateOf(meal)?.isCurrent);
+  if (running) return { meal: running, nextCycle: false };
+  const upcoming = meals.find((meal) => { const key = stateOf(meal)?.key; return key === "RECEIVING" || key === "UPCOMING"; });
+  if (upcoming) return { meal: upcoming, nextCycle: false };
+  return { meal: meals[0], nextCycle: true };
 }
 
 export function rollupMealEventStatus(statuses: DietMealStatus[]): DietMealStatus | null {
