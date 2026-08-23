@@ -3,7 +3,14 @@ import { prisma } from "./prisma";
 import { readOperationalSettings } from "./settings";
 
 export type ServingLineInput = { dietTypeId: string; quantity: number; internalNote: string | null; patientVisibleNote: string | null };
-type ServingSnapshot = { status: "SUBMITTED"; departmentId: string; mealEventId: string; lines: ServingLineInput[] };
+type ServingSnapshot = { status: "SUBMITTED"; departmentId: string; mealEventId: string; reportedByName: string | null; lines: ServingLineInput[] };
+
+export function normalizeReporterName(value: unknown): string {
+  if (typeof value !== "string") throw new Error("Cần nhập tên người trực tiếp báo suất.");
+  const name = value.trim().replace(/\s+/g, " ");
+  if (name.length < 2 || name.length > 100) throw new Error("Tên người báo phải có từ 2 đến 100 ký tự.");
+  return name;
+}
 
 export function requireNurseDepartment(role: Role, departmentIds: string[]): string {
   if (role !== "NURSE") throw new Error("Chỉ điều dưỡng được báo suất.");
@@ -44,8 +51,8 @@ export function isBeforeCutoff(mealDate: Date, cutoffTime: string, now = new Dat
   return cutoff !== null && now < cutoff;
 }
 
-export function buildServingSnapshot(report: { departmentId: string; mealEventId: string; lines: ServingLineInput[] }): ServingSnapshot {
-  return { status: "SUBMITTED", departmentId: report.departmentId, mealEventId: report.mealEventId, lines: report.lines.map((line) => ({ ...line })).sort((a, b) => a.dietTypeId.localeCompare(b.dietTypeId)) };
+export function buildServingSnapshot(report: { departmentId: string; mealEventId: string; reportedByName?: string | null; lines: ServingLineInput[] }): ServingSnapshot {
+  return { status: "SUBMITTED", departmentId: report.departmentId, mealEventId: report.mealEventId, reportedByName: report.reportedByName ?? null, lines: report.lines.map((line) => ({ ...line })).sort((a, b) => a.dietTypeId.localeCompare(b.dietTypeId)) };
 }
 
 export function hospitalDate(now = new Date()): Date {
@@ -62,10 +69,10 @@ export async function readNurseServingDay(userId: string, now = new Date()) {
     where: { mealDate: day }, orderBy: { mealType: { sortOrder: "asc" } },
     include: { mealType: true, dietMeals: { where: { voidedAt: null, ...(settings.sondeEnabled ? {} : { feedingRoute: "NORMAL" }) }, orderBy: { dietType: { sortOrder: "asc" } }, include: { dietType: true } }, reports: { where: { departmentId }, include: { lines: true } }, additions: { where: { departmentId, ...(settings.sondeEnabled ? {} : { dietType: { feedingRoute: "NORMAL" } }) }, orderBy: { submittedAt: "desc" }, include: { dietType: true } } },
   });
-  return { departmentId, departmentName: memberships[0]?.department.name ?? "—", events };
+  return { departmentId, departmentName: memberships[0]?.department.name ?? "—", events, serviceCompletionMinutes: settings.serviceCompletionMinutes };
 }
 
-export async function upsertServingReport(input: { mealEventId: string; departmentId: string; lines: ServingLineInput[] }, actor: { id: string; displayName: string; role: Role }, now = new Date()) {
+export async function upsertServingReport(input: { mealEventId: string; departmentId: string; reportedByName: string; lines: ServingLineInput[] }, actor: { id: string; displayName: string; role: Role }, now = new Date()) {
   requireNurseDepartment(actor.role, [input.departmentId]);
   if (input.lines.length === 0) throw new Error("Bữa ăn chưa có chế độ để báo suất.");
   if (new Set(input.lines.map((line) => line.dietTypeId)).size !== input.lines.length) throw new Error("Có mã chế độ bị lặp.");
@@ -79,9 +86,10 @@ export async function upsertServingReport(input: { mealEventId: string; departme
   if (input.lines.length !== expected.size || input.lines.some((line) => !expected.has(line.dietTypeId))) throw new Error("Danh sách chế độ không khớp với bữa ăn hiện tại.");
   return prisma.$transaction(async (tx) => {
     const existing = await tx.servingReport.findUnique({ where: { departmentId_mealEventId: { departmentId: input.departmentId, mealEventId: input.mealEventId } }, include: { lines: true } });
-    const report = await tx.servingReport.upsert({ where: { departmentId_mealEventId: { departmentId: input.departmentId, mealEventId: input.mealEventId } }, create: { departmentId: input.departmentId, mealEventId: input.mealEventId, submittedById: actor.id, submittedAt: now, status: "SUBMITTED" }, update: { submittedById: actor.id, submittedAt: now, status: "SUBMITTED" } });
+    const reportedByName = normalizeReporterName(input.reportedByName);
+    const report = await tx.servingReport.upsert({ where: { departmentId_mealEventId: { departmentId: input.departmentId, mealEventId: input.mealEventId } }, create: { departmentId: input.departmentId, mealEventId: input.mealEventId, submittedById: actor.id, submittedAt: now, reportedByName, status: "SUBMITTED" }, update: { submittedById: actor.id, submittedAt: now, reportedByName, status: "SUBMITTED" } });
     for (const line of input.lines) await tx.servingReportLine.upsert({ where: { servingReportId_dietTypeId: { servingReportId: report.id, dietTypeId: line.dietTypeId } }, create: { servingReportId: report.id, ...line }, update: { quantity: line.quantity, internalNote: line.internalNote, patientVisibleNote: line.patientVisibleNote } });
-    await tx.auditLog.create({ data: { entityType: "ServingReport", entityId: report.id, action: existing ? "UPDATE" : "CREATE", actorId: actor.id, actorName: actor.displayName, beforeJson: existing ? buildServingSnapshot({ ...existing, lines: existing.lines }) as unknown as Prisma.InputJsonValue : undefined, afterJson: buildServingSnapshot({ ...report, lines: input.lines }) as unknown as Prisma.InputJsonValue, reason: "Điều dưỡng báo suất trước giờ chốt" } });
+    await tx.auditLog.create({ data: { entityType: "ServingReport", entityId: report.id, action: existing ? "UPDATE" : "CREATE", actorId: actor.id, actorName: actor.displayName, beforeJson: existing ? buildServingSnapshot({ ...existing, lines: existing.lines }) as unknown as Prisma.InputJsonValue : undefined, afterJson: buildServingSnapshot({ ...report, lines: input.lines }) as unknown as Prisma.InputJsonValue, reason: `Điều dưỡng ${reportedByName} xác nhận báo suất` } });
     const submittedLines = await tx.servingReportLine.findMany({ where: { servingReport: { mealEventId: input.mealEventId, status: "SUBMITTED" } }, select: { dietTypeId: true, quantity: true } });
     const totals = aggregateHospitalServings(submittedLines);
     for (const meal of event.dietMeals) {

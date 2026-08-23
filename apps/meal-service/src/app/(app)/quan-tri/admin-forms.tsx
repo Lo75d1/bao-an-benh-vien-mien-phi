@@ -5,13 +5,14 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 const error = (id: string, message?: string) => message ? <span id={id} role="alert" className="field-error">{message}</span> : null;
-const settingsSchema = z.object({ advanceEntryDays: z.number().int().min(1, "Tối thiểu 1 ngày.").max(60, "Tối đa 60 ngày."), sondeEnabled: z.boolean(), warehouseMode: z.enum(["A", "B"]), warehouseApprovalRole: z.enum(["ADMIN", "DIETITIAN", "KITCHEN"]), reason: z.string().trim().min(3, "Nêu lý do với ít nhất 3 ký tự.").max(500) });
+const settingsSchema = z.object({ advanceEntryDays: z.number().int().min(1, "Tối thiểu 1 ngày.").max(60, "Tối đa 60 ngày."), serviceCompletionMinutes: z.number().int().min(15, "Tối thiểu 15 phút.").max(240, "Tối đa 240 phút."), sondeEnabled: z.boolean(), warehouseMode: z.enum(["A", "B"]), warehouseApprovalRole: z.enum(["ADMIN", "DIETITIAN", "KITCHEN"]), reason: z.string().trim().min(3, "Nêu lý do với ít nhất 3 ký tự.").max(500) });
 type SettingsFields = z.infer<typeof settingsSchema>;
 type MealType = { id: string; name: string; cutoffTime: string; serviceTime: string };
 export function SettingsForm({ settings, mealTypes, action }: { settings: Omit<SettingsFields, "reason">; mealTypes: MealType[]; action: (data: FormData) => Promise<void> }) {
  const [pending, run] = useTransition(); const { register, handleSubmit, formState: { errors } } = useForm<SettingsFields>({ resolver: zodResolver(settingsSchema), shouldFocusError: true, defaultValues: { ...settings, reason: "" } });
  return <form onSubmit={handleSubmit((_values, event) => { const form = event?.currentTarget; if (form instanceof HTMLFormElement) { const data = new FormData(form); startTransition(() => run(() => action(data))); } })} noValidate className="admin-form settings-form"><div className="admin-grid settings-primary-grid">
   <label htmlFor="advanceEntryDays">Số ngày được nhập trước<input id="advanceEntryDays" type="number" min="1" max="60" {...register("advanceEntryDays", { valueAsNumber: true })} aria-invalid={!!errors.advanceEntryDays} aria-describedby={errors.advanceEntryDays ? "advanceEntryDays-error" : undefined}/>{error("advanceEntryDays-error", errors.advanceEntryDays?.message)}</label>
+  <label htmlFor="serviceCompletionMinutes">Phút chuyển sang bữa kế<input id="serviceCompletionMinutes" type="number" min="15" max="240" step="5" {...register("serviceCompletionMinutes", { valueAsNumber: true })} aria-invalid={!!errors.serviceCompletionMinutes}/></label>
   <label className="check-field"><input type="checkbox" {...register("sondeEnabled")}/><span>Bật đường nuôi Sonde</span></label>
   <label htmlFor="warehouseMode">Mode kho<select id="warehouseMode" {...register("warehouseMode")}><option value="A">Mode A · một kho tổng</option><option value="B">Mode B · kho bếp + kho sonde</option></select></label>
   <label htmlFor="warehouseApprovalRole">Role duyệt kho<select id="warehouseApprovalRole" {...register("warehouseApprovalRole")}><option value="ADMIN">Quản trị</option><option value="DIETITIAN">Dinh dưỡng</option><option value="KITCHEN">Nhà bếp</option></select></label>

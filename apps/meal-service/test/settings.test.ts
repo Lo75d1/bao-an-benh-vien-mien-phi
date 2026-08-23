@@ -36,6 +36,12 @@ test("số ngày nhập trước giới hạn cửa sổ nhập liệu", () => {
   assert.equal(entryWindowEnd(new Date("2026-08-21T00:00:00.000Z"), 7).toISOString(), "2026-08-28T23:59:59.999Z");
 });
 
+test("admin kiểm soát thời gian chuyển sang bữa kế", () => {
+  const settings = parseOperationalSettings({ serviceCompletionMinutes: 90 });
+  assert.equal(settings.serviceCompletionMinutes, 90);
+  assert.throws(() => validateOperationalSettings({ ...settings, serviceCompletionMinutes: 10 }));
+});
+
 test("account validation bắt buộc khoa cho điều dưỡng", () => {
   assert.throws(() => validateAccountInput({ email: "nurse@example.org", displayName: "Điều dưỡng A", role: "NURSE", password: "mat-khau-123" }, true));
   const account = validateAccountInput({ email: "NURSE@example.org", displayName: "Điều dưỡng A", role: "NURSE", password: "mat-khau-123", departmentId: "dept-1" }, true);

@@ -8,6 +8,7 @@ export const DEFAULT_SETTINGS: OperationalSettings = {
   sondeEnabled: true,
   warehouseMode: "A",
   warehouseApprovalRole: "ADMIN",
+  serviceCompletionMinutes: 60,
 };
 
 export type OperationalSettings = {
@@ -15,6 +16,7 @@ export type OperationalSettings = {
   sondeEnabled: boolean;
   warehouseMode: "A" | "B";
   warehouseApprovalRole: Role;
+  serviceCompletionMinutes: number;
 };
 
 export type MealTimeInput = { id: string; cutoffTime: string; serviceTime: string };
@@ -31,12 +33,14 @@ export function parseOperationalSettings(value: unknown): OperationalSettings {
     sondeEnabled: typeof source.sondeEnabled === "boolean" ? source.sondeEnabled : DEFAULT_SETTINGS.sondeEnabled,
     warehouseMode: source.warehouseMode === "B" ? "B" : "A",
     warehouseApprovalRole: typeof source.warehouseApprovalRole === "string" && APPROVAL_ROLES.has(source.warehouseApprovalRole as Role) ? source.warehouseApprovalRole as Role : DEFAULT_SETTINGS.warehouseApprovalRole,
+    serviceCompletionMinutes: Number.isInteger(source.serviceCompletionMinutes) && Number(source.serviceCompletionMinutes) >= 15 && Number(source.serviceCompletionMinutes) <= 240 ? Number(source.serviceCompletionMinutes) : DEFAULT_SETTINGS.serviceCompletionMinutes,
   };
 }
 
 export function validateOperationalSettings(input: OperationalSettings): OperationalSettings {
   if (!Number.isInteger(input.advanceEntryDays) || input.advanceEntryDays < 1 || input.advanceEntryDays > 60) throw new Error("Số ngày nhập trước phải từ 1 đến 60.");
   if (!APPROVAL_ROLES.has(input.warehouseApprovalRole)) throw new Error("Role duyệt kho không hợp lệ.");
+  if (!Number.isInteger(input.serviceCompletionMinutes) || input.serviceCompletionMinutes < 15 || input.serviceCompletionMinutes > 240) throw new Error("Thời gian kết thúc phục vụ phải từ 15 đến 240 phút.");
   return { ...input };
 }
 

@@ -217,6 +217,7 @@ model ServingReport {
   submittedAt   DateTime?
   status        ServingReportStatus @default(DRAFT)
   note          String?
+  reportedByName String?
   department    Department          @relation(fields: [departmentId], references: [id])
   mealEvent     MealEvent           @relation(fields: [mealEventId], references: [id])
   submittedBy   User                @relation(fields: [submittedById], references: [id])
