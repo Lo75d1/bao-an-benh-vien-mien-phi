@@ -2,12 +2,12 @@ import type { Role } from "@prisma/client";
 import { readManagementDay } from "@/lib/management";
 import { MealLifecycleStrip } from "./meal-lifecycle-strip";
 
-export async function CurrentMealLifecycle({ role }: { role: Role }) {
+export async function CurrentMealLifecycle({ role, selectedMealId }: { role: Role; selectedMealId?: string }) {
   let data;
   try {
     data = await readManagementDay();
   } catch {
     return null;
   }
-  return <MealLifecycleStrip data={data} role={role}/>;
+  return <MealLifecycleStrip data={data} role={role} selectedMealId={selectedMealId}/>;
 }

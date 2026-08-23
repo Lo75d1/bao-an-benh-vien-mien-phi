@@ -10,6 +10,7 @@ import { hospitalDayKey } from "@/lib/meal-events";
 import { formatMass } from "@/lib/presentation";
 import { KitchenBoard } from "./kitchen-board";
 import { KitchenDialogs } from "./kitchen-dialogs";
+import { KitchenHeaderStatus } from "./kitchen-header-status";
 import { readKitchenWorkspace } from "./workspace-data";
 
 type SnapshotItem = { itemName?: unknown; dishName?: unknown; grams?: unknown };
@@ -27,13 +28,15 @@ export default async function KitchenPage({ searchParams }: { searchParams: Prom
   const meal = workspace.selected;
   const updateMessage = query.updated === "prepared" ? "Đã lưu ảnh mẫu và xác nhận toàn bộ bữa đã chuẩn bị xong." : query.updated === "reopened" ? "Đã quay lại trạng thái đang chuẩn bị." : "Đã ghi nhận xử lý của bếp.";
 
-  return <AppShell user={user}><main className="kitchen-page kitchen-v2">
-    <CurrentMealLifecycle role={user.role}/>
+  const tools = meal ? <KitchenDialogs additions={meal.additions} evidence={meal.evidence} dietMeals={meal.dietMeals.map((item) => ({ id: item.id, name: `${item.dietType.code} · ${item.dietType.name}` }))} patientNotes={notes.map((note) => ({ id: note.id, note: note.note, departmentName: note.department.name, mealDateLabel: hospitalDayKey(note.mealDate), acknowledged: note.acknowledged }))}/> : null;
+  const serviceAt = meal ? `${hospitalDayKey(meal.mealDate)}T${meal.mealType.serviceTime}:00+07:00` : null;
+
+  return <AppShell user={user} workflowStatus={serviceAt ? <KitchenHeaderStatus serviceAt={serviceAt}/> : undefined}><main className="kitchen-page kitchen-v2">
+    <CurrentMealLifecycle role={user.role} selectedMealId={meal?.id}/>
     {query.updated && <p className="success-banner" role="status">{updateMessage}</p>}
     {query.storage === "unavailable" && <p className="storage-notice" role="alert">Máy chủ chưa cấu hình nơi lưu ảnh nên chưa thể hoàn tất bữa.</p>}
     {!meal ? <EmptyState icon={ChefHat} title="Chưa có bữa cần chuẩn bị" description="Hệ thống không tự tạo bữa hoặc đoán số suất."/> : <>
-      <section className="kitchen-quick-bar"><div><strong>{meal.mealType.name}</strong><span>{hospitalDayKey(meal.mealDate)} · Phục vụ {meal.mealType.serviceTime}</span></div><KitchenDialogs additions={meal.additions} evidence={meal.evidence} dietMeals={meal.dietMeals.map((item) => ({ id: item.id, name: `${item.dietType.code} · ${item.dietType.name}` }))} patientNotes={notes.map((note) => ({ id: note.id, note: note.note, departmentName: note.department.name, mealDateLabel: hospitalDayKey(note.mealDate), acknowledged: note.acknowledged }))}/></section>
-      <KitchenBoard eventId={meal.id} mealName={meal.mealType.name} serviceAt={`${hospitalDayKey(meal.mealDate)}T${meal.mealType.serviceTime}:00+07:00`} meals={meal.dietMeals.map((item) => { const additions = meal.additions.filter((addition) => addition.dietTypeId === item.dietTypeId); const totals = servingTotal(item.servingsPlanned, additions); return { id: item.id, code: item.dietType.code, name: item.dietType.name, planned: item.servingsPlanned > 0 ? item.servingsPlanned : null, additions: totals.additions > 0 ? totals.additions : null, total: item.servingsPlanned > 0 ? totals.total : null, items: menuItems(item.menuSnapshotJson), status: item.status }; })} shopping={meal.shopping.items.map((item) => ({ foodId: item.foodId, foodName: item.foodName, edible: formatMass(item.edibleGrams), raw: formatMass(item.rawGrams) }))}/>
+      <KitchenBoard eventId={meal.id} mealName={meal.mealType.name} tools={tools} meals={meal.dietMeals.map((item) => { const additions = meal.additions.filter((addition) => addition.dietTypeId === item.dietTypeId); const totals = servingTotal(item.servingsPlanned, additions); return { id: item.id, code: item.dietType.code, name: item.dietType.name, planned: item.servingsPlanned > 0 ? item.servingsPlanned : null, additions: totals.additions > 0 ? totals.additions : null, total: item.servingsPlanned > 0 ? totals.total : null, items: menuItems(item.menuSnapshotJson), status: item.status }; })} shopping={meal.shopping.items.map((item) => ({ foodId: item.foodId, foodName: item.foodName, edible: formatMass(item.edibleGrams), waste: item.wastePercent === null ? "—" : `${item.wastePercent}%`, raw: formatMass(item.rawGrams) }))}/>
     </>}
   </main></AppShell>;
 }
