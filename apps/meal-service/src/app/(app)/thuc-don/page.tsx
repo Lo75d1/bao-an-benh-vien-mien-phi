@@ -217,6 +217,7 @@ export default async function MenuPage({
                 <span>▶</span>
                 <a href="#analysis">② Phân tích &amp; báo cáo</a>
               </nav>
+              {mode === "multiple" && <form className="multi-meal-picker-workspace" method="get"><input type="hidden" name="mode" value="multiple"/><label><span className="sr-only">Bữa đang xử lý</span><select name="meal" defaultValue={selected.id}>{mealWorkItems.map((meal) => <option key={meal.id} value={meal.id}>{formatVnDay(meal.mealEvent.mealDate)} · {meal.mealEvent.mealType.name} · {meal.feedingRoute === "SONDE" ? "Sonde" : "Ăn thường"}</option>)}</select></label><button>Chuyển việc</button></form>}
             </div>
             {mode === "single" && <form className="single-meal-picker-workspace" method="get"><input type="hidden" name="mode" value="single"/><label>Mã đang xử lý<select name="meal" defaultValue={selected.id}>{meals.map((meal) => <option key={meal.id} value={meal.id}>{meal.approvedAt ? "✓" : "○"} {formatVnDay(meal.mealEvent.mealDate)} · {meal.mealEvent.mealType.name} · {meal.feedingRoute === "SONDE" ? "Sonde" : "Ăn thường"} · {meal.dietType.name} ({meal.dietType.code})</option>)}</select></label><button>Chuyển việc</button></form>}
             {mode === "single" ? (
@@ -267,24 +268,6 @@ export default async function MenuPage({
               />
             ) : (
               <>
-                <form className="multi-meal-picker-workspace" method="get">
-                  <input type="hidden" name="mode" value="multiple" />
-                  <label>
-                    Bữa đang xử lý
-                    <select name="meal" defaultValue={selected.id}>
-                      {mealWorkItems.map((meal) => (
-                        <option key={meal.id} value={meal.id}>
-                          {formatVnDay(meal.mealEvent.mealDate)} ·{" "}
-                          {meal.mealEvent.mealType.name} ·{" "}
-                          {meal.feedingRoute === "SONDE"
-                            ? "Sonde"
-                            : "Ăn thường"}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button>Chuyển việc</button>
-                </form>
                 <MultiCodeMenuBoard
                   context={{
                     eventId: selected.mealEventId,

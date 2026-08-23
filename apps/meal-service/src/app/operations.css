@@ -614,3 +614,44 @@
 /* Điều hành: vòng đời bữa và mốc thủ công của admin */
 .meal-lifecycle{display:grid;grid-template-columns:minmax(230px,.72fr) minmax(0,1.8fr);gap:18px;align-items:center;padding:11px 14px;border:1px solid var(--secondary);border-radius:7px;background:var(--card)}.meal-lifecycle header{display:grid;gap:2px}.meal-lifecycle header div{display:grid;gap:1px}.meal-lifecycle header span{color:var(--muted-foreground);font-size:var(--fs-xs);font-weight:700;text-transform:uppercase}.meal-lifecycle header strong{color:var(--primary);font-size:var(--fs-base)}.meal-lifecycle header p{margin:0;color:var(--accent);font-size:var(--fs-xs)}.meal-lifecycle ol{display:grid;grid-template-columns:repeat(4,1fr);margin:0;padding:0;list-style:none}.meal-lifecycle li{position:relative;display:grid;justify-items:center;gap:3px;color:var(--muted-foreground);font-size:var(--fs-xs);text-align:center}.meal-lifecycle li::before{content:"";position:absolute;top:13px;right:50%;left:-50%;height:2px;background:var(--border)}.meal-lifecycle li:first-child::before{display:none}.meal-lifecycle li>span{position:relative;z-index:1;width:28px;height:28px;display:grid;place-items:center;border:1px solid var(--border);border-radius:50%;background:var(--card)}.meal-lifecycle li svg{width:14px;height:14px}.meal-lifecycle li.done::before,.meal-lifecycle li.done>span{border-color:var(--secondary);background:var(--secondary);color:var(--accent)}.meal-lifecycle li.active{color:var(--primary)}.meal-lifecycle li.active::before,.meal-lifecycle li.active>span{border-color:var(--accent);background:var(--accent);color:var(--card)}.meal-lifecycle li.active strong{font-weight:800}.ops-status-strip .nurse-missing svg,.ops-status-strip .nurse-missing strong{color:var(--destructive)}.ops-table tbody tr.exception{background:color-mix(in srgb,var(--destructive) 8%,var(--card))}.ops-table tbody tr.exception.selected{background:color-mix(in srgb,var(--destructive) 10%,var(--card));box-shadow:inset 3px 0 var(--destructive)}.report-alert{color:var(--destructive)}.row-state.nurse-missing,.detail-state.nurse-missing{border:1px solid color-mix(in srgb,var(--destructive) 32%,transparent);background:color-mix(in srgb,var(--destructive) 9%,var(--card));color:var(--destructive)}.kitchen-progress em{color:var(--warning);font-size:var(--fs-xs);font-style:normal}.missing-milestone{min-height:22px;display:inline-flex;align-items:center;gap:2px;padding:0 4px;border:1px solid var(--warning);border-radius:4px;background:var(--warning-soft);color:var(--warning);cursor:pointer}.missing-milestone svg,.missing-static svg{width:12px;height:12px}.missing-static{display:inline-flex;align-items:center;gap:2px;color:var(--warning)}.manual-milestone-form{display:grid;gap:12px}.manual-milestone-form label{display:grid;gap:5px;color:var(--foreground);font-size:var(--fs-sm);font-weight:700}.manual-milestone-form input,.manual-milestone-form textarea{width:100%;min-height:40px;border:1px solid var(--input);border-radius:5px;background:var(--card);padding:7px 9px;color:var(--foreground);font:inherit}.manual-milestone-form textarea{min-height:90px;resize:vertical}
 @media(max-width:700px){.meal-lifecycle{grid-template-columns:1fr}.meal-lifecycle ol{overflow-x:auto}.meal-lifecycle li{min-width:92px}}
+
+/* Spec 18: console layout. Only data panes scroll on staff desktops. */
+@media (min-width: 761px) {
+  .multiple-workspace-page {
+    height: 100%; min-height: 0; display: flex; flex-direction: column;
+    overflow: hidden !important; padding: 8px 14px 0;
+  }
+  .multiple-workspace-page > .page-separator,
+  .multiple-workspace-page > .ui-page-header,
+  .multiple-workspace-page > .context-metrics,
+  .multiple-workspace-page > dl { display: none; }
+  .multiple-workspace-page .menu-workspace-top { min-height: 44px; flex: 0 0 44px; grid-template-columns: minmax(260px, .7fr) minmax(320px, 1fr) minmax(360px, .9fr); gap: .55rem; margin: 0; }
+  .multiple-workspace-page .multi-meal-picker-workspace { min-width: 0; min-height: 34px; margin: 0; }
+  .multiple-workspace-page .multi-meal-picker-workspace label { min-width: 0; flex: 1; }
+  .multiple-workspace-page .multi-meal-picker-workspace select { width: 100%; }
+  .multiple-workspace-page .multi-menu-workspace { min-height: 0; flex: 1; grid-template-rows: auto minmax(0,1fr) auto; gap: 5px; }
+  .multiple-workspace-page .menu-workspace-context { min-height: 40px; flex: 0 0 auto; padding-block: .35rem; }
+  .multiple-workspace-page .menu-workspace-layout { min-height: 0; flex: 1; align-items: stretch; overflow: hidden; }
+  .multiple-workspace-page .diet-code-list { min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+  .multiple-workspace-page .shopping-workspace { position: static; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+  .multiple-workspace-page .shopping-table-workspace { max-height: none; }
+  .multiple-workspace-page .menu-command-workspace { position: static; right: auto; left: auto; width: auto; flex: 0 0 auto; padding-block: .35rem; border-bottom: 0; }
+
+  .management-page { height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden !important; padding-bottom: 12px; }
+  .management-page > .page-separator { flex: 0 0 auto; }
+  .management-page .management-page-header { flex: 0 0 auto; }
+  .management-page .management-content-layout { min-height: 0; flex: 1; align-items: stretch; }
+  .management-page .management-content { min-height: 0; display: flex; flex-direction: column; }
+  .management-page .ops-command { min-height: 0; flex: 1; grid-template-rows: auto auto minmax(0,1fr); }
+  .management-page .ops-layout { min-height: 0; height: 100%; align-items: stretch; }
+  .management-page .ops-master { min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .management-page .ops-table-wrap { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+  .management-page .ops-table thead th { position: sticky; z-index: 3; top: 0; }
+  .management-page .ops-table th,
+  .management-page .ops-table td { height: 36px; padding-block: .1rem; line-height: 1.1; }
+  .management-page .ops-table td:first-child button { gap: 0; line-height: 1.05; }
+  .management-page .ops-table thead th { height: 30px; }
+  .management-page .ops-table tfoot th,
+  .management-page .ops-table tfoot td { position: sticky; z-index: 2; bottom: 0; }
+  .management-page .ops-detail { min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+}
