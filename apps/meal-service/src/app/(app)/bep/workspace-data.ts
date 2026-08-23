@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 const eventInclude = {
   mealType: true,
   additions: { orderBy: { submittedAt: "desc" as const }, include: { department: true, dietType: true } },
+  reports: { where: { status: "SUBMITTED" as const }, select: { departmentId: true, department: { select: { name: true } }, lines: { select: { dietTypeId: true, quantity: true } } } },
   dietMeals: {
     where: { voidedAt: null },
     orderBy: { dietType: { sortOrder: "asc" as const } },
@@ -64,7 +65,7 @@ export async function readKitchenWorkspace(requestedMealId?: string, now = new D
     id: meal.id,
     dietTypeId: meal.dietTypeId,
     dietName: meal.dietType.name,
-    servingsPlanned: servingTotal(meal.servingsPlanned, selected.additions.filter((addition) => addition.dietTypeId === meal.dietTypeId)).total,
+    servingsPlanned: servingTotal(meal.servingsPlanned, selected.additions.filter((addition) => addition.dietTypeId === meal.dietTypeId && addition.ackStatus === "RECEIVED")).total,
     menuSnapshotJson: meal.menuSnapshotJson,
   })));
   const evidence = selected.dietMeals.flatMap((meal) => meal.evidence.map((item) => ({
