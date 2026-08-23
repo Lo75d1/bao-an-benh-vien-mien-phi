@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import type { ManagementStatus } from "@/lib/management";
+import { additionKindFor, normalizeAdditionReason } from "@/lib/late-addition";
 
 const EDITABLE_MILESTONES = new Set<ManagementStatus>(["LOCKED", "PREPARING", "PREPARED", "SERVED"]);
 
@@ -58,4 +59,19 @@ export async function addAdminKitchenMilestoneAction(formData: FormData) {
     }
   });
   revalidatePath("/quan-ly");
+}
+
+export async function createAdminAdditionAction(formData: FormData) {
+  const actor = await getSessionUser();
+  if (!actor || actor.role !== "ADMIN") throw new Error("Chỉ quản trị viên được nhập phát sinh thay khoa.");
+  const mealEventId = String(formData.get("mealEventId") ?? ""); const departmentId = String(formData.get("departmentId") ?? ""); const dietMealId = String(formData.get("dietMealId") ?? ""); const quantity = Number(formData.get("quantity")); const reason = normalizeAdditionReason(formData.get("reason"));
+  if (!Number.isInteger(quantity) || quantity <= 0) throw new Error("Số suất bổ sung phải là số nguyên dương.");
+  await prisma.$transaction(async (tx) => {
+    const [department, meal] = await Promise.all([tx.department.findFirst({ where: { id: departmentId, status: "ACTIVE" }, select: { id: true } }), tx.dietMeal.findFirst({ where: { id: dietMealId, mealEventId, voidedAt: null }, select: { id: true, dietTypeId: true, status: true, servingsPlanned: true } })]);
+    if (!department || !meal) throw new Error("Khoa hoặc mã chế độ ăn không hợp lệ.");
+    const kind = additionKindFor(meal.status);
+    const addition = await tx.lateMealAddition.create({ data: { mealEventId, departmentId, dietTypeId: meal.dietTypeId, quantity, reason, kind, submittedById: actor.id } });
+    await tx.auditLog.create({ data: { entityType: "LateMealAddition", entityId: addition.id, action: "ADMIN_CREATE", actorId: actor.id, actorName: actor.displayName, afterJson: { mealEventId, departmentId, dietTypeId: meal.dietTypeId, quantity, reason, kind, ackStatus: "PENDING", originalServings: meal.servingsPlanned }, reason: `Admin nhập phát sinh thay khoa: ${reason}` } });
+  });
+  revalidatePath("/quan-ly"); revalidatePath("/bep"); revalidatePath("/bao-suat");
 }
