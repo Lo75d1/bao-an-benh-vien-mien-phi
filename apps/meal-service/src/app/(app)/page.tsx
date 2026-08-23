@@ -29,5 +29,5 @@ export default async function HomePage() {
       </main>
     );
   }
-  redirect({ ADMIN: "/quan-ly", DIETITIAN: "/thuc-don", NURSE: "/bao-suat", KITCHEN: "/bep" }[user.role]);
+  redirect({ ADMIN: "/quan-ly", DIETITIAN: "/lich", NURSE: "/bao-suat", KITCHEN: "/bep" }[user.role]);
 }
