@@ -7,7 +7,7 @@ import { formatMass } from "@/lib/presentation";
 
 const number = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
 const dateTime = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", hour12: false });
-const STATUS_LABEL = { PLANNED: "Dự kiến", LOCKED: "Đã nhận", PREPARING: "Đang chuẩn bị", PREPARED: "Đang nấu", SERVED: "Đã phục vụ" } as const;
+const STATUS_LABEL = { PLANNED: "Dự kiến", LOCKED: "Đã nhận", PREPARING: "Đang chuẩn bị", PREPARED: "Đang nấu", SERVED: "Kết thúc" } as const;
 const ACK_LABEL = { PENDING: "Chờ bếp xác nhận", RECEIVED: "Bếp đã nhận", INSUFFICIENT: "Bếp báo không đủ", SUBSTITUTE: "Cần thay thế" } as const;
 
 export function MealDetailDialog({ meal, date, stateLabel, trigger }: { meal: ManagementMeal; date: string; stateLabel: string; trigger: ReactNode }) {

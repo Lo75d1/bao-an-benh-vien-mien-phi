@@ -25,7 +25,7 @@ export const mealStatusLabel = {
   LOCKED: "Đã chốt",
   PREPARING: "Đang chuẩn bị",
   PREPARED: "Đã chuẩn bị",
-  SERVED: "Đã phục vụ",
+  SERVED: "Kết thúc",
   CANCELLED: "Đã hủy",
 } as const;
 
