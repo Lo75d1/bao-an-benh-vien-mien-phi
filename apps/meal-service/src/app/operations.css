@@ -628,6 +628,27 @@
 .kitchen-menu-detail table{width:100%;border-collapse:collapse}.kitchen-menu-detail th,.kitchen-menu-detail td{height:34px;padding:4px 8px;border-bottom:1px solid var(--border);text-align:left}
 .menu-command-workspace{left:var(--sidebar-width, 0);right:0}.multiple-workspace-page{padding-bottom:76px}
 
+/* Khung thống nhất: header trên, danh sách trái, chi tiết/thao tác phải. */
+.top-shell{flex:0 0 60px;height:60px;min-height:60px}
+.app-main>main{display:flex;flex-direction:column;gap:0;width:100%;max-width:none;height:100%;min-height:0;margin:0;padding:0;overflow:hidden}
+.app-main>main>.page-separator,.app-main>main>.page-heading,.app-main>main>.context-metrics{display:none}
+.app-main>main>.success-banner,.app-main>main>.storage-notice{flex:0 0 auto;margin:6px 10px}
+.screen-split,.kitchen-work-grid,.admin-command-layout,.menu-workspace-layout,.ops-content-grid{flex:1;min-height:0;display:grid;grid-template-columns:minmax(300px,38%) minmax(0,62%);gap:0;border-top:1px solid var(--border);background:var(--card);overflow:hidden}
+.screen-pane,.kitchen-main-panel,.shopping-panel,.admin-context-rail,.admin-command-content,.diet-code-list,.shopping-workspace,.ops-table-panel,.ops-detail{min-width:0;min-height:0;height:100%;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+.screen-pane-left,.kitchen-main-panel,.admin-context-rail,.diet-code-list,.ops-table-panel{border-right:1px solid var(--border)}
+.screen-pane{padding:10px 12px}.split-placeholder{height:100%;display:grid;place-content:center;justify-items:center;gap:8px;padding:24px;color:var(--muted-foreground);text-align:center}.split-placeholder svg{width:28px;height:28px;color:var(--accent)}.split-placeholder h2,.split-placeholder p{margin:0}.split-placeholder p{max-width:42ch}
+.warehouse-page>.screen-split,.report-page>.screen-split{margin:0}
+.warehouse-entry{margin:0;border:0;border-radius:0}.warehouse-entry>summary{display:none}.warehouse-history{margin:0;border:0;border-radius:0}
+.admin-status-strip{flex:0 0 auto;margin:8px 10px}.admin-command-layout{margin:0}.admin-context-rail{position:static;width:auto;border-radius:0}.admin-command-content{padding:10px 12px}
+.kitchen-page>.shared-lifecycle,.serving-page>.shared-lifecycle,.calendar-page>.shared-lifecycle,.menu-page>.shared-lifecycle,.management-page>.shared-lifecycle{flex:0 0 52px;min-height:52px;max-height:52px;margin:0;border-width:0 0 1px;border-radius:0}
+.kitchen-meal-selector,.meal-timeline,.menu-workspace-top,.multi-meal-picker-workspace{flex:0 0 auto;margin:0;border-radius:0}
+.kitchen-command-bar{flex:0 0 auto;margin:0;border-radius:0}.kitchen-work-grid{margin:0;border-radius:0}
+.management-page>.shared-lifecycle{display:grid}.management-page .ops-command{height:100%;min-height:0}.management-page .ops-status-strip{flex:0 0 auto}.management-page .ops-content-grid{border-top:1px solid var(--border)}
+.multiple-workspace-page{padding:0}.multiple-workspace-page>.menu-wizard-workspace{flex:0 0 40px}.multiple-workspace-page>.multi-menu-workspace{flex:1;min-height:0}.multi-menu-workspace{display:flex;flex-direction:column;gap:0}.menu-workspace-context{flex:0 0 auto;border-radius:0}.menu-workspace-layout{margin:0;border-radius:0}.shopping-workspace{position:static}.menu-command-workspace{position:static;flex:0 0 52px;width:100%;border-radius:0}
+.serving-event-list{flex:1;min-height:0;overflow:hidden}.serving-event{height:100%;min-height:0;display:flex;flex-direction:column}.serving-event-head{flex:0 0 auto}.serving-page .serving-editor{flex:1;min-height:0!important;display:grid;grid-template-columns:minmax(300px,38%) minmax(0,62%);gap:0;margin:0;border-top:1px solid var(--border);overflow:hidden}.serving-editor-main,.serving-detail{min-height:0;height:100%;overflow:auto}.serving-editor-main{border-right:1px solid var(--border)}.serving-detail{border-radius:0}
+.calendar-page{display:grid!important;grid-template-columns:minmax(260px,22%) minmax(0,78%);grid-template-rows:52px minmax(0,1fr)}.calendar-page>.shared-lifecycle{grid-column:1/-1;grid-row:1}.calendar-page>.calendar-toolbar{grid-column:1;grid-row:2;min-height:0;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:8px;margin:0;padding:12px;border-right:1px solid var(--border);background:var(--card)}.calendar-page>.calendar-scroll{grid-column:2;grid-row:2;min-height:0;height:100%;margin:0;border:0;border-radius:0;overflow:auto}.calendar-page>.calendar-note{grid-column:1;grid-row:2;align-self:end;z-index:1;margin:12px;color:var(--muted-foreground)}
+@media(max-width:900px){.screen-split,.kitchen-work-grid,.admin-command-layout,.menu-workspace-layout,.ops-content-grid{grid-template-columns:minmax(240px,44%) minmax(0,56%)}.top-shell nav{overflow-x:auto}}
+
 /* Spec 18: console layout. Only data panes scroll on staff desktops. */
 @media (min-width: 761px) {
   .multiple-workspace-page {

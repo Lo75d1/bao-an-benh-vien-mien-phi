@@ -17,7 +17,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const preview = params.preview === "1" && params.from && params.to && params.content ? await readReport(parseReportContent(params.content), parseReportRange(params.from, params.to), user) : null;
   return <AppShell user={user}><main className="workspace report-page"><Separator className="page-separator" aria-hidden="true"/>
     <PageHeader eyebrow="Bàn làm việc báo cáo" title="Xem trước rồi xuất đúng dữ liệu" description="Chọn phạm vi một lần; hệ thống giữ nguyên dữ liệu gốc và không tự điền ô thiếu." actions={<p className="scope-note">{user.role === "NURSE" ? "Theo khoa được phân công" : "Phạm vi toàn viện"}</p>}/>
-    <section className="report-builder" aria-labelledby="report-builder-title">
+    <div className="screen-split"><section className="report-builder screen-pane screen-pane-left" aria-labelledby="report-builder-title">
       <div className="report-builder-copy"><span><FileDown aria-hidden="true"/></span><div><h2 id="report-builder-title">Thiết lập báo cáo</h2><p>Xem trước ngay trên màn hình hoặc tải Excel, PDF và bản in.</p></div></div>
       <form action="/bao-cao/xuat" method="get" target="_blank" className="report-flow">
         <label><span>1 · Từ ngày</span><input type="date" name="from" defaultValue={monthStart()} required/></label>
@@ -28,6 +28,6 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       </form>
       <p className="report-footnote">Khoảng xuất tối đa 367 ngày. Báo suất gốc và suất bổ sung luôn nằm ở hai nội dung riêng để không làm sai lịch sử.</p>
     </section>
-    {preview && <section className="report-builder" aria-labelledby="report-preview-title"><div className="section-heading"><div><p className="eyebrow">Xem trước</p><h2 id="report-preview-title">{preview.title}</h2></div><span>{preview.scope}</span></div><ReportTable columns={preview.columns} rows={preview.rows}/></section>}
+    <section className="report-builder screen-pane screen-pane-right" aria-labelledby="report-preview-title">{preview ? <><div className="section-heading"><div><p className="eyebrow">Xem trước</p><h2 id="report-preview-title">{preview.title}</h2></div><span>{preview.scope}</span></div><ReportTable columns={preview.columns} rows={preview.rows}/></> : <div className="split-placeholder"><FileDown aria-hidden="true"/><h2 id="report-preview-title">Bản xem trước</h2><p>Chọn phạm vi ở bên trái rồi bấm “Xem trước”. Dữ liệu thiếu vẫn hiển thị “—”.</p></div>}</section></div>
   </main></AppShell>;
 }
