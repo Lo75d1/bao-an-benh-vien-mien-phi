@@ -28,7 +28,7 @@ export default async function KitchenPage({ searchParams }: { searchParams: Prom
   const meal = workspace.selected;
   const updateMessage = query.updated === "prepared" ? "Đã lưu ảnh mẫu và xác nhận toàn bộ bữa đã chuẩn bị xong." : query.updated === "reopened" ? "Đã quay lại trạng thái đang chuẩn bị." : "Đã ghi nhận xử lý của bếp.";
 
-  const tools = meal ? <KitchenDialogs additions={meal.additions} evidence={meal.evidence} dietMeals={meal.dietMeals.map((item) => ({ id: item.id, name: `${item.dietType.code} · ${item.dietType.name}` }))} patientNotes={notes.map((note) => ({ id: note.id, note: note.note, departmentName: note.department.name, mealDateLabel: hospitalDayKey(note.mealDate), acknowledged: note.acknowledged }))}/> : null;
+  const tools = meal ? <KitchenDialogs eventId={meal.id} canOperate={workspace.canOperate} additions={meal.additions} evidence={meal.evidence} dietMeals={meal.dietMeals.map((item) => ({ id: item.id, name: `${item.dietType.code} · ${item.dietType.name}` }))} patientNotes={notes.map((note) => ({ id: note.id, note: note.note, departmentName: note.department.name, mealDateLabel: hospitalDayKey(note.mealDate), acknowledged: note.acknowledged }))}/> : null;
   const serviceAt = meal ? `${hospitalDayKey(meal.mealDate)}T${meal.mealType.serviceTime}:00+07:00` : null;
 
   return <AppShell user={user} workflowStatus={serviceAt ? <KitchenHeaderStatus serviceAt={serviceAt}/> : undefined}><main className="kitchen-page kitchen-v2">
@@ -36,7 +36,7 @@ export default async function KitchenPage({ searchParams }: { searchParams: Prom
     {query.updated && <p className="success-banner" role="status">{updateMessage}</p>}
     {query.storage === "unavailable" && <p className="storage-notice" role="alert">Máy chủ chưa cấu hình nơi lưu ảnh nên chưa thể hoàn tất bữa.</p>}
     {!meal ? <EmptyState icon={ChefHat} title="Chưa có bữa cần chuẩn bị" description="Hệ thống không tự tạo bữa hoặc đoán số suất."/> : <>
-      <KitchenBoard eventId={meal.id} mealName={meal.mealType.name} tools={tools} meals={meal.dietMeals.map((item) => {
+      <KitchenBoard eventId={meal.id} mealName={meal.mealType.name} canOperate={workspace.canOperate} tools={tools} meals={meal.dietMeals.map((item) => {
         const additions = meal.additions.filter((addition) => addition.dietTypeId === item.dietTypeId && addition.ackStatus === "RECEIVED");
         const totals = servingTotal(item.servingsPlanned, additions);
         const departmentIds = new Set([...meal.reports.filter((report) => report.lines.some((line) => line.dietTypeId === item.dietTypeId)).map((report) => report.departmentId), ...additions.map((addition) => addition.departmentId)]);

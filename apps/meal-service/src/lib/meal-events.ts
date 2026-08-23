@@ -62,6 +62,11 @@ export function mealTimePhase(mealDate: Date, cutoffTime: string, serviceTime: s
   return "PASSED";
 }
 
+export function isKitchenPreparationOpen(mealDate: Date, cutoffTime: string, serviceTime: string, now = new Date(), completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES): boolean {
+  const phase = mealTimePhase(mealDate, cutoffTime, serviceTime, now, completionMinutes);
+  return phase !== null && phase !== "BEFORE_CUTOFF";
+}
+
 export function displayMealState(mealDate: Date, cutoffTime: string, serviceTime: string, storedStatus: DietMealStatus | null, now = new Date(), completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES): DisplayMealState | null {
   if (storedStatus === null || storedStatus === "CANCELLED") return null;
   const phase = mealTimePhase(mealDate, cutoffTime, serviceTime, now, completionMinutes);

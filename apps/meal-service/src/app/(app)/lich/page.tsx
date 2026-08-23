@@ -25,7 +25,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const departmentIds = memberships.map((item) => item.departmentId);
   const [events, details] = await Promise.all([
     readCalendarWeek(weekStart, user.role, departmentIds, route),
-    Promise.all(Array.from({ length: 7 }, (_, index) => readManagementDay(toDateKey(addDays(weekStart, index)), new Date(), user.role === "NURSE" ? departmentIds : undefined, route))),
+    Promise.all(Array.from({ length: 7 }, (_, index) => readManagementDay(toDateKey(addDays(weekStart, index)), new Date(), user.role === "NURSE" ? departmentIds : undefined, route, settings.serviceCompletionMinutes))),
   ]);
   const end = new Date(weekStart.getTime() + 6 * 86_400_000);
 
@@ -34,7 +34,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       <main className="workspace calendar-page"><Separator className="page-separator" aria-hidden="true"/>
         <CurrentMealLifecycle role={user.role}/>
         <PageHeader eyebrow="Lịch tuần" title={`${formatVnDay(weekStart)} đến ${formatVnDay(end)}`} description="Theo dõi trạng thái bữa, thực đơn và số suất đã ghi nhận." actions={user.role === "NURSE" ? <p className={memberships.length ? "scope-note" : "scope-note warning"}>{memberships.length ? `Phạm vi: ${memberships.map((item) => item.department.name).join(", ")}` : "Chưa được gán khoa; số suất hiển thị —"}</p> : <p className="scope-note">Phạm vi: Toàn viện</p>}/>
-        <WeeklyCalendar events={events} details={details} weekStart={weekStart} role={user.role} route={route} sondeEnabled={settings.sondeEnabled} />
+        <WeeklyCalendar events={events} details={details} weekStart={weekStart} role={user.role} route={route} sondeEnabled={settings.sondeEnabled} serviceCompletionMinutes={settings.serviceCompletionMinutes} />
       </main>
     </AppShell>
   );

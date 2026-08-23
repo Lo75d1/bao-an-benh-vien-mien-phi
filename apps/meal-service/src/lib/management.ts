@@ -5,6 +5,7 @@ import { prisma } from "./prisma";
 import { hospitalDate } from "./serving-report";
 import { addDays } from "./meal-events";
 import { evidenceStorage } from "./evidence-storage";
+import { readOperationalSettings } from "./settings";
 
 export const MANAGEMENT_STATUSES = ["PLANNED", "LOCKED", "PREPARING", "PREPARED", "SERVED"] as const;
 export type ManagementStatus = (typeof MANAGEMENT_STATUSES)[number];
@@ -15,7 +16,7 @@ export type ManagementDiet = { id: string; code: string; name: string; status: M
 export type ManagementDepartment = { id: string; code: string; name: string; reportId: string | null; submittedAt: string | null; submittedBy: string | null; totalServings: number | null; lines: Array<{ dietCode: string; dietName: string; quantity: number }> };
 export type ManagementAddition = { id: string; departmentId: string; departmentName: string; dietCode: string; dietName: string; quantity: number; reason: string; ackStatus: "PENDING" | "RECEIVED" | "INSUFFICIENT" | "SUBSTITUTE"; submittedAt: string; submittedBy: string };
 export type ManagementMeal = { id: string; name: string; cutoffTime: string; serviceTime: string; cutoffAt: string | null; serviceAt: string | null; totalDiets: number; unapprovedDiets: number; plannedServings: number | null; statusCounts: Record<(typeof MANAGEMENT_STATUSES)[number], number>; diets: ManagementDiet[]; departments: ManagementDepartment[]; additions: ManagementAddition[]; reportedDepartmentCount: number; totalDepartmentCount: number; reportedServings: number | null };
-export type ManagementDay = { date: string; generatedAt: string; isToday: boolean; meals: ManagementMeal[]; departmentCount: number };
+export type ManagementDay = { date: string; generatedAt: string; isToday: boolean; serviceCompletionMinutes: number; meals: ManagementMeal[]; departmentCount: number };
 
 export type ManagementSchedulePhase = "SERVED" | "PREPARING" | "SERVING";
 export type ManagementScheduleRoute = "NORMAL" | "SONDE";
@@ -151,9 +152,10 @@ function serviceAt(day: Date, time: string): number | null {
   return Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), hour - 7, minute);
 }
 
-export async function readManagementDay(date?: string, now = new Date(), departmentIds?: string[], feedingRoute?: FeedingRoute): Promise<ManagementDay> {
+export async function readManagementDay(date?: string, now = new Date(), departmentIds?: string[], feedingRoute?: FeedingRoute, configuredCompletionMinutes?: number): Promise<ManagementDay> {
   const day = parseHospitalDay(date, now);
-  const [departments, events] = await Promise.all([
+  const [settings, departments, events] = await Promise.all([
+    configuredCompletionMinutes === undefined ? readOperationalSettings() : null,
     prisma.department.findMany({ where: { status: "ACTIVE", ...(departmentIds ? { id: { in: departmentIds } } : {}) }, orderBy: [{ code: "asc" }, { name: "asc" }], select: { id: true, code: true, name: true } }),
     prisma.mealEvent.findMany({
       where: { mealDate: day }, orderBy: { mealType: { sortOrder: "asc" } },
@@ -186,7 +188,7 @@ export async function readManagementDay(date?: string, now = new Date(), departm
     if (value === "SERVED" && log.action === "KITCHEN_STATUS_CHANGE") kitchenLeadByDiet.set(log.entityId, log.actorName);
   }
 
-  return { date: day.toISOString().slice(0, 10), generatedAt: now.toISOString(), isToday: selectedIsToday, departmentCount: departments.length, meals: events.map((event) => {
+  return { date: day.toISOString().slice(0, 10), generatedAt: now.toISOString(), isToday: selectedIsToday, serviceCompletionMinutes: configuredCompletionMinutes ?? settings?.serviceCompletionMinutes ?? 60, departmentCount: departments.length, meals: events.map((event) => {
     const visibleDietCodes = new Set(event.dietMeals.map((meal) => meal.dietType.code));
     const reportByDepartment = new Map(event.reports.map((report) => [report.departmentId, report]));
     const statusCounts = Object.fromEntries(MANAGEMENT_STATUSES.map((status) => [status, 0])) as ManagementMeal["statusCounts"];

@@ -14,7 +14,7 @@ import { formatVnDay } from "@/lib/presentation";
 
 const DAY_LABELS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
-export function WeeklyCalendar({ events, details, weekStart, role, route, sondeEnabled = true }: { events: CalendarEvent[]; details: ManagementDay[]; weekStart: Date; role: Role; route?: FeedingRoute; sondeEnabled?: boolean }) {
+export function WeeklyCalendar({ events, details, weekStart, role, route, sondeEnabled = true, serviceCompletionMinutes }: { events: CalendarEvent[]; details: ManagementDay[]; weekStart: Date; role: Role; route?: FeedingRoute; sondeEnabled?: boolean; serviceCompletionMinutes: number }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 30_000); return () => window.clearInterval(timer); }, []);
   const days = DAY_LABELS.map((label, index) => ({ label, date: addDays(weekStart, index) }));
@@ -47,7 +47,7 @@ export function WeeklyCalendar({ events, details, weekStart, role, route, sondeE
                   {days.map((day) => {
                     const event = byCell.get(`${toDateKey(day.date)}:${mealType.id}`);
                     const storedStatus = rollupMealEventStatus(event?.dietMeals.map((meal) => meal.status) ?? []);
-                    const state = displayMealState(day.date, mealType.cutoffTime, mealType.serviceTime, storedStatus, now);
+                    const state = displayMealState(day.date, mealType.cutoffTime, mealType.serviceTime, storedStatus, now, serviceCompletionMinutes);
                     const dayKey = toDateKey(day.date);
                     const detail = event ? detailByDate.get(dayKey)?.meals.find((meal) => meal.id === event.id) : null;
                     const content = <div className="calendar-cell-content"><div className="cell-status">{state ? <span className={`calendar-state ${state.tone}`}>{state.label}</span> : <TooltipProvider><Tooltip><TooltipTrigger className="missing">—</TooltipTrigger><TooltipContent>Chưa có dữ liệu</TooltipContent></Tooltip></TooltipProvider>}</div>{event?.dietMeals.length ? <><div className="diet-list">{event.dietMeals.map((meal) => { const servings = displayedServings(event, meal.id, role); return <div className="diet-chip" key={meal.id}><span><DietName name={meal.dietType.name} code={meal.dietType.code}/>{meal.menuSnapshotJson ? "" : " · !"}</span><strong className="tabular">{servings ?? "—"}</strong></div>; })}</div>{event.dietMeals.some((meal) => !meal.menuSnapshotJson) ? <p className="cell-warning"><Utensils aria-hidden="true"/> Chưa có thực đơn</p> : null}</> : <p className="cell-warning">— Chưa có chế độ ăn</p>}</div>;

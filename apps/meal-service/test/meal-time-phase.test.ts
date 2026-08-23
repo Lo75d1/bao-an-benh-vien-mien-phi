@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mealTimePhase } from "../src/lib/meal-events";
+import { isKitchenPreparationOpen, mealTimePhase } from "../src/lib/meal-events";
 
 // Chuyển từ test/nurse-workflow.test.ts cũ: sau khi gộp, mốc giờ của điều dưỡng
 // dùng chung `mealTimePhase` với bếp / lịch / admin.
@@ -31,4 +31,10 @@ test("cửa sổ phục vụ theo cấu hình serviceCompletionMinutes, không c
 test("giờ sai định dạng trả null để nơi gọi hiển thị —", () => {
   assert.equal(mealTimePhase(day, "9:00", "11:00", new Date("2026-08-23T01:30:00Z")), null);
   assert.equal(mealTimePhase(day, "25:00", "11:00", new Date("2026-08-23T01:30:00Z")), null);
+});
+
+test("bếp chỉ được thao tác từ đúng giờ bắt đầu chuẩn bị", () => {
+  assert.equal(isKitchenPreparationOpen(day, trua.cutoffTime, trua.serviceTime, new Date("2026-08-23T01:59:59Z")), false);
+  assert.equal(isKitchenPreparationOpen(day, trua.cutoffTime, trua.serviceTime, new Date("2026-08-23T02:00:00Z")), true);
+  assert.equal(isKitchenPreparationOpen(day, "9:00", trua.serviceTime, new Date("2026-08-23T02:00:00Z")), false);
 });

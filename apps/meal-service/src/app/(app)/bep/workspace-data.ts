@@ -1,8 +1,9 @@
 import { buildDietMealShopping } from "@/lib/kitchen";
-import { displayMealState, hospitalDayKey, rollupMealEventStatus } from "@/lib/meal-events";
+import { hospitalDayKey, isKitchenPreparationOpen, pickLifecycleMeal, rollupMealEventStatus } from "@/lib/meal-events";
 import { servingTotal } from "@/lib/late-addition";
 import { evidenceStorage } from "@/lib/evidence-storage";
 import { prisma } from "@/lib/prisma";
+import { readOperationalSettings } from "@/lib/settings";
 
 
 const eventInclude = {
@@ -27,6 +28,7 @@ const eventInclude = {
 } as const;
 
 export async function readKitchenWorkspace(requestedMealId?: string, now = new Date()) {
+  const settings = await readOperationalSettings();
   const today = new Date(`${hospitalDayKey(now)}T00:00:00.000Z`);
   let events = await prisma.mealEvent.findMany({
     where: { mealDate: today },
@@ -55,12 +57,11 @@ export async function readKitchenWorkspace(requestedMealId?: string, now = new D
     serviceTime: event.mealType.serviceTime,
     status: rollupMealEventStatus(event.dietMeals.map((meal) => meal.status)) ?? "CANCELLED",
   }));
-  const defaultEvent = events.find((event) => displayMealState(event.mealDate, event.mealType.cutoffTime, event.mealType.serviceTime, rollupMealEventStatus(event.dietMeals.map((meal) => meal.status)), now)?.isCurrent)
-    ?? [...events].reverse().find((event) => event.dietMeals.some((meal) => meal.status !== "CANCELLED"))
-    ?? events[0];
+  const lifecycle = pickLifecycleMeal(events.map((event) => ({ event, mealDate: event.mealDate, cutoffTime: event.mealType.cutoffTime, serviceTime: event.mealType.serviceTime, status: rollupMealEventStatus(event.dietMeals.map((meal) => meal.status)) })), now, settings.serviceCompletionMinutes);
+  const defaultEvent = lifecycle?.meal.event ?? events[0];
   const selected = events.find((event) => event.id === requestedMealId) ?? defaultEvent ?? null;
 
-  if (!selected) return { events: summaries, selected: null };
+  if (!selected) return { events: summaries, selected: null, canOperate: false };
   const shopping = buildDietMealShopping(selected.dietMeals.map((meal) => ({
     id: meal.id,
     dietTypeId: meal.dietTypeId,
@@ -73,5 +74,5 @@ export async function readKitchenWorkspace(requestedMealId?: string, now = new D
     dietName: meal.dietType.name,
     publicUrl: evidenceStorage.publicUrl(item.storagePath),
   })));
-  return { events: summaries, selected: { ...selected, shopping, evidence } };
+  return { events: summaries, selected: { ...selected, shopping, evidence }, canOperate: isKitchenPreparationOpen(selected.mealDate, selected.mealType.cutoffTime, selected.mealType.serviceTime, now, settings.serviceCompletionMinutes) };
 }
