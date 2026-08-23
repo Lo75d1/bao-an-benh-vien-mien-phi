@@ -81,7 +81,10 @@ export async function reviewPatientNote(input: { id: string; status: "APPROVED" 
 }
 
 export async function readApprovedKitchenNotes() {
-  return prisma.patientNote.findMany({ where: { status: "APPROVED" }, orderBy: { reviewedAt: "desc" }, take: 30, select: { id: true, note: true, mealDate: true, reviewedAt: true, department: { select: { name: true } } } });
+  const notes = await prisma.patientNote.findMany({ where: { status: "APPROVED" }, orderBy: { reviewedAt: "desc" }, take: 30, select: { id: true, note: true, mealDate: true, reviewedAt: true, department: { select: { name: true } } } });
+  const read = await prisma.auditLog.findMany({ where: { entityType: "PatientNote", entityId: { in: notes.map((note) => note.id) }, action: "KITCHEN_READ" }, select: { entityId: true } });
+  const readIds = new Set(read.map((item) => item.entityId));
+  return notes.map((note) => ({ ...note, acknowledged: readIds.has(note.id) }));
 }
 
 type PublicEvaluation = { overall: "OK" | "WARN" | "FAIL" | "MISSING"; criteria: Array<{ key: string; label: string; status: string }> };

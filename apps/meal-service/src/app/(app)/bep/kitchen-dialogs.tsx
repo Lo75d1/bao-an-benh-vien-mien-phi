@@ -9,7 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { acknowledgeAdditionAction, uploadEvidenceAction } from "./actions";
+import { acknowledgeAdditionAction, acknowledgeKitchenNoteAction, uploadEvidenceAction } from "./actions";
 
 const EVIDENCE_LABEL = {
   MEAL_PHOTO: "Ảnh bữa ăn",
@@ -37,7 +37,7 @@ type Evidence = {
   publicUrl: string | null;
 };
 
-type PatientNote = { id: string; note: string; departmentName: string; mealDateLabel: string };
+type PatientNote = { id: string; note: string; departmentName: string; mealDateLabel: string; acknowledged: boolean };
 
 const ACK_LABEL = { RECEIVED: "Đã nhận", INSUFFICIENT: "Không đủ", SUBSTITUTE: "Cần thay thế" } as const;
 
@@ -87,7 +87,7 @@ export function KitchenDialogs({
       <DialogTrigger asChild><button type="button" className="tool-button"><span>Ghi chú đã duyệt</span><strong className="tabular">{patientNotes.length || "—"}</strong></button></DialogTrigger>
       <DialogContent className="kitchen-dialog max-h-[88vh] max-w-3xl overflow-y-auto overscroll-contain p-4">
         <DialogHeader className="pr-8"><DialogTitle>Ghi chú bệnh nhân đã duyệt</DialogTitle><DialogDescription>Chỉ hiển thị nội dung đã qua điều dưỡng duyệt.</DialogDescription></DialogHeader>
-        {patientNotes.length === 0 ? <p className="dialog-empty">— · Không có ghi chú đã duyệt.</p> : <div className="patient-note-dialog-list">{patientNotes.map((note) => <article key={note.id}><strong>{note.note}</strong><span>{note.departmentName} · {note.mealDateLabel}</span></article>)}</div>}
+        {patientNotes.length === 0 ? <p className="dialog-empty">— · Không có ghi chú đã duyệt.</p> : <div className="patient-note-dialog-list">{patientNotes.map((note) => <article key={note.id}><strong>{note.note}</strong><span>{note.departmentName} · {note.mealDateLabel}</span>{note.acknowledged ? <button type="button" disabled>Đã đọc</button> : <form action={acknowledgeKitchenNoteAction}><input type="hidden" name="noteId" value={note.id}/><button>Xác nhận đã đọc</button></form>}</article>)}</div>}
       </DialogContent>
     </Dialog>
   </div>;
