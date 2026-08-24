@@ -6,7 +6,7 @@ import type { DietCodeThresholds } from "@suat-an/nutrition-engine";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MenuFoodSearch } from "./nutrition-2598/MenuFoodSearch";
-import { foodToMenuItem, type DishResult, type FoodResult } from "./nutrition-2598/types";
+import { dishToMenuItems, foodToMenuItem, type DishResult, type FoodResult } from "./nutrition-2598/types";
 import { calculateMenuTotals, type MenuItemInput, type MenuNutrientKey } from "@/lib/menu-logic";
 import { MenuExcelImportDialog } from "./menu-excel-import-dialog";
 
@@ -62,7 +62,7 @@ export function MultiCodeMenuBoard({ meals, templates, context, approveAction, s
 
   function selectCode(meal: Meal) { setActiveId(meal.id); setSearchKind("dish"); }
   function addFood(food: FoodResult, target = activeDish) { const mealId = target?.mealId ?? active?.id; if (!mealId) return; const meal = meals.find((item) => item.id === mealId); if (meal?.approved) return; const dishName = target?.name ?? "Món mới"; setMenus((current) => ({ ...current, [mealId]: [...(current[mealId] ?? []), foodToMenuItem(food, dishName)] })); }
-  function addDish(dish: DishResult) { if (!active || active.approved) return; const rows = dish.ingredients.flatMap((ingredient) => ingredient.food ? [foodToMenuItem(ingredient.food, dish.name, ingredient.quantityG)] : []); setMenus((current) => ({ ...current, [active.id]: [...(current[active.id] ?? []), ...rows] })); }
+  function addDish(dish: DishResult) { if (!active || active.approved) return; const rows = dishToMenuItems(dish); setMenus((current) => ({ ...current, [active.id]: [...(current[active.id] ?? []), ...rows] })); setImportMessage(`Đã thêm món ${dish.name} vào mã ${active.code}.`); }
   function patchItem(mealId: string, index: number, patch: Partial<MenuItemInput>) { setMenus((current) => ({ ...current, [mealId]: (current[mealId] ?? []).map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) })); }
   function removeDish(mealId: string, dish: string) { setMenus((current) => ({ ...current, [mealId]: (current[mealId] ?? []).filter((item) => (item.dishName?.trim() || "Món 1") !== dish) })); setActiveDish(null); }
   function duplicateDish(mealId: string, dish: string) { const items = menus[mealId] ?? []; const base = `${dish} · bản sao`; let name = base; let suffix = 2; while (items.some((item) => item.dishName === name)) name = `${base} ${suffix++}`; const copies = items.filter((item) => (item.dishName?.trim() || "Món 1") === dish).map((item) => ({ ...item, dishName: name, nutrients: { ...item.nutrients } })); setMenus((current) => ({ ...current, [mealId]: [...(current[mealId] ?? []), ...copies] })); }

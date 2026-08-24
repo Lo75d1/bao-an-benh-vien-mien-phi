@@ -19,3 +19,19 @@ export function buildTree(rows: MenuItemInput[]): DishNode[] {
 export function foodToMenuItem(food: FoodResult, dishName: string, grams = 100): MenuItemInput {
   return { foodId: food.id, itemName: food.name, dishName, grams, wastePercent: food.wastePercent, nutrients: { energyKcal: food.energyKcal, proteinG: food.proteinG, lipidG: food.lipidG, glucidG: food.glucidG, sodiumMg: food.sodiumMg, potassiumMg: food.potassiumMg, waterG: food.waterG } };
 }
+
+const missingNutrients: Record<MenuNutrientKey, null> = { energyKcal: null, proteinG: null, lipidG: null, glucidG: null, sodiumMg: null, potassiumMg: null, waterG: null };
+
+export function dishToMenuItems(dish: DishResult): MenuItemInput[] {
+  return dish.ingredients.map((ingredient) => ingredient.food
+    ? foodToMenuItem(ingredient.food, dish.name, ingredient.quantityG)
+    : {
+        foodId: null,
+        itemName: ingredient.foodNameRaw.trim() || "Thực phẩm chưa liên kết",
+        dishName: dish.name,
+        grams: ingredient.quantityG,
+        wastePercent: null,
+        nutrients: { ...missingNutrients },
+        note: `Chưa liên kết dữ liệu thực phẩm · Từ công thức: ${dish.name}`,
+      });
+}

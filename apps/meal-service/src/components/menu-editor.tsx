@@ -7,7 +7,7 @@ import { ConfirmSubmitButton } from "./confirm-submit-button";
 import { DietEvaluation } from "./diet-evaluation";
 import { calculateMenuTotals, evaluateMenu, type MenuItemInput } from "@/lib/menu-logic";
 import { MenuFoodSearch } from "./nutrition-2598/MenuFoodSearch";
-import { foodToMenuItem, type DishResult, type FoodResult } from "./nutrition-2598/types";
+import { dishToMenuItems, foodToMenuItem, type DishResult, type FoodResult } from "./nutrition-2598/types";
 
 type Nutrients = MenuItemInput["nutrients"];
 type SourceItem = { foodId: string | null; itemName: string; dishName?: string; category?: string; note?: string; grams: number; wastePercent: number | null; nutrients?: Nutrients };
@@ -54,7 +54,7 @@ export function MenuEditor({ dietMeal, context, thresholds, templates, copies, a
   function duplicateDish(name: string) { const nextName = `${name} (bản sao)`; const rows = items.filter((item) => (item.dishName || "Món 1") === name).map((item) => ({ ...item, dishName: nextName, nutrients: { ...item.nutrients } })); setItems((current) => [...current, ...rows]); setDishOrder((current) => [...current, nextName]); setActiveDish(nextName); }
   function moveDish(direction: -1 | 1) { const index = dishes.indexOf(activeDish); const target = index + direction; if (index < 0 || target < 0 || target >= dishes.length) return; setDishOrder((current) => { const next = [...current]; [next[index], next[target]] = [next[target], next[index]]; return next; }); }
   function addFood(food: FoodResult) { if (!dietMeal.approved) setItems((rows) => [...rows, foodToMenuItem(food, activeDish || "Món 1")]); }
-  function addDishRecipe(dish: DishResult) { if (dietMeal.approved) return; const recipeRows = dish.ingredients.flatMap((ingredient) => ingredient.food ? [{ ...foodToMenuItem(ingredient.food, dish.name, ingredient.quantityG), note: `Từ công thức: ${dish.name}` }] : []); setItems((rows) => [...rows.filter((row) => (row.dishName || "Món 1") !== dish.name), ...recipeRows]); setDishOrder((rows) => rows.includes(dish.name) ? rows : [...rows, dish.name]); setActiveDish(dish.name); }
+  function addDishRecipe(dish: DishResult) { if (dietMeal.approved) return; const recipeRows = dishToMenuItems(dish).map((item) => ({ ...item, note: item.note ?? `Từ công thức: ${dish.name}` })); setItems((rows) => [...rows.filter((row) => (row.dishName || "Món 1") !== dish.name), ...recipeRows]); setDishOrder((rows) => rows.includes(dish.name) ? rows : [...rows, dish.name]); setActiveDish(dish.name); }
   function addManualFood() { const name = manualName.trim(); const kcalValue = manualKcal.trim() === "" ? null : Number(manualKcal); if (!name || (kcalValue !== null && (!Number.isFinite(kcalValue) || kcalValue < 0))) return; setItems((rows) => [...rows, { foodId: null, itemName: name, dishName: activeDish || "Món 1", grams: 100, wastePercent: null, nutrients: { ...EMPTY_NUTRIENTS, energyKcal: kcalValue } }]); setManualName(""); setManualKcal(""); setShowManual(false); }
 
   return <form className="single-menu-workspace"><input type="hidden" name="dietMealId" value={dietMeal.id}/><input type="hidden" name="dietTypeId" value={dietMeal.dietTypeId}/><input type="hidden" name="feedingRoute" value={dietMeal.feedingRoute}/><input type="hidden" name="sourceTemplateId" value={sourceTemplateId}/><input type="hidden" name="items" value={encoded}/>
