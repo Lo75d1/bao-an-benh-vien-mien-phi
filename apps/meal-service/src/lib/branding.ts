@@ -59,6 +59,9 @@ export function blendHex(hex: string, target: "#FFFFFF" | "#000000", targetWeigh
 }
 
 export async function readBrandingSettings(client: Prisma.TransactionClient | typeof prisma = prisma): Promise<BrandingSettings> {
+  // Docker build prerenders the global not-found page before a runtime database
+  // is attached. Runtime containers always provide DATABASE_URL via compose.
+  if (!process.env.DATABASE_URL) return { ...DEFAULT_BRANDING };
   const row = await client.appSetting.findUnique({ where: { key: BRANDING_KEY }, select: { valueJson: true } });
   return row ? parseBrandingSettings(row.valueJson) : { ...DEFAULT_BRANDING };
 }
