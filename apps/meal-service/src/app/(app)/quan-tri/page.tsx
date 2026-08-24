@@ -44,7 +44,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     </section>
 
     <section id="settings" className="admin-panel"><div className="section-heading"><div><p className="eyebrow">Cài đặt vận hành</p><h2>Áp dụng cho các luồng nghiệp vụ</h2></div><span>Giờ chốt · Sonde · Kho</span></div>
-      <SettingsForm settings={{ advanceEntryDays: settings.advanceEntryDays, serviceCompletionMinutes: settings.serviceCompletionMinutes, sondeEnabled: settings.sondeEnabled, warehouseMode: settings.warehouseMode, warehouseApprovalRole: settings.warehouseApprovalRole as "ADMIN" | "DIETITIAN" | "KITCHEN" }} mealTypes={mealTypes.filter((meal) => meal.status === "ACTIVE")} action={saveSettingsAction}/>
+      <SettingsForm settings={{ advanceEntryDays: settings.advanceEntryDays, serviceCompletionMinutes: settings.serviceCompletionMinutes, publicMenuImages: settings.publicMenuImages, sondeEnabled: settings.sondeEnabled, warehouseMode: settings.warehouseMode, warehouseApprovalRole: settings.warehouseApprovalRole as "ADMIN" | "DIETITIAN" | "KITCHEN" }} mealTypes={mealTypes.filter((meal) => meal.status === "ACTIVE")} action={saveSettingsAction}/>
     </section>
 
     <section id="meal-types" className="admin-panel"><div className="section-heading"><div><p className="eyebrow">Bữa ăn</p><h2>Danh mục giờ phục vụ</h2></div><span>Tạo · sửa · vô hiệu hóa</span></div>

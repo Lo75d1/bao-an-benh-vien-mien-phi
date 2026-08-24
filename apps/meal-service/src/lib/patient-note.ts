@@ -3,6 +3,7 @@ import type { PatientNoteStatus, Prisma, Role } from "@prisma/client";
 import { evidenceStorage } from "./evidence-storage";
 import { prisma } from "./prisma";
 import { hospitalDate } from "./serving-report";
+import { readOperationalSettings } from "./settings";
 
 export const PATIENT_NOTE_LIMIT = 3;
 export const PATIENT_NOTE_WINDOW_MS = 60 * 60 * 1000;
@@ -105,14 +106,29 @@ function serviceAt(mealDate: Date, serviceTime: string): Date {
   return new Date(Date.UTC(mealDate.getUTCFullYear(), mealDate.getUTCMonth(), mealDate.getUTCDate(), hour - 7, minute));
 }
 
-export async function readPublicDepartment(token: string, now = new Date()) {
-  const department = await prisma.department.findFirst({ where: { publicToken: token, status: "ACTIVE" }, select: { id: true, name: true } });
+export async function readPublicDepartment(token: string, selectedDate?: string, now = new Date()) {
+  const [department, settings] = await Promise.all([prisma.department.findFirst({ where: { publicToken: token, status: "ACTIVE" }, select: { id: true, name: true } }), readOperationalSettings()]);
   if (!department) return null;
-  const start = new Date(hospitalDate(now).getTime() - 24 * 60 * 60 * 1000);
-  const end = new Date(hospitalDate(now).getTime() + 3 * 24 * 60 * 60 * 1000);
+  const start = hospitalDate(now);
+  const end = new Date(start.getTime() + settings.advanceEntryDays * 24 * 60 * 60 * 1000);
+  const requested = /^\d{4}-\d{2}-\d{2}$/.test(selectedDate ?? "") ? new Date(`${selectedDate}T00:00:00.000Z`) : start;
+  const selected = Number.isFinite(requested.getTime()) && requested >= start && requested <= end ? requested : start;
   const events = await prisma.mealEvent.findMany({ where: { mealDate: { gte: start, lte: end }, reports: { some: { departmentId: department.id, status: "SUBMITTED" } } }, orderBy: [{ mealDate: "asc" }, { mealType: { sortOrder: "asc" } }], select: { id: true, mealDate: true, mealType: { select: { name: true, serviceTime: true } }, reports: { where: { departmentId: department.id, status: "SUBMITTED" }, select: { lines: { select: { dietTypeId: true, quantity: true, patientVisibleNote: true } } } }, dietMeals: { where: { voidedAt: null, status: { not: "CANCELLED" } }, select: { id: true, dietTypeId: true, status: true, menuSnapshotJson: true, evaluationJson: true, patientVisibleNote: true, dietType: { select: { code: true, name: true } }, evidence: { where: { kind: "MEAL_PHOTO" }, orderBy: { uploadedAt: "desc" }, take: 1, select: { id: true, storagePath: true, note: true } } } } } });
   const shaped = events.map((event) => ({ ...event, at: serviceAt(event.mealDate, event.mealType.serviceTime), dietMeals: event.dietMeals.flatMap((meal) => { const line = event.reports[0]?.lines.find((item) => item.dietTypeId === meal.dietTypeId); if (!line || line.quantity <= 0) return []; const snapshot = meal.menuSnapshotJson as { items?: Array<{ itemName?: unknown }> } | null; return [{ id: meal.id, status: meal.status, dietType: meal.dietType, menuItems: Array.isArray(snapshot?.items) ? snapshot.items.flatMap((item) => typeof item.itemName === "string" ? [item.itemName] : []) : [], evaluation: publicEvaluation(meal.evaluationJson), patientVisibleNotes: [meal.patientVisibleNote, line.patientVisibleNote].filter((item): item is string => Boolean(item)), evidence: meal.evidence.map((item) => ({ id: item.id, note: item.note, publicUrl: evidenceStorage.publicUrl(item.storagePath) })) }]; }) }));
   const previous = shaped.filter((event) => event.at <= now).at(-1) ?? shaped[0] ?? null;
   const next = shaped.find((event) => previous && event.at > previous.at) ?? null;
-  return { department: { name: department.name }, current: previous, next };
+  const selectedKey = selected.toISOString().slice(0, 10);
+  return { department: { name: department.name }, current: previous, next, selectedEvents: shaped.filter((event) => event.mealDate.toISOString().slice(0, 10) === selectedKey), selectedDate: selectedKey, minDate: start.toISOString().slice(0, 10), maxDate: end.toISOString().slice(0, 10), advanceEntryDays: settings.advanceEntryDays, showImages: settings.publicMenuImages };
+}
+
+export async function readPublicDietMenu(dietCode?: string, selectedDate?: string, now = new Date()) {
+  const settings = await readOperationalSettings();
+  const diets = await prisma.dietType.findMany({ where: { status: "ACTIVE", ...(settings.sondeEnabled ? {} : { feedingRoute: "NORMAL" }) }, orderBy: { sortOrder: "asc" }, select: { id: true, code: true, name: true, feedingRoute: true } });
+  const selectedDiet = diets.find((diet) => diet.code === dietCode) ?? diets[0] ?? null;
+  const start = hospitalDate(now);
+  const end = new Date(start.getTime() + settings.advanceEntryDays * 24 * 60 * 60 * 1000);
+  const requested = /^\d{4}-\d{2}-\d{2}$/.test(selectedDate ?? "") ? new Date(`${selectedDate}T00:00:00.000Z`) : start;
+  const selected = Number.isFinite(requested.getTime()) && requested >= start && requested <= end ? requested : start;
+  const meals = selectedDiet ? await prisma.dietMeal.findMany({ where: { dietTypeId: selectedDiet.id, voidedAt: null, approvedAt: { not: null }, mealEvent: { mealDate: selected } }, orderBy: { mealEvent: { mealType: { sortOrder: "asc" } } }, select: { id: true, status: true, menuSnapshotJson: true, mealEvent: { select: { mealType: { select: { name: true, serviceTime: true } } } }, evidence: { where: { kind: "MEAL_PHOTO" }, orderBy: { uploadedAt: "desc" }, take: 1, select: { id: true, storagePath: true, note: true } } } }) : [];
+  return { diets, selectedDiet, selectedDate: selected.toISOString().slice(0, 10), minDate: start.toISOString().slice(0, 10), maxDate: end.toISOString().slice(0, 10), advanceEntryDays: settings.advanceEntryDays, showImages: settings.publicMenuImages, meals: meals.map((meal) => { const snapshot = meal.menuSnapshotJson as { items?: Array<{ itemName?: unknown; dishName?: unknown }> } | null; const items = Array.isArray(snapshot?.items) ? snapshot.items : []; return { id: meal.id, status: meal.status, mealType: meal.mealEvent.mealType, dishes: [...new Set(items.flatMap((item) => typeof item.dishName === "string" && item.dishName.trim() ? [item.dishName.trim()] : []))], foods: items.flatMap((item) => typeof item.itemName === "string" && item.itemName.trim() ? [item.itemName.trim()] : []), evidence: settings.publicMenuImages ? meal.evidence.map((item) => ({ id: item.id, note: item.note, publicUrl: evidenceStorage.publicUrl(item.storagePath) })) : [] }; }) };
 }

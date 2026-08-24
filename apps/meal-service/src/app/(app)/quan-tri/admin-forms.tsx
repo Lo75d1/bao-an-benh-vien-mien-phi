@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 const error = (id: string, message?: string) => message ? <span id={id} role="alert" className="field-error">{message}</span> : null;
-const settingsSchema = z.object({ advanceEntryDays: z.number().int().min(1, "Tối thiểu 1 ngày.").max(60, "Tối đa 60 ngày."), serviceCompletionMinutes: z.number().int().min(15, "Tối thiểu 15 phút.").max(240, "Tối đa 240 phút."), sondeEnabled: z.boolean(), warehouseMode: z.enum(["A", "B"]), warehouseApprovalRole: z.enum(["ADMIN", "DIETITIAN", "KITCHEN"]), reason: z.string().trim().min(3, "Nêu lý do với ít nhất 3 ký tự.").max(500) });
+const settingsSchema = z.object({ advanceEntryDays: z.number().int().min(1, "Tối thiểu 1 ngày.").max(60, "Tối đa 60 ngày."), serviceCompletionMinutes: z.number().int().min(15, "Tối thiểu 15 phút.").max(240, "Tối đa 240 phút."), publicMenuImages: z.boolean(), sondeEnabled: z.boolean(), warehouseMode: z.enum(["A", "B"]), warehouseApprovalRole: z.enum(["ADMIN", "DIETITIAN", "KITCHEN"]), reason: z.string().trim().min(3, "Nêu lý do với ít nhất 3 ký tự.").max(500) });
 type SettingsFields = z.infer<typeof settingsSchema>;
 type MealType = { id: string; name: string; cutoffTime: string; serviceTime: string };
 export function SettingsForm({ settings, mealTypes, action }: { settings: Omit<SettingsFields, "reason">; mealTypes: MealType[]; action: (data: FormData) => Promise<void> }) {
@@ -14,6 +14,7 @@ export function SettingsForm({ settings, mealTypes, action }: { settings: Omit<S
   <label htmlFor="advanceEntryDays">Số ngày được nhập trước<input id="advanceEntryDays" type="number" min="1" max="60" {...register("advanceEntryDays", { valueAsNumber: true })} aria-invalid={!!errors.advanceEntryDays} aria-describedby={errors.advanceEntryDays ? "advanceEntryDays-error" : undefined}/>{error("advanceEntryDays-error", errors.advanceEntryDays?.message)}</label>
   <label htmlFor="serviceCompletionMinutes">Phút chuyển sang bữa kế<input id="serviceCompletionMinutes" type="number" min="15" max="240" step="5" {...register("serviceCompletionMinutes", { valueAsNumber: true })} aria-invalid={!!errors.serviceCompletionMinutes}/></label>
   <label className="check-field"><input type="checkbox" {...register("sondeEnabled")}/><span>Bật đường nuôi Sonde</span></label>
+  <label className="check-field"><input type="checkbox" {...register("publicMenuImages")}/><span>Hiện ảnh món ăn cho bệnh nhân</span></label>
   <label htmlFor="warehouseMode">Mode kho<select id="warehouseMode" {...register("warehouseMode")}><option value="A">Mode A · một kho tổng</option><option value="B">Mode B · kho bếp + kho sonde</option></select></label>
   <label htmlFor="warehouseApprovalRole">Role duyệt kho<select id="warehouseApprovalRole" {...register("warehouseApprovalRole")}><option value="ADMIN">Quản trị</option><option value="DIETITIAN">Dinh dưỡng</option><option value="KITCHEN">Nhà bếp</option></select></label>
  </div><div className="meal-time-grid">{mealTypes.map((meal) => <fieldset key={meal.id}><legend>{meal.name}</legend><input type="hidden" name="mealTypeId" value={meal.id}/><label>Giờ chốt<input name="cutoffTime" type="time" defaultValue={meal.cutoffTime} required/></label><label>Giờ ăn<input name="serviceTime" type="time" defaultValue={meal.serviceTime} required/></label></fieldset>)}</div>

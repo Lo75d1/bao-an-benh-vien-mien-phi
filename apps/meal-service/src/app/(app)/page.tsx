@@ -1,35 +1,34 @@
-import { redirect } from "next/navigation";
+/* eslint-disable @next/next/no-img-element -- public evidence URL comes from configured storage */
 import Image from "next/image";
+import { CalendarDays, ImageOff, LogIn, Utensils } from "lucide-react";
+import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/login-form";
-import { PatientAccessForm } from "@/components/patient-access-form";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getSessionUser } from "@/lib/auth";
 import { readBrandingSettings } from "@/lib/branding";
+import { readPublicDietMenu } from "@/lib/patient-note";
 
-const DEMO_ACCOUNTS = process.env.DEMO_LOGIN_BUTTONS === "1"
-  ? [
-      { label: "Quản trị / Trưởng khoa", email: "admin@demo.local", password: "Demo-Admin-2026!" },
-      { label: "Dinh dưỡng", email: "dietitian@demo.local", password: "Demo-Dietitian-2026!" },
-      { label: "Điều dưỡng", email: "nurse@demo.local", password: "Demo-Nurse-2026!" },
-      { label: "Nhà bếp", email: "kitchen@demo.local", password: "Demo-Kitchen-2026!" },
-    ]
-  : [];
+const DEMO_ACCOUNTS = process.env.DEMO_LOGIN_BUTTONS === "1" ? [
+  { label: "Quản trị / Trưởng khoa", email: "admin@demo.local", password: "Demo-Admin-2026!" },
+  { label: "Dinh dưỡng", email: "dietitian@demo.local", password: "Demo-Dietitian-2026!" },
+  { label: "Điều dưỡng", email: "nurse@demo.local", password: "Demo-Nurse-2026!" },
+  { label: "Nhà bếp", email: "kitchen@demo.local", password: "Demo-Kitchen-2026!" },
+] : [];
+const dateLabel = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
 
-export default async function HomePage() {
-  const [user, branding] = await Promise.all([getSessionUser(), readBrandingSettings()]);
-  if (!user) {
-    return (
-      <main className="login-page grid min-h-[100dvh] min-[900px]:grid-cols-[minmax(0,1.08fr)_minmax(400px,0.92fr)]">
-        <a className="skip-link" href="#login-title">Chuyển đến đăng nhập</a>
-        <section className="login-intro flex flex-col justify-between px-5 py-8 sm:px-10 min-[900px]:min-h-[100dvh] min-[900px]:px-[clamp(3rem,6vw,6.5rem)] min-[900px]:py-12" style={{ backgroundColor: "var(--brand-surface)", color: "var(--brand-foreground)" }} aria-labelledby="public-home-title">
-          <div className="login-hero-copy max-w-2xl"><p className="login-brand-name">{branding.logoDataUrl ? <Image src={branding.logoDataUrl} alt="" width={42} height={42} unoptimized/> : <span>{branding.shortName}</span>}<strong>{branding.organizationName}</strong></p><p className="login-muted-copy text-xs font-semibold uppercase tracking-[0.12em]">Hệ thống điều phối suất ăn</p><h1 id="public-home-title" className="mt-5 max-w-xl text-3xl font-semibold leading-tight tracking-[-0.035em] text-balance sm:text-4xl lg:text-5xl">Mỗi bữa ăn được chuẩn bị đúng việc, đúng thời điểm.</h1><p className="login-muted-copy mt-5 max-w-xl text-base leading-relaxed">Lịch tuần chung giúp dinh dưỡng, điều dưỡng, bếp và quản trị phối hợp trên cùng một nguồn dữ liệu.</p></div>
-          <Card className="public-patient-entry mt-10 max-w-xl border-white/15 bg-white/[0.07] text-white shadow-none"><CardHeader><CardDescription className="text-xs font-semibold uppercase tracking-[0.1em] text-[#b9d9cf]">Dành cho bệnh nhân và người nhà</CardDescription><CardTitle className="text-xl">Xem bữa ăn của khoa</CardTitle></CardHeader><CardContent className="[&_input]:bg-white [&_input]:text-foreground [&_label]:text-white [&_p]:text-[#d8e8e3]"><PatientAccessForm /></CardContent></Card>
-        </section>
-        <section className="login-panel flex items-center justify-center px-4 py-10 sm:px-8" aria-labelledby="login-title">
-          <Card className="login-card w-full max-w-md border-[#123c36]/10 shadow-none"><CardHeader><CardDescription className="text-xs font-semibold uppercase tracking-[0.1em] text-[#0f6e56]">Dành cho nhân viên</CardDescription><CardTitle id="login-title" className="text-2xl tracking-[-0.025em] text-balance">Đăng nhập</CardTitle><CardDescription>Sử dụng tài khoản được bệnh viện cấp để tiếp tục.</CardDescription></CardHeader><CardContent><LoginForm demoAccounts={DEMO_ACCOUNTS} /></CardContent></Card>
-        </section>
-      </main>
-    );
-  }
-  redirect({ ADMIN: "/quan-ly", DIETITIAN: "/lich", NURSE: "/bao-suat", KITCHEN: "/bep" }[user.role]);
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ diet?: string; date?: string }> }) {
+  const query = await searchParams;
+  const [user, branding, menu] = await Promise.all([getSessionUser(), readBrandingSettings(), readPublicDietMenu(query.diet, query.date)]);
+  if (user) redirect({ ADMIN: "/quan-ly", DIETITIAN: "/lich", NURSE: "/bao-suat", KITCHEN: "/bep" }[user.role]);
+
+  return <main className="public-menu-home">
+    <header className="public-menu-header"><a href="#public-menu-browser" className="public-menu-brand">{branding.logoDataUrl ? <Image src={branding.logoDataUrl} alt={`Logo ${branding.organizationName}`} width={40} height={40} unoptimized/> : <span>{branding.shortName}</span>}<strong>{branding.organizationName}</strong></a><Dialog><DialogTrigger asChild><button type="button" className="staff-login-trigger"><LogIn aria-hidden="true"/>Đăng nhập nhân viên</button></DialogTrigger><DialogContent className="max-h-[92vh] max-w-md overflow-y-auto"><DialogHeader><DialogTitle>Đăng nhập nhân viên</DialogTitle><DialogDescription>Dùng tài khoản do bệnh viện cấp để vào khu vực làm việc.</DialogDescription></DialogHeader><LoginForm demoAccounts={DEMO_ACCOUNTS}/></DialogContent></Dialog></header>
+
+    <section className="public-menu-hero public-menu-hero-compact" id="public-menu-browser" aria-labelledby="public-menu-title"><div className="public-menu-copy"><p className="eyebrow">Thực đơn dành cho người bệnh</p><h1 id="public-menu-title">Xem thực đơn theo chế độ ăn</h1><p>Chọn mã chế độ ăn và ngày. Hệ thống chỉ hiển thị thực đơn đã được dinh dưỡng duyệt.</p></div><form method="get" className="public-menu-filter"><label>Mã chế độ ăn<select name="diet" defaultValue={menu.selectedDiet?.code ?? ""}>{menu.diets.map((diet) => <option key={diet.id} value={diet.code}>{diet.code} · {diet.name}{diet.feedingRoute === "SONDE" ? " · Qua sonde" : ""}</option>)}</select></label><label>Ngày xem<input type="date" name="date" min={menu.minDate} max={menu.maxDate} defaultValue={menu.selectedDate}/></label><button type="submit">Xem thực đơn</button><small>Xem trước tối đa {menu.advanceEntryDays} ngày theo cấu hình bệnh viện.</small></form></section>
+
+    <section className="public-menu-results" aria-labelledby="public-menu-result-title"><header><div><p className="eyebrow">Thực đơn đã duyệt</p><h2 id="public-menu-result-title">{menu.selectedDiet ? `${menu.selectedDiet.code} · ${menu.selectedDiet.name}` : "Chưa có mã chế độ ăn"}</h2></div><time dateTime={menu.selectedDate}>{dateLabel.format(new Date(`${menu.selectedDate}T00:00:00.000Z`))}</time></header>{!menu.meals.length ? <div className="public-menu-empty"><Utensils aria-hidden="true"/><strong>Chưa có thực đơn cho lựa chọn này</strong><span>Vui lòng chọn ngày khác hoặc liên hệ khoa điều trị.</span></div> : <div className="public-menu-meal-list">{menu.meals.map((meal) => <article key={meal.id}>{menu.showImages ? meal.evidence[0]?.publicUrl ? <img src={meal.evidence[0].publicUrl} alt={`Ảnh ${meal.mealType.name} · ${menu.selectedDiet?.name ?? "chế độ ăn"}`}/> : <div className="public-menu-photo-empty"><ImageOff aria-hidden="true"/><span>Chưa có ảnh</span></div> : null}<div><span>{meal.mealType.serviceTime}</span><h3>{meal.mealType.name}</h3><strong>{meal.dishes.length ? meal.dishes.join(" · ") : meal.foods.length ? meal.foods.join(" · ") : "—"}</strong>{!meal.dishes.length && !meal.foods.length ? <small>Chưa có dữ liệu món ăn.</small> : meal.dishes.length && meal.foods.length ? <details><summary>Xem thành phần</summary><p>{meal.foods.join(" · ")}</p></details> : null}</div></article>)}</div>}</section>
+
+    <section className="public-menu-help" aria-label="Thông tin thực đơn"><article><CalendarDays aria-hidden="true"/><div><strong>Ngày xem do bệnh viện kiểm soát</strong><span>Không thể chọn vượt quá khoảng ngày đã cấu hình.</span></div></article><article><Utensils aria-hidden="true"/><div><strong>Đúng mã chế độ ăn</strong><span>Thực đơn được tách rõ ăn đường miệng và qua sonde.</span></div></article><article><ImageOff aria-hidden="true"/><div><strong>Ảnh là tùy chọn</strong><span>Quản trị quyết định có công khai ảnh món ăn hay không.</span></div></article></section>
+    <footer className="public-menu-footer">Thông tin thực đơn chung · Không thay thế chỉ định điều trị</footer>
+  </main>;
 }
