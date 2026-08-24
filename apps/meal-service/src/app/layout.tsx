@@ -15,7 +15,9 @@ export async function generateMetadata() {
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const branding = await readBrandingSettings();
   const foreground = readableForeground(branding.primaryColor);
-  const primary = foreground === "#17241F" ? blendHex(branding.primaryColor, "#000000", .58) : branding.primaryColor;
+  // Nền nhận diện sáng vẫn cần một màu chức năng đủ rõ; pha màu pastel với đen
+  // tạo ra xám/nâu bẩn ở trạng thái đang chọn.
+  const primary = foreground === "#17241F" ? "#0F6E56" : branding.primaryColor;
   const accent = blendHex(primary, readableForeground(primary) === "#FFFFFF" ? "#FFFFFF" : "#000000", .18);
   const theme = { "--brand-surface": branding.primaryColor, "--brand-foreground": foreground, "--primary": primary, "--primary-foreground": readableForeground(primary), "--sidebar": primary, "--secondary": blendHex(branding.primaryColor, "#FFFFFF", .72), "--secondary-foreground": primary, "--accent": accent, "--accent-foreground": readableForeground(accent), "--ring": accent } as CSSProperties;
   return <html lang="vi"><body style={theme}><BrandingProvider value={branding}>{children}</BrandingProvider></body></html>;
