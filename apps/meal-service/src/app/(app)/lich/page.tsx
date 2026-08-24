@@ -28,7 +28,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   return (
     <AppShell user={user}>
       <main className="workspace calendar-page">
-        <WeeklyCalendar events={events} details={details} weekStart={weekStart} dataStartDate={settings.dataStartDate} role={user.role} route={route} sondeEnabled={settings.sondeEnabled} serviceCompletionMinutes={settings.serviceCompletionMinutes} />
+        <WeeklyCalendar events={events} details={details} weekStart={weekStart} dataStartDate={settings.dataStartDate} sondeMealTimes={settings.sondeMealTimes} role={user.role} route={route} sondeEnabled={settings.sondeEnabled} serviceCompletionMinutes={settings.serviceCompletionMinutes} />
         {user.role === "NURSE" && !memberships.length ? <p className="calendar-scope-warning">Chưa được gán khoa; dữ liệu phạm vi khoa hiển thị —.</p> : null}
       </main>
     </AppShell>
