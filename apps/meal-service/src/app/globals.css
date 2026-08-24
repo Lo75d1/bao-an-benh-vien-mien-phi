@@ -11,7 +11,7 @@
 @import "./operations.css";
 
 @theme inline {
-  --font-sans: "Noto Sans", Arial, sans-serif;
+  --font-sans: "Be Vietnam Pro", "Segoe UI", sans-serif;
   --font-mono: "Courier New", Courier, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -74,18 +74,18 @@
   --sidebar-border: #315e56;
   --sidebar-ring: #72bba5;
   --radius: 0.875rem;
-  --font-serif: "Noto Sans", Arial, sans-serif;
-  --fs-xs: 0.75rem;
-  --fs-sm: 0.8125rem;
-  --fs-table: 0.875rem;
-  --fs-base: 0.9375rem;
-  --fs-md: 1rem;
-  --fs-lg: 1.1875rem;
-  --fs-xl: 1.5rem;
+  --font-serif: "Be Vietnam Pro", "Segoe UI", sans-serif;
+  --fs-xs: 0.8125rem;
+  --fs-sm: 0.875rem;
+  --fs-table: 0.9375rem;
+  --fs-base: 1rem;
+  --fs-md: 1.0625rem;
+  --fs-lg: 1.25rem;
+  --fs-xl: 1.625rem;
   --lh: 1.5;
   --space-cell-y: 0.375rem;
   --space-cell-x: 0.625rem;
-  --row-height: 2.5rem;
+  --row-height: 2.75rem;
   --paper: var(--card);
   --ink: var(--foreground);
   --institution: var(--primary);
@@ -382,13 +382,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 
 /* Nhận diện bệnh viện dùng chung token hiện tại. */
 .top-brand>span img{width:100%;height:100%;border-radius:inherit;object-fit:contain}.top-brand strong{max-width:22rem;overflow:hidden;text-overflow:ellipsis}.top-shell,.top-brand,.top-account{color:var(--primary-foreground)!important}.login-brand-name{display:flex;align-items:center;gap:.7rem;margin:0 0 1.5rem;color:var(--primary-foreground)}.login-brand-name>span,.login-brand-name>img{width:42px;height:42px;display:grid;place-items:center;border-radius:.65rem;background:var(--card);color:var(--primary);object-fit:contain;font-size:var(--fs-sm);font-weight:800}.login-brand-name strong{font-size:var(--fs-lg);letter-spacing:-.025em}
-.branding-settings-form{display:grid;gap:1rem}.branding-editor{display:grid;grid-template-columns:minmax(320px,.85fr) minmax(420px,1.15fr);gap:1rem}.branding-fields{display:grid;grid-template-columns:minmax(0,1fr) 9rem;gap:.8rem;align-content:start}.branding-fields>label,.branding-fields fieldset,.branding-submit label{display:grid;gap:.35rem;color:var(--foreground);font-size:var(--fs-sm);font-weight:650}.branding-fields>label:first-child,.branding-fields fieldset,.brand-logo-field,.brand-remove-logo{grid-column:1/-1}.branding-fields input:not([type="checkbox"],[type="file"],[type="color"]),.branding-submit input{width:100%;min-height:42px;padding:.55rem .65rem;border:1px solid var(--input);border-radius:.55rem;background:var(--card);color:var(--foreground)}.branding-fields fieldset{padding:.75rem;border:1px solid var(--border);border-radius:.65rem}.branding-fields legend{padding-inline:.3rem}.brand-color-row{display:grid;grid-template-columns:48px minmax(0,1fr);gap:.5rem}.brand-color-row input[type="color"]{width:48px;height:42px;padding:3px;border:1px solid var(--input);border-radius:.55rem;background:var(--card)}.brand-presets{display:flex;gap:.45rem;margin-top:.25rem}.brand-presets button{width:28px;height:28px;border:3px solid var(--card);border-radius:50%;box-shadow:0 0 0 1px var(--border);cursor:pointer;transition:transform .2s ease}.brand-presets button:hover,.brand-presets button[aria-pressed="true"]{transform:scale(1.12);box-shadow:0 0 0 2px var(--foreground)}
-.brand-logo-field>span:first-child{display:flex;justify-content:space-between;gap:.5rem}.brand-logo-field small{color:var(--muted-foreground);font-weight:500}.brand-file-button{min-height:42px;display:flex;align-items:center;justify-content:center;gap:.45rem;border:1px dashed var(--input);border-radius:.55rem;color:var(--primary);cursor:pointer}.brand-file-button svg{width:17px}.brand-file-button input{position:absolute;width:1px;height:1px;opacity:0}.brand-remove-logo{display:flex!important;grid-template-columns:auto 1fr;align-items:center}.brand-remove-logo input{width:18px;height:18px;accent-color:var(--accent)}
-.brand-preview{min-height:250px;display:grid;align-content:center;gap:.8rem;padding:1rem;border:1px solid var(--border);border-radius:.8rem;background:var(--background)}.brand-preview>p{display:flex;align-items:center;gap:.4rem;margin:0;color:var(--muted-foreground);font-size:var(--fs-xs);font-weight:700}.brand-preview>p svg{width:16px}.brand-preview>div{min-width:0;display:grid;grid-template-columns:auto minmax(100px,auto) minmax(0,1fr) auto;align-items:center;gap:.7rem;padding:.65rem .8rem;border-radius:.6rem;background:var(--preview-brand);color:var(--preview-foreground);box-shadow:0 12px 32px color-mix(in srgb,var(--preview-brand) 18%,transparent)}.brand-preview-mark,.brand-preview>div>b{width:34px;height:34px;display:grid;place-items:center;border-radius:.5rem;background:white;color:var(--preview-brand);font-size:var(--fs-xs);font-weight:800}.brand-preview-mark img{width:100%;height:100%;border-radius:inherit;object-fit:contain}.brand-preview nav{min-width:0;display:flex;justify-content:center;gap:.25rem}.brand-preview nav i{padding:.45rem .6rem;border-radius:.35rem;font-size:var(--fs-xs);font-style:normal;font-weight:650}.brand-preview nav i.active{background:color-mix(in srgb,white 15%,transparent)}.brand-preview>small{color:var(--muted-foreground);line-height:1.5}
-.branding-submit{display:grid;grid-template-columns:minmax(160px,1fr) auto auto;gap:.45rem;align-items:end;padding-top:.8rem;border-top:1px solid var(--border)}.branding-submit button{display:flex;align-items:center;gap:.4rem}.branding-submit button svg{width:16px}@media(max-width:1050px){.branding-editor{grid-template-columns:1fr}.brand-preview{min-height:200px}.branding-submit{grid-template-columns:1fr 1fr}.branding-submit label{grid-column:1/-1}}
 .admin-command-content{grid-auto-rows:max-content;align-content:start}
 
 /* Màu nhận diện có thể sáng; màu chức năng vẫn đủ đậm để đọc trên nền trắng. */
 .top-shell,.login-intro{background:var(--brand-surface);color:var(--brand-foreground)}.top-brand,.top-account,.top-shell nav a,.top-notifications,.top-notifications span,.top-account small{color:var(--brand-foreground)!important}.top-brand>span{background:var(--card);color:var(--primary)}.top-shell nav a:hover{background:color-mix(in srgb,var(--brand-foreground) 8%,transparent);color:var(--brand-foreground)}.top-shell nav a[aria-current="page"]{background:var(--primary);color:var(--primary-foreground)}.top-notifications{border-color:color-mix(in srgb,var(--brand-foreground) 20%,transparent)}
 .login-brand-name{color:var(--brand-foreground)}.login-muted-copy{color:color-mix(in srgb,var(--brand-foreground) 72%,transparent)}.login-intro .public-patient-entry{border-color:color-mix(in srgb,var(--brand-foreground) 16%,transparent);background:color-mix(in srgb,var(--card) 38%,transparent);color:var(--brand-foreground)}.login-intro .public-patient-entry [data-slot="card-description"],.login-intro .public-patient-entry label,.login-intro .public-patient-entry p{color:color-mix(in srgb,var(--brand-foreground) 74%,transparent)}
-.brand-preview-mark,.brand-preview>div>b{color:color-mix(in srgb,var(--preview-brand) 42%,black)}.brand-preview nav i.active{background:color-mix(in srgb,var(--preview-foreground) 12%,transparent)}
+
+/* Điều khiển nhận diện trực tiếp, cỡ lớn cho người dùng lớn tuổi. */
+.branding-direct-settings{display:grid}.brand-direct-identity,.brand-direct-colors{display:grid;gap:1rem;padding:1.15rem 1.25rem;border-bottom:1px solid var(--border)}.brand-direct-identity{grid-template-columns:auto minmax(320px,1fr) auto;align-items:center}.brand-current-logo{width:72px;height:72px;display:grid;place-items:center;border:1px solid var(--border);border-radius:16px;background:var(--brand-surface);color:var(--primary);font-size:var(--fs-lg);font-weight:800}.brand-current-logo img{width:100%;height:100%;border-radius:inherit;object-fit:contain}.brand-direct-identity h3,.brand-direct-colors h3{margin:0;color:var(--foreground);font-size:var(--fs-lg)}.brand-direct-identity p,.brand-direct-colors p{margin:.2rem 0 0;color:var(--muted-foreground);font-size:var(--fs-sm)}.brand-name-fields{display:grid;grid-template-columns:minmax(240px,1fr) 9rem;gap:.75rem;margin-top:.8rem}.brand-name-fields label,.branding-direct-submit label{display:grid;gap:.35rem;color:var(--foreground);font-size:var(--fs-sm);font-weight:650}.brand-name-fields input,.branding-direct-submit input{min-height:48px;padding:.65rem .75rem;border:1px solid var(--input);border-radius:10px;background:var(--card);color:var(--foreground)}.brand-upload-button{min-height:58px;display:flex;align-items:center;gap:.65rem;padding:.65rem .8rem;border:1px solid var(--input);border-radius:12px;color:var(--primary);cursor:pointer}.brand-upload-button svg{width:22px}.brand-upload-button span{display:grid;font-weight:700}.brand-upload-button small{color:var(--muted-foreground);font-size:var(--fs-xs);font-weight:500}.brand-upload-button input{position:absolute;width:1px;height:1px;opacity:0}.brand-remove-logo{grid-column:3;display:flex!important;align-items:center;gap:.45rem;font-size:var(--fs-sm);font-weight:650}.brand-remove-logo input{width:20px;height:20px;accent-color:var(--accent)}
+.brand-direct-colors{grid-template-columns:1fr;align-items:center}.brand-choice-list{display:grid;grid-template-columns:repeat(7,minmax(74px,1fr));gap:.55rem}.brand-choice-list button,.brand-custom-color{min-height:72px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:.35rem;padding:.55rem;border:1px solid var(--border);border-radius:12px;background:var(--card);color:var(--foreground);cursor:pointer}.brand-choice-list button i,.brand-custom-color input{grid-column:1/-1;width:100%;height:28px;border:0;border-radius:7px}.brand-choice-list button span,.brand-custom-color span{font-size:var(--fs-xs);font-weight:650;text-align:left}.brand-choice-list button svg{width:18px;color:var(--primary)}.brand-choice-list button[aria-pressed="true"]{border-color:var(--primary);box-shadow:0 0 0 2px color-mix(in srgb,var(--primary) 18%,transparent)}.brand-custom-color input{padding:0;background:transparent;cursor:pointer}
+.branding-direct-submit{display:grid;grid-template-columns:minmax(220px,1fr) auto auto;gap:.65rem;align-items:end;padding:1rem 1.25rem}.branding-direct-submit button{min-height:48px;display:flex;align-items:center;gap:.45rem}.branding-direct-submit button svg{width:18px}.nutrition-menu-context dd,.nutrition-code-actions strong,.nutrition-command-search .search-2598-row input{font-family:var(--font-sans)}
+@media(max-width:1100px){.brand-direct-identity{grid-template-columns:auto 1fr}.brand-upload-button{grid-column:1/-1}.brand-remove-logo{grid-column:1/-1}.brand-direct-colors{grid-template-columns:1fr}.brand-choice-list{grid-template-columns:repeat(3,minmax(100px,1fr))}}@media(max-width:720px){.brand-direct-identity{grid-template-columns:1fr}.brand-name-fields,.branding-direct-submit{grid-template-columns:1fr}.brand-choice-list{grid-template-columns:repeat(2,minmax(100px,1fr))}}

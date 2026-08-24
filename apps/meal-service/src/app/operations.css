@@ -768,12 +768,12 @@
 .invoice-toolbar{min-height:64px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 12px;border-bottom:1px solid var(--border);background:var(--card)}.invoice-toolbar>div{display:grid;grid-template-columns:auto auto;align-items:baseline;gap:0 8px}.invoice-toolbar p{grid-column:1/-1;margin:0}.invoice-toolbar h1{margin:0;color:var(--primary);font-size:var(--fs-lg)}.invoice-toolbar span{color:var(--muted-foreground);font-size:var(--fs-xs)}.invoice-toolbar .primary-action{display:inline-flex;align-items:center;gap:6px}
 
 /* Clinical SaaS workbench: trang Thực đơn là chuẩn thị giác đầu tiên của hệ thống. */
-.nutrition-menu-page{--menu-surface:#fff;--menu-canvas:#f5f7f6;--menu-line:#e4e9e7;--menu-text:#152521;--menu-muted:#66756f;--menu-accent:#0f6e56;font-family:"Noto Sans",Arial,sans-serif;background:var(--menu-canvas)}
-body:has(.nutrition-menu-page) .top-shell,body:has(.nutrition-menu-page) [role="dialog"]{font-family:"Noto Sans",Arial,sans-serif}
+.nutrition-menu-page{--menu-surface:#fff;--menu-canvas:#f5f7f6;--menu-line:#e4e9e7;--menu-text:#152521;--menu-muted:#66756f;--menu-accent:#0f6e56;font-family:var(--font-sans);background:var(--menu-canvas)}
+body:has(.nutrition-menu-page) .top-shell,body:has(.nutrition-menu-page) [role="dialog"]{font-family:var(--font-sans)}
 .nutrition-menu-workbench{grid-template-rows:76px minmax(0,1fr) 76px;gap:0;background:var(--menu-canvas)}
 .nutrition-menu-context{position:relative;grid-template-columns:minmax(270px,.8fr) minmax(310px,1fr) auto;padding:12px 16px;border-bottom:1px solid var(--menu-line);background:color-mix(in srgb,var(--menu-surface) 96%,transparent);box-shadow:0 1px 0 rgb(18 60 54/.03)}
 .nutrition-step-switch{height:44px;padding:3px;border-color:var(--menu-line);border-radius:10px;background:#eef2f0;overflow:visible}.nutrition-step-switch button{border-radius:7px;background:transparent;font-size:13px;font-weight:600}.nutrition-step-switch button.active{background:var(--menu-surface);color:var(--primary);box-shadow:0 1px 3px rgb(18 60 54/.12)}
-.nutrition-menu-context dl{align-items:center}.nutrition-menu-context dl div{padding:0 16px;border-left:0}.nutrition-menu-context dl div+div{border-left:1px solid var(--menu-line)}.nutrition-menu-context dt{font-size:11px;font-weight:500;letter-spacing:.01em}.nutrition-menu-context dd{margin-top:2px;color:var(--menu-text);font-family:"Noto Sans",Arial,sans-serif;font-size:14px;font-weight:650}
+.nutrition-menu-context dl{align-items:center}.nutrition-menu-context dl div{padding:0 16px;border-left:0}.nutrition-menu-context dl div+div{border-left:1px solid var(--menu-line)}.nutrition-menu-context dt{font-size:11px;font-weight:500;letter-spacing:.01em}.nutrition-menu-context dd{margin-top:2px;color:var(--menu-text);font-family:var(--font-sans);font-size:14px;font-weight:650}
 .nutrition-context-tools{display:flex;align-items:center;justify-content:flex-end;gap:6px}.nutrition-context-tools>button,.nutrition-context-actions>button{position:static!important;min-height:38px;display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--menu-line);border-radius:8px;background:var(--menu-surface);color:var(--menu-text);font-size:12px;font-weight:600;white-space:nowrap;box-shadow:0 1px 2px rgb(18 60 54/.04)}.nutrition-context-tools button:hover{border-color:#bdcbc6;background:#fafcfb;transform:translateY(-1px)}.nutrition-context-tools svg{width:15px;height:15px;stroke-width:1.8}
 .nutrition-code-canvas{display:grid;align-content:start;gap:10px;padding:12px 16px 18px;background:var(--menu-canvas);scrollbar-gutter:stable}.nutrition-code-row{overflow:hidden;border:1px solid var(--menu-line);border-radius:12px;background:var(--menu-surface);box-shadow:0 1px 2px rgb(18 60 54/.035);transition:border-color 180ms ease,box-shadow 180ms ease,transform 180ms ease}.nutrition-code-row:hover{border-color:#ccd7d3}.nutrition-code-row.active{border-color:color-mix(in srgb,var(--menu-accent) 55%,var(--menu-line));box-shadow:0 0 0 3px rgb(15 110 86/.08),0 6px 18px rgb(18 60 54/.06)}
 .nutrition-code-row>header{min-height:58px;padding:7px 12px;border-bottom:1px solid #edf0ef;background:#fafcfb}.nutrition-code-actions{left:0;height:58px;padding:7px 12px}.nutrition-code-actions strong{color:var(--menu-accent);font-family:"Noto Sans",Arial,sans-serif;font-size:14px;font-weight:700;letter-spacing:-.01em}.nutrition-code-actions span{color:var(--menu-text);font-size:13px;font-weight:600}.nutrition-code-actions small{font-size:11px}.nutrition-kcal-target{font-size:11px;font-weight:500}.nutrition-kcal-target input{height:34px;border-color:var(--menu-line);border-radius:7px}.nutrition-kcal-target input:focus{outline:3px solid rgb(15 110 86/.12);border-color:var(--menu-accent)}.nutrition-kcal-actual{font-size:11px;font-weight:600}.nutrition-code-row .approved{padding:4px 7px;border-radius:6px;background:#e7f5ef;font-weight:600}
@@ -784,7 +784,7 @@ body:has(.nutrition-menu-page) .top-shell,body:has(.nutrition-menu-page) [role="
 @media(max-width:1050px){.nutrition-menu-context{grid-template-columns:260px minmax(280px,1fr) auto;padding:10px 12px}.nutrition-context-tools{position:static}.nutrition-context-actions{position:static;transform:none}.nutrition-context-actions button:last-child{display:none}.nutrition-code-canvas{padding:10px 12px}.nutrition-menu-command{margin:7px 12px 9px}.nutrition-menu-command>.primary-action{position:static}}
 
 /* Shared SaaS header: một hàng gọn, trạng thái và tài khoản luôn thẳng trục. */
-.top-shell{height:60px;min-height:60px;grid-template-columns:minmax(205px,auto) minmax(0,1fr) auto;gap:18px;padding:7px 14px;border-bottom:1px solid rgb(255 255 255/.09);background:#103e37;color:#fff;font-family:"Noto Sans",Arial,sans-serif;box-shadow:0 1px 0 rgb(8 38 33/.12)}
+.top-shell{height:60px;min-height:60px;grid-template-columns:minmax(205px,auto) minmax(0,1fr) auto;gap:18px;padding:7px 14px;border-bottom:1px solid rgb(255 255 255/.09);background:#103e37;color:#fff;font-family:var(--font-sans);box-shadow:0 1px 0 rgb(8 38 33/.12)}
 .top-brand{gap:9px}.top-brand>span{width:36px;height:36px;border:1px solid rgb(255 255 255/.16);border-radius:10px;background:rgb(255 255 255/.96);color:#103e37;font-size:11px;font-weight:750;box-shadow:0 1px 2px rgb(0 0 0/.08)}.top-brand strong{font-size:14px;font-weight:650;letter-spacing:-.025em}
 .top-shell nav{align-self:auto;height:44px;align-items:center;gap:3px}.top-shell nav a{position:relative;min-height:38px;padding:0 13px;border:1px solid transparent;border-radius:8px;color:#c8ddd6;font-size:12px;font-weight:550}.top-shell nav a:hover{border-color:rgb(255 255 255/.08);background:rgb(255 255 255/.055);color:#fff}.top-shell nav a[aria-current="page"]{border-color:rgb(255 255 255/.12);background:rgb(255 255 255/.11);color:#fff;box-shadow:inset 0 1px 0 rgb(255 255 255/.08)}.top-shell nav a[aria-current="page"]::after{content:"";position:absolute;right:12px;bottom:4px;left:12px;height:2px;border-radius:2px;background:#7fc6af}
 .top-shell-actions{height:44px;gap:5px}.top-workflow-status{min-width:0;display:flex;align-items:center;min-height:38px;margin:0;padding:0 12px;border:1px solid rgb(255 255 255/.10);border-radius:8px;background:rgb(255 255 255/.055);color:#d8e9e3;font-size:11px;line-height:1.25}.top-workflow-status strong{font-size:12px;font-weight:650;color:#fff}.top-notifications{min-height:38px;border-color:rgb(255 255 255/.10);border-radius:8px;background:rgb(255 255 255/.04);color:#d8e9e3}.top-notifications:hover{background:rgb(255 255 255/.09)}
@@ -793,8 +793,8 @@ body:has(.nutrition-menu-page) .top-shell,body:has(.nutrition-menu-page) [role="
 @media(max-width:900px){.top-shell{height:auto;min-height:58px;grid-template-columns:1fr auto;gap:5px 10px;padding:7px 10px}.top-shell nav{grid-column:1/-1;height:40px}.top-shell nav a{min-height:34px;padding:0 10px}.top-brand>span{width:34px;height:34px}.top-shell-actions{height:40px}}
 
 /* Clinical SaaS system layer: tái sử dụng cùng token và nhịp giao diện cho mọi vai trò. */
-.app-main,.app-main>main{background:var(--background);font-family:"Noto Sans",Arial,sans-serif}
-.app-main button,.app-main input,.app-main select,.app-main textarea,[role="dialog"]{font-family:"Noto Sans",Arial,sans-serif}
+.app-main,.app-main>main{background:var(--background);font-family:var(--font-sans)}
+.app-main button,.app-main input,.app-main select,.app-main textarea,[role="dialog"]{font-family:var(--font-sans)}
 .primary-action,.secondary-button,.app-main button{border-radius:8px;font-weight:650;letter-spacing:-.01em}
 .primary-action{box-shadow:0 1px 2px rgb(18 60 54/.12)}
 .primary-action:hover:not(:disabled){box-shadow:0 5px 14px rgb(18 60 54/.14);transform:translateY(-1px)}
@@ -805,15 +805,15 @@ body:has(.nutrition-menu-page) .top-shell,body:has(.nutrition-menu-page) [role="
 .app-main tbody tr:hover{background:#f7faf8}
 
 /* Trang chủ / đăng nhập. */
-.login-page{font-family:"Noto Sans",Arial,sans-serif;background:#f6f8f7}
+.login-page{font-family:var(--font-sans);background:#f6f8f7}
 .login-intro{position:relative;isolation:isolate;overflow:hidden;background:#103e37}
 .login-intro::before{content:"";position:absolute;z-index:-1;inset:auto auto -28% -8%;width:min(52vw,680px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgb(127 198 175/.15),rgb(127 198 175/0) 68%)}
 .login-intro .eyebrow{color:#a8ccc0;font-size:11px;letter-spacing:.12em}
-.login-intro h1{font-family:"Noto Sans",Arial,sans-serif;font-weight:650;letter-spacing:-.045em}
+.login-intro h1{font-family:var(--font-sans);font-weight:650;letter-spacing:-.045em}
 .login-intro>h1+p{color:#c8ddd6;font-size:var(--fs-md);line-height:1.65}
 .public-patient-entry{padding:18px;border:1px solid rgb(255 255 255/.13);border-radius:14px;background:rgb(255 255 255/.055);backdrop-filter:blur(8px)}
 .login-panel{background:#f6f8f7}.login-card{padding:clamp(24px,4vw,38px);border:1px solid #e2e8e5;border-radius:18px;background:#fff;box-shadow:0 24px 70px rgb(18 60 54/.09)}
-.login-panel h2{font-family:"Noto Sans",Arial,sans-serif;font-weight:650}.demo-login-btn{box-shadow:0 1px 2px rgb(18 60 54/.04)}
+.login-panel h2{font-family:var(--font-sans);font-weight:650}.demo-login-btn{box-shadow:0 1px 2px rgb(18 60 54/.04)}
 
 /* Lịch tuần. */
 .calendar-page>.calendar-toolbar{min-height:70px;padding:10px 16px;background:rgb(255 255 255/.96)}
@@ -826,7 +826,7 @@ body:has(.nutrition-menu-page) .top-shell,body:has(.nutrition-menu-page) [role="
 /* Điều dưỡng, bếp và điều hành dùng cùng ngôn ngữ tiến trình. */
 .nurse-progress-card,.shared-lifecycle{background:#fff}.nurse-progress-card ol{border-color:#dfe6e3;border-radius:10px;background:#f1f4f3}.nurse-progress-card li{background:#f1f4f3}.nurse-progress-card li.done{background:#e9f4f0}.nurse-progress-card li.active{background:#103e37}
 .nurse-serving-master>header,.nurse-serving-detail>header,.kitchen-operation-main>header,.kitchen-operation-side>header,.admin-serving-master>header,.admin-serving-detail>header{background:#fafcfb}
-.nurse-serving-master h1,.nurse-serving-detail h2,.kitchen-operation-main h2,.kitchen-operation-side h2,.admin-serving-master h1,.admin-serving-detail h2{font-family:"Noto Sans",Arial,sans-serif;font-weight:650;letter-spacing:-.025em}
+.nurse-serving-master h1,.nurse-serving-detail h2,.kitchen-operation-main h2,.kitchen-operation-side h2,.admin-serving-master h1,.admin-serving-detail h2{font-family:var(--font-sans);font-weight:650;letter-spacing:-.025em}
 .nurse-serving-table thead th,.kitchen-operation-scroll thead th,.admin-serving-table thead th{background:#f7f9f8;color:#344b44}
 .nurse-serving-table tfoot,.kitchen-operation-scroll tfoot,.admin-serving-table tfoot{background:#edf4f1}
 .nurse-detail-scroll dl div,.admin-detail-scroll dl div{border:1px solid #e8edeb;border-radius:9px;background:#fafcfb}
@@ -837,9 +837,9 @@ body:has(.nutrition-menu-page) .top-shell,body:has(.nutrition-menu-page) [role="
 .admin-review-trigger{border-color:#d8e5e0;border-radius:10px;background:#f4f9f7}.admin-meal-calendar a,.admin-meal-calendar button{border-radius:8px;background:#fafcfb}.admin-view-switch{padding:3px;border:1px solid var(--border);border-radius:10px;background:#eff3f1}.admin-view-switch button{border:0;background:transparent;box-shadow:none}.admin-view-switch button.active{background:#fff;color:var(--primary);box-shadow:0 1px 3px rgb(18 60 54/.11)}
 
 /* Kho, báo cáo, hồ sơ và trang cấu hình. */
-.invoice-toolbar{min-height:70px;padding:10px 16px}.invoice-toolbar h1{font-family:"Noto Sans",Arial,sans-serif;font-weight:650;letter-spacing:-.03em}.invoice-list-panel{border-color:var(--border);border-radius:12px}.invoice-list article:hover{background:#f8faf9}.invoice-list article>a{border-color:var(--border);border-radius:8px;background:#fff}
+.invoice-toolbar{min-height:70px;padding:10px 16px}.invoice-toolbar h1{font-family:var(--font-sans);font-weight:650;letter-spacing:-.03em}.invoice-list-panel{border-color:var(--border);border-radius:12px}.invoice-list article:hover{background:#f8faf9}.invoice-list article>a{border-color:var(--border);border-radius:8px;background:#fff}
 .report-builder,.warehouse-entry,.warehouse-history{border-color:var(--border);background:#fff;box-shadow:0 1px 2px rgb(18 60 54/.035)}
-.report-builder-copy,.report-builder-preview{background:#fff}.report-builder h1,.report-builder h2,.warehouse-page h1,.warehouse-page h2,.admin-workspace h1,.admin-workspace h2,.audit-page h1{font-family:"Noto Sans",Arial,sans-serif;font-weight:650;letter-spacing:-.025em}
+.report-builder-copy,.report-builder-preview{background:#fff}.report-builder h1,.report-builder h2,.warehouse-page h1,.warehouse-page h2,.admin-workspace h1,.admin-workspace h2,.audit-page h1{font-family:var(--font-sans);font-weight:650;letter-spacing:-.025em}
 .admin-workspace section,.audit-page section{border-color:var(--border)}.admin-workspace table thead th,.audit-page table thead th{background:#f7f9f8;color:#344b44}.admin-workspace .page-heading,.audit-page .page-heading{background:#fff}
 
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}

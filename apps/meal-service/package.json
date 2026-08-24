@@ -16,6 +16,7 @@
     "db:seed:demo": "tsx scripts/seed-demo.ts"
   },
   "dependencies": {
+    "@fontsource/be-vietnam-pro": "^5.2.7",
     "@fontsource/noto-sans": "^5.3.0",
     "@hookform/resolvers": "^5.9.1",
     "@prisma/client": "6.16.2",
