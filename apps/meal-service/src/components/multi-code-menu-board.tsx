@@ -37,7 +37,7 @@ function CodeActions({ meal, onChoose, onRecommendation, onClear, onSave }: { me
 
 export function MultiCodeMenuBoard({ meals, templates, context, approveAction, saveTemplateAction }: { meals: Meal[]; templates: Template[]; context: Context; approveAction: (data: FormData) => void; saveTemplateAction: (data: FormData) => void }) {
   const legacyStorageKey = `suat-an:menu-drafts:${context.eventId}:${context.feedingRoute}`;
-  const storageKey = `suat-an:menu-drafts:v2:${context.eventId}:${context.feedingRoute}`;
+  const storageKey = `suat-an:menu-drafts:v3:${context.eventId}:${context.feedingRoute}`;
   const targetKey = `${storageKey}:kcal-targets`;
   const [step, setStep] = useState<"entry" | "analysis">("entry");
   const [menus, setMenus] = useState<Record<string, MenuItemInput[]>>(() => Object.fromEntries(meals.map((meal) => [meal.id, clone(meal.items)])));
