@@ -6,11 +6,13 @@ import { z } from "zod";
 
 const error = (id: string, message?: string) => message ? <span id={id} role="alert" className="field-error">{message}</span> : null;
 const settingsSchema = z.object({ advanceEntryDays: z.number().int().min(1, "Tối thiểu 1 ngày.").max(60, "Tối đa 60 ngày."), serviceCompletionMinutes: z.number().int().min(15, "Tối thiểu 15 phút.").max(240, "Tối đa 240 phút."), publicMenuImages: z.boolean(), publicViewCountVisible: z.boolean(), sondeEnabled: z.boolean(), warehouseMode: z.enum(["A", "B"]), warehouseApprovalRole: z.enum(["ADMIN", "DIETITIAN", "KITCHEN"]), reason: z.string().trim().min(3, "Nêu lý do với ít nhất 3 ký tự.").max(500) });
-type SettingsFields = z.infer<typeof settingsSchema>;
+const operationalSettingsSchema = settingsSchema.extend({ dataStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Chọn ngày bắt đầu dữ liệu.") });
+type SettingsFields = z.infer<typeof operationalSettingsSchema>;
 type MealType = { id: string; name: string; cutoffTime: string; serviceTime: string };
 export function SettingsForm({ settings, mealTypes, action }: { settings: Omit<SettingsFields, "reason">; mealTypes: MealType[]; action: (data: FormData) => Promise<void> }) {
- const [pending, run] = useTransition(); const { register, handleSubmit, formState: { errors } } = useForm<SettingsFields>({ resolver: zodResolver(settingsSchema), shouldFocusError: true, defaultValues: { ...settings, reason: "" } });
+ const [pending, run] = useTransition(); const { register, handleSubmit, formState: { errors } } = useForm<SettingsFields>({ resolver: zodResolver(operationalSettingsSchema), shouldFocusError: true, defaultValues: { ...settings, reason: "" } });
  return <form onSubmit={handleSubmit((_values, event) => { const form = event?.currentTarget; if (form instanceof HTMLFormElement) { const data = new FormData(form); startTransition(() => run(() => action(data))); } })} noValidate className="admin-form settings-form"><div className="admin-grid settings-primary-grid">
+  <label htmlFor="dataStartDate">Ngày bắt đầu dữ liệu<input id="dataStartDate" type="date" {...register("dataStartDate")}/><small>Lịch và báo cáo không thể chọn trước mốc này.</small></label>
   <label htmlFor="advanceEntryDays">Số ngày được nhập trước<input id="advanceEntryDays" type="number" min="1" max="60" {...register("advanceEntryDays", { valueAsNumber: true })} aria-invalid={!!errors.advanceEntryDays} aria-describedby={errors.advanceEntryDays ? "advanceEntryDays-error" : undefined}/>{error("advanceEntryDays-error", errors.advanceEntryDays?.message)}</label>
   <label htmlFor="serviceCompletionMinutes">Phút chuyển sang bữa kế<input id="serviceCompletionMinutes" type="number" min="15" max="240" step="5" {...register("serviceCompletionMinutes", { valueAsNumber: true })} aria-invalid={!!errors.serviceCompletionMinutes}/></label>
   <label className="check-field"><input type="checkbox" {...register("sondeEnabled")}/><span>Bật đường nuôi Sonde</span></label>

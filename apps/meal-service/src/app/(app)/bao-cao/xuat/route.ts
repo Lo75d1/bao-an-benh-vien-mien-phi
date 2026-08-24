@@ -2,6 +2,7 @@ import path from "node:path";
 import PDFDocument from "pdfkit";
 import ExcelJS from "exceljs";
 import { getSessionUser } from "@/lib/auth";
+import { readOperationalSettings } from "@/lib/settings";
 import { parseReportContent, parseReportFormat, parseReportRange, readReportBundle, type ReportData } from "@/lib/reports";
 
 export const runtime = "nodejs";
@@ -60,7 +61,8 @@ export async function GET(request: Request) {
   const user = await getSessionUser();
   if (!user) return new Response("Cần đăng nhập.", { status: 401 });
   try {
-    const url = new URL(request.url); const range = parseReportRange(url.searchParams.get("from") ?? "", url.searchParams.get("to") ?? ""); const requested = url.searchParams.getAll("content").map(parseReportContent); const contents = requested.includes("full") ? (user.role === "NURSE" ? ["servings", "additions", "menus", "evidence"] : ["servings", "additions", "menus", "evidence", "warehouse"]).map(parseReportContent) : requested; const format = parseReportFormat(url.searchParams.get("format") ?? "");
+    const url = new URL(request.url); const settings = await readOperationalSettings(); const range = parseReportRange(url.searchParams.get("from") ?? "", url.searchParams.get("to") ?? ""); const requested = url.searchParams.getAll("content").map(parseReportContent); const contents = requested.includes("full") ? (user.role === "NURSE" ? ["servings", "additions", "menus", "evidence"] : ["servings", "additions", "menus", "evidence", "warehouse"]).map(parseReportContent) : requested; const format = parseReportFormat(url.searchParams.get("format") ?? "");
+    if (range.fromValue < settings.dataStartDate) return new Response(`Dữ liệu bắt đầu từ ${settings.dataStartDate}.`, { status: 400 });
     if (user.role === "NURSE" && contents.includes("warehouse")) return new Response("Không có quyền xuất nội dung này.", { status: 403 });
     const report = await readReportBundle(contents, range, user);
     if (format === "print") return new Response(printHtml(report), { headers: { "content-type": "text/html; charset=utf-8" } });

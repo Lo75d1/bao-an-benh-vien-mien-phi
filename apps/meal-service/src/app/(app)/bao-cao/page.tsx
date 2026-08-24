@@ -5,6 +5,7 @@ import { getSessionUser } from "@/lib/auth";
 import { PageHeader } from "@/components/presentation";
 import { FileDown, FileSpreadsheet, Printer, ShieldCheck } from "lucide-react";
 import { parseReportContent, parseReportRange, readReportBundle } from "@/lib/reports";
+import { clampDateToDataStart, readOperationalSettings } from "@/lib/settings";
 import { ReportPreview } from "./report-table";
 import { ReportNavigation, type ReportNavigationItem } from "./report-navigation";
 
@@ -14,12 +15,14 @@ const monthStart = () => `${today().slice(0, 8)}01`;
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string; content?: string | string[]; preview?: string }> }) {
   const user = await getSessionUser();
   if (!user) redirect("/");
-  const params = await searchParams;
+  const [params, settings] = await Promise.all([searchParams, readOperationalSettings()]);
+  const fromValue = clampDateToDataStart(params.from ?? monthStart(), settings.dataStartDate);
+  const toValue = clampDateToDataStart(params.to ?? today(), settings.dataStartDate);
   const defaultContents = user.role === "NURSE" ? ["servings", "additions", "menus", "evidence"] : ["servings", "additions", "menus", "evidence", "warehouse"];
   const requestedContents = params.content ? (Array.isArray(params.content) ? params.content : [params.content]) : defaultContents;
   const parsedContents = requestedContents.map(parseReportContent);
   const selectedContents = parsedContents.includes("full") ? defaultContents.map(parseReportContent) : parsedContents.filter((item) => item !== "full");
-  const preview = params.preview === "1" && params.from && params.to && selectedContents.length ? await readReportBundle(selectedContents, parseReportRange(params.from, params.to), user) : null;
+  const preview = params.preview === "1" && selectedContents.length ? await readReportBundle(selectedContents, parseReportRange(fromValue, toValue < fromValue ? fromValue : toValue), user) : null;
   const sections = preview?.sections ?? (preview ? [{ title: preview.title, columns: preview.columns, rows: preview.rows }] : []);
   const rowCount = sections.reduce((sum, section) => sum + section.rows.length, 0);
   const navigation: ReportNavigationItem[] = [{ id: "report-bao-suat-theo-khoa", content: "servings", title: "Báo suất theo khoa", description: "Kèm tổng quan ngày và cơ cấu khoa, mã" }, { id: "report-suat-bo-sung", content: "additions", title: "Phát sinh sau chốt", description: "Kèm bảng đi chợ khi chọn cùng báo suất" }, { id: "report-thuc-don-va-dinh-duong", content: "menus", title: "Thực đơn & dinh dưỡng", description: "Món, thực phẩm, kcal, khuyến nghị và đánh giá" }, { id: "report-bang-chung-bep", content: "evidence", title: "Bằng chứng bếp", description: "Loại ảnh, ghi chú, người lưu và thời điểm" }, ...(user.role !== "NURSE" ? [{ id: "report-nhap-xuat-va-dieu-chinh-kho", content: "warehouse", title: "Dữ liệu kho", description: "Nhập, xuất, điều chỉnh và đơn vị ghi nhận" }] : [])];
@@ -27,8 +30,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     <PageHeader eyebrow="Bàn làm việc báo cáo" title="Xem trước rồi xuất đúng dữ liệu" description="Chọn phạm vi một lần; hệ thống giữ nguyên dữ liệu gốc và không tự điền ô thiếu." actions={<p className="scope-note">{user.role === "NURSE" ? "Theo khoa được phân công" : "Phạm vi toàn viện"}</p>}/>
     <form id="report-scope-form" action="/bao-cao/xuat" method="get" target="_blank" className="report-scope-bar">
       <div><span>Phạm vi báo cáo</span><strong>{user.role === "NURSE" ? "Khoa được phân công" : "Toàn viện"}</strong></div>
-      <label><span>Từ ngày</span><input type="date" name="from" defaultValue={params.from ?? monthStart()} required/></label>
-      <label><span>Đến ngày</span><input type="date" name="to" defaultValue={params.to ?? today()} required/></label>
+      <label><span>Từ ngày</span><input type="date" name="from" min={settings.dataStartDate} defaultValue={fromValue} required/></label>
+      <label><span>Đến ngày</span><input type="date" name="to" min={settings.dataStartDate} defaultValue={toValue < fromValue ? fromValue : toValue} required/></label>
       <div className="report-selection-summary"><span>Nội dung báo cáo</span><strong>Tích chọn bên trái</strong></div>
       <button className="secondary-button" type="submit" name="preview" value="1" formTarget="_self" formAction="/bao-cao">Xem trước</button>
       <button className="primary-action" type="submit" name="format" value="excel"><FileSpreadsheet aria-hidden="true"/>Xuất Excel</button>

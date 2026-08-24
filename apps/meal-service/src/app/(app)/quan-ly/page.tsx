@@ -5,14 +5,15 @@ import { getSessionUser } from "@/lib/auth";
 import { addDays, hospitalDayKey } from "@/lib/meal-events";
 import { readManagementDay } from "@/lib/management";
 import { synchronizeSystemTimeline } from "@/lib/system-timeline";
+import { clampDateToDataStart, readOperationalSettings } from "@/lib/settings";
 import { ManagementBoard } from "./management-board";
 
 const shortDate = new Intl.DateTimeFormat("vi-VN", { timeZone: "UTC", weekday: "short", day: "2-digit", month: "2-digit" });
 export default async function ManagementPage({ searchParams }: { searchParams: Promise<{ date?: string; meal?: string }> }) {
   const user = await getSessionUser(); if (!user || user.role !== "ADMIN") redirect("/");
-  const query = await searchParams; await synchronizeSystemTimeline(user);
-  const selected = /^\d{4}-\d{2}-\d{2}$/.test(query.date ?? "") ? query.date! : hospitalDayKey(new Date());
-  const center = new Date(`${selected}T00:00:00.000Z`); const dates = Array.from({ length: 7 }, (_, index) => { const day = addDays(center, index - 3); const value = day.toISOString().slice(0, 10); return { value, label: shortDate.format(day), active: value === selected }; });
+  const [query, settings] = await Promise.all([searchParams, readOperationalSettings()]); await synchronizeSystemTimeline(user);
+  const selected = clampDateToDataStart(query.date ?? hospitalDayKey(new Date()), settings.dataStartDate);
+  const center = new Date(`${selected}T00:00:00.000Z`); const dates = Array.from({ length: 7 }, (_, index) => { const day = addDays(center, index - 3); const value = day.toISOString().slice(0, 10); return { value, label: shortDate.format(day), active: value === selected }; }).filter((date) => date.value >= settings.dataStartDate);
   const dayResult = await Promise.allSettled([readManagementDay(selected)]); const dayData = dayResult[0].status === "fulfilled" ? dayResult[0].value : null;
   const notifications = dayData?.meals.flatMap((meal) => { const items = []; const missing = meal.totalDepartmentCount - meal.reportedDepartmentCount; if (missing > 0) items.push({ id: `${meal.id}-reports`, label: `${meal.name}: ${missing} khoa chưa chốt`, detail: `Giờ chốt ${meal.cutoffTime}` }); if (meal.unapprovedDiets > 0) items.push({ id: `${meal.id}-menus`, label: `${meal.name}: thiếu ${meal.unapprovedDiets} thực đơn`, detail: "Dinh dưỡng chưa duyệt đủ mã" }); const pending = meal.additions.filter((item) => item.ackStatus === "PENDING").length; if (pending > 0) items.push({ id: `${meal.id}-additions`, label: `${meal.name}: ${pending} phát sinh chờ bếp`, detail: "Cần bếp xác nhận khả năng chuẩn bị" }); return items; }) ?? [];
   return <AppShell user={user} adminNotifications={notifications}><main className="management-page">{dayData ? <ManagementBoard data={dayData} dates={dates} initialMealTime={query.meal}/> : <ErrorState title="Chưa tải được quản lý suất ăn" description="Không có dữ liệu nào được thay đổi."/>}</main></AppShell>;
