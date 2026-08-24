@@ -30,7 +30,8 @@ export function WeeklyCalendar({ events, details, weekStart, role, route, sondeE
   const byCell = new Map(events.map((event) => [`${toDateKey(event.mealDate)}:${event.mealTypeId}`, event]));
   const routeValue = route ?? "NORMAL";
   const routeParam = `&route=${routeValue}`;
-  const isCurrentWeek = toDateKey(weekStart) === toDateKey(startOfIsoWeek(now));
+  const currentWeek = startOfIsoWeek(now);
+  const canGoNext = role === "ADMIN" || weekStart.getTime() < addDays(currentWeek, 7).getTime();
   const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
   const detailByDate = new Map(details.map((day) => [day.date, day]));
   const end = addDays(weekStart, 6);
@@ -38,7 +39,7 @@ export function WeeklyCalendar({ events, details, weekStart, role, route, sondeE
   return <>
     <div className="calendar-toolbar">
       <Tabs value={routeValue}><TabsList aria-label="Loại đường ăn"><TabsTrigger value="NORMAL" asChild><Link href={`?week=${toDateKey(weekStart)}&route=NORMAL`}>Ăn thường</Link></TabsTrigger>{sondeEnabled ? <TabsTrigger value="SONDE" asChild><Link href={`?week=${toDateKey(weekStart)}&route=SONDE`}>Qua sonde</Link></TabsTrigger> : null}</TabsList></Tabs>
-      <div className="calendar-date-tools"><div><span>Ngày đang xem</span><strong>{formatVnDay(weekStart)} đến {formatVnDay(end)}</strong></div><nav className="week-nav" aria-label="Chuyển tuần">{role === "ADMIN" || !isCurrentWeek ? <Link href={`?week=${toDateKey(addDays(weekStart, -7))}${routeParam}`} aria-label="Tuần trước"><ChevronLeft aria-hidden="true"/></Link> : null}{role === "ADMIN" || isCurrentWeek ? <Link href={`?week=${toDateKey(addDays(weekStart, 7))}${routeParam}`} aria-label="Tuần sau"><ChevronRight aria-hidden="true"/></Link> : null}</nav><form method="get" action="/lich"><input type="hidden" name="route" value={routeValue}/><label htmlFor="calendar-date">Chọn ngày</label><input id="calendar-date" name="week" type="date" defaultValue={toDateKey(weekStart)}/><button type="submit">Xem</button></form></div>
+      <div className="calendar-date-tools"><div><span>Ngày đang xem</span><strong>{formatVnDay(weekStart)} đến {formatVnDay(end)}</strong></div><nav className="week-nav" aria-label="Chuyển tuần"><Link href={`?week=${toDateKey(addDays(weekStart, -7))}${routeParam}`} aria-label="Tuần trước"><ChevronLeft aria-hidden="true"/></Link>{canGoNext ? <Link href={`?week=${toDateKey(addDays(weekStart, 7))}${routeParam}`} aria-label="Tuần sau"><ChevronRight aria-hidden="true"/></Link> : null}</nav><form method="get" action="/lich"><input type="hidden" name="route" value={routeValue}/><label htmlFor="calendar-date">Chọn ngày</label><input id="calendar-date" name="week" type="date" defaultValue={toDateKey(weekStart)}/><button type="submit">Xem</button></form></div>
     </div>
     {mealTypes.length === 0 ? <EmptyState icon={CalendarDays} title="Chưa có loại bữa để hiển thị" description="Hãy kiểm tra dữ liệu loại bữa trước khi mở lịch."/> : <div className="calendar-scroll"><table className="calendar-table calendar-status-table"><thead><tr><th scope="col">Bữa</th>{days.map((day) => { const key = toDateKey(day.date); return <th scope="col" className={key === todayKey ? "calendar-today" : key < todayKey ? "calendar-past" : "calendar-future"} key={day.label}><strong>{day.label}</strong><time dateTime={key}>{formatVnDay(day.date)}</time>{key === todayKey ? <small>Hôm nay</small> : null}</th>; })}</tr></thead><tbody>{mealTypes.map((mealType) => <tr key={mealType.id}><th scope="row"><strong>{mealType.name}</strong><span>{mealType.serviceTime}</span></th>{days.map((day) => {
       const dayKey = toDateKey(day.date);

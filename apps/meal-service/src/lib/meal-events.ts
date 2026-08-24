@@ -142,6 +142,7 @@ export function restrictWeekForRole(role: Role, requested: Date, now = new Date(
   const current = startOfIsoWeek(now);
   const next = addDays(current, 7);
   const key = toDateKey(requested);
+  if (requested.getTime() <= current.getTime()) return requested;
   return key === toDateKey(next) ? next : current;
 }
 

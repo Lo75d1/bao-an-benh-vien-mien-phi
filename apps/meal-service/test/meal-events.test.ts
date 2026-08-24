@@ -22,6 +22,7 @@ test("role thường chỉ được xem tuần này hoặc tuần sau", () => {
   assert.equal(toDateKey(startOfIsoWeek(now)), "2026-08-17");
   assert.equal(toDateKey(restrictWeekForRole("NURSE", new Date("2026-09-07T00:00:00.000Z"), now)), "2026-08-17");
   assert.equal(toDateKey(restrictWeekForRole("NURSE", new Date("2026-08-24T00:00:00.000Z"), now)), "2026-08-24");
+  assert.equal(toDateKey(restrictWeekForRole("NURSE", new Date("2026-08-10T00:00:00.000Z"), now)), "2026-08-10");
   assert.equal(toDateKey(restrictWeekForRole("ADMIN", new Date("2026-09-07T00:00:00.000Z"), now)), "2026-09-07");
 });
 
