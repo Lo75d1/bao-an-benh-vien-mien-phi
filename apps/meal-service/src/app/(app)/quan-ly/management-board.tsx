@@ -4,9 +4,11 @@
 import Link from "next/link";
 import { CalendarDays, Check, ChevronRight, ClipboardPlus, Image as ImageIcon, LayoutList, Utensils } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { MealLifecycleStrip } from "@/components/meal-lifecycle-strip";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import type { ManagementDay, ManagementDiet, ManagementMeal } from "@/lib/management";
+import { DEFAULT_SERVICE_COMPLETION_MINUTES, hospitalDayKey, mealTimePhase } from "@/lib/meal-events";
 import { createAdminAdditionAction } from "./actions";
 
 const number = new Intl.NumberFormat("vi-VN");
@@ -30,7 +32,14 @@ function DietDetail({ meal, diet }: { meal: ManagementMeal; diet: ManagementDiet
 }
 
 function ReviewSchedule({ dates, meals }: { dates: Array<{ value: string; label: string; active: boolean }>; meals: ManagementMeal[] }) {
-  return <Dialog><DialogTrigger asChild><button type="button" className="admin-review-trigger"><CalendarDays/><span><strong>Xem lại ngày/bữa</strong><small>Chọn nhanh trên lịch</small></span></button></DialogTrigger><DialogContent className="max-w-5xl"><DialogHeader><DialogTitle>Xem lại quản lý suất ăn</DialogTitle><DialogDescription>Chọn trực tiếp một ô ngày và bữa. Dữ liệu vẫn mở tại trang quản lý này.</DialogDescription></DialogHeader><div className="admin-review-calendar"><table><thead><tr><th>Bữa</th>{dates.map((date) => <th className={date.active ? "active" : ""} key={date.value}>{date.label}</th>)}</tr></thead><tbody>{meals.map((meal) => <tr key={meal.serviceTime}><th><strong>{meal.name}</strong><small>{meal.serviceTime}</small></th>{dates.map((date) => <td key={date.value}><Link className={date.active ? "active" : ""} href={`?date=${date.value}&meal=${encodeURIComponent(meal.serviceTime)}`}><Utensils/><span>{meal.name}</span></Link></td>)}</tr>)}</tbody></table></div></DialogContent></Dialog>;
+  const searchParams = useSearchParams();
+  const activeDate = dates.find((date) => date.active);
+  const now = new Date();
+  const selectedMeal = meals.find((meal) => meal.serviceTime === searchParams.get("meal")) ?? meals.find((meal) => meal.serviceAt && new Date(meal.serviceAt).getTime() >= now.getTime()) ?? meals.at(-1);
+  const selectedMealTime = selectedMeal?.serviceTime ?? "";
+  const serviceCompletionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES;
+  const today = hospitalDayKey(now);
+  return <Dialog><DialogTrigger asChild><button type="button" className="admin-review-trigger"><CalendarDays/><span><strong>Xem lại ngày/bữa</strong><small>{activeDate?.label ?? "—"} · {selectedMeal?.name ?? "—"}</small></span></button></DialogTrigger><DialogContent className="max-w-5xl"><DialogHeader><DialogTitle>Đang xem: {activeDate?.label ?? "—"} · {selectedMeal?.name ?? "—"}</DialogTitle><DialogDescription>Chọn trực tiếp một ô ngày và bữa. Xám là đã qua, xanh là đang diễn ra, nền sáng là tương lai.</DialogDescription></DialogHeader><div className="admin-review-legend"><span className="past">Đã qua</span><span className="current">Hiện tại</span><span className="future">Tương lai</span></div><div className="admin-review-calendar"><table><thead><tr><th>Bữa</th>{dates.map((date) => { const dayTone = date.value < today ? "past" : date.value === today ? "current" : "future"; return <th className={`${dayTone} ${date.active ? "selected" : ""}`} key={date.value}>{date.label}{date.active ? <small>Đang xem</small> : null}</th>; })}</tr></thead><tbody>{meals.map((meal) => <tr key={meal.serviceTime}><th><strong>{meal.name}</strong><small>{meal.serviceTime}</small></th>{dates.map((date) => { const phase = mealTimePhase(new Date(`${date.value}T00:00:00.000Z`), meal.cutoffTime, meal.serviceTime, now, serviceCompletionMinutes); const tone = phase === "PASSED" ? "past" : phase === "PREPARING" || phase === "SERVING" ? "current" : "future"; const selected = date.active && meal.serviceTime === selectedMealTime; return <td key={date.value}><Link className={`${tone} ${selected ? "selected" : ""}`} aria-current={selected ? "true" : undefined} href={`?date=${date.value}&meal=${encodeURIComponent(meal.serviceTime)}`}><Utensils/><span>{meal.name}</span>{tone === "current" ? <small>Hiện tại</small> : null}</Link></td>; })}</tr>)}</tbody></table></div></DialogContent></Dialog>;
 }
 
 export function ManagementBoard({ data, dates, initialMealTime }: { data: ManagementDay; dates: Array<{ value: string; label: string; active: boolean }>; initialMealTime?: string }) {
