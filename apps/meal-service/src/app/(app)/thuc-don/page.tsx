@@ -4,6 +4,7 @@ import { MultiCodeMenuBoard } from "@/components/multi-code-menu-board";
 import { EmptyState } from "@/components/presentation";
 import { Utensils } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
+import { hospitalDayKey } from "@/lib/meal-events";
 import { parseMenuItems } from "@/lib/menu-logic";
 import { prisma } from "@/lib/prisma";
 import { entryWindowEnd, readOperationalSettings } from "@/lib/settings";
@@ -21,12 +22,19 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   if (!user) redirect("/");
   if (user.role !== "DIETITIAN") redirect("/");
   const params = await searchParams;
-  if (!params.meal) redirect("/lich");
   const settings = await readOperationalSettings();
   const [meals, templates] = await Promise.all([
     prisma.dietMeal.findMany({ where: { voidedAt: null, mealEvent: { mealDate: { lte: entryWindowEnd(new Date(), settings.advanceEntryDays) } }, ...(settings.sondeEnabled ? {} : { feedingRoute: "NORMAL" }) }, orderBy: [{ mealEvent: { mealDate: "asc" } }, { mealEvent: { mealType: { sortOrder: "asc" } } }, { dietType: { sortOrder: "asc" } }], include: { mealEvent: { include: { mealType: true } }, dietType: { include: { dietCodeRef: true } } } }),
     prisma.menuTemplate.findMany({ where: { ownerId: user.id }, orderBy: { updatedAt: "desc" }, include: { items: { orderBy: { id: "asc" } } } }),
   ]);
+  if (!params.meal) {
+    const today = hospitalDayKey(new Date());
+    const nearestMissing = meals.find((meal) => meal.mealEvent.mealDate.toISOString().slice(0, 10) >= today && (!meal.approvedAt || parseMenuItems(meal.menuSnapshotJson).length === 0));
+    const nearestUpcoming = meals.find((meal) => meal.mealEvent.mealDate.toISOString().slice(0, 10) >= today);
+    const target = nearestMissing ?? nearestUpcoming;
+    if (target) redirect(`/thuc-don?meal=${encodeURIComponent(target.id)}`);
+    redirect("/lich");
+  }
   const selected = meals.find((meal) => meal.id === params.meal);
   if (!selected) redirect("/lich");
   const relatedMeals = meals.filter((meal) => meal.mealEventId === selected.mealEventId && meal.feedingRoute === selected.feedingRoute);
