@@ -35,7 +35,8 @@ function CodeActions({ meal, onChoose, onRecommendation, onClear, onSave }: { me
 }
 
 export function MultiCodeMenuBoard({ meals, templates, context, approveAction, saveTemplateAction }: { meals: Meal[]; templates: Template[]; context: Context; approveAction: (data: FormData) => void; saveTemplateAction: (data: FormData) => void }) {
-  const storageKey = `suat-an:menu-drafts:${context.eventId}:${context.feedingRoute}`;
+  const legacyStorageKey = `suat-an:menu-drafts:${context.eventId}:${context.feedingRoute}`;
+  const storageKey = `suat-an:menu-drafts:v2:${context.eventId}:${context.feedingRoute}`;
   const targetKey = `${storageKey}:kcal-targets`;
   const [step, setStep] = useState<"entry" | "analysis">("entry");
   const [menus, setMenus] = useState<Record<string, MenuItemInput[]>>(() => Object.fromEntries(meals.map((meal) => [meal.id, clone(meal.items)])));
@@ -50,7 +51,7 @@ export function MultiCodeMenuBoard({ meals, templates, context, approveAction, s
   const active = meals.find((meal) => meal.id === activeId) ?? meals[0];
   const recommendationMeal = meals.find((meal) => meal.id === recommendationId) ?? null;
 
-  useEffect(() => { const timer = window.setTimeout(() => { try { const saved = window.localStorage.getItem(storageKey); const targets = window.localStorage.getItem(targetKey); if (saved) setMenus((current) => ({ ...current, ...(JSON.parse(saved) as Record<string, MenuItemInput[]>) })); if (targets) setKcalTargets(JSON.parse(targets) as Record<string, string>); } catch { /* Bản nháp hỏng không làm sập bàn làm việc. */ } setHydrated(true); }, 0); return () => window.clearTimeout(timer); }, [storageKey, targetKey]);
+  useEffect(() => { const timer = window.setTimeout(() => { try { const saved = window.localStorage.getItem(storageKey); const targets = window.localStorage.getItem(targetKey); if (saved) setMenus((current) => ({ ...current, ...(JSON.parse(saved) as Record<string, MenuItemInput[]>) })); if (targets) setKcalTargets(JSON.parse(targets) as Record<string, string>); window.localStorage.removeItem(legacyStorageKey); window.localStorage.removeItem(`${legacyStorageKey}:kcal-targets`); } catch { window.localStorage.removeItem(storageKey); window.localStorage.removeItem(targetKey); } setHydrated(true); }, 0); return () => window.clearTimeout(timer); }, [legacyStorageKey, storageKey, targetKey]);
   useEffect(() => { if (hydrated) { window.localStorage.setItem(storageKey, JSON.stringify(menus)); window.localStorage.setItem(targetKey, JSON.stringify(kcalTargets)); } }, [hydrated, kcalTargets, menus, storageKey, targetKey]);
 
   const payload = JSON.stringify(meals.filter((meal) => !meal.approved && (menus[meal.id] ?? []).length).map((meal) => ({ dietMealId: meal.id, items: menus[meal.id] })));
