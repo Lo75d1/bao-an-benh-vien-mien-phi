@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   const user = await getSessionUser();
-  if (!user || user.role !== "DIETITIAN") return Response.json({ sources: [], groups: [] }, { status: 401 });
+  if (!user || !["DIETITIAN", "ADMIN"].includes(user.role)) return Response.json({ sources: [], groups: [] }, { status: 401 });
   const [sources, groups] = await Promise.all([
     prisma.food.findMany({ where: { source: { not: null } }, distinct: ["source"], orderBy: { source: "asc" }, select: { source: true } }),
     prisma.food.findMany({ where: { foodGroup: { not: null } }, distinct: ["foodGroup"], orderBy: { foodGroup: "asc" }, select: { foodGroup: true } }),

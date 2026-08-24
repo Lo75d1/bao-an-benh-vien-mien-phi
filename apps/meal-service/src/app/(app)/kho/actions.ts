@@ -4,7 +4,7 @@ import type { DocumentKind, InventoryType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
-import { attachInventoryDocument, createInventoryTransaction, updateInventoryTransaction, voidInventoryTransaction, type TransactionLineInput } from "@/lib/warehouse";
+import { attachInventoryDocument, createInventoryTransaction, saveWarehouseInvoice, updateInventoryTransaction, voidInventoryTransaction, type TransactionLineInput } from "@/lib/warehouse";
 
 async function requireActor() {
   const user = await getSessionUser();
@@ -53,6 +53,14 @@ export async function cancelTransactionAction(formData: FormData) {
 }
 
 const DOCUMENT_KINDS = new Set<DocumentKind>(["BILL", "INVOICE", "PHOTO", "OTHER"]);
+export async function saveInvoiceAction(formData: FormData) {
+  const actor = await requireActor();
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0 || file.size > 10 * 1024 * 1024 || !["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type)) throw new Error("Chỉ nhận ảnh hoặc PDF hóa đơn tối đa 10 MB.");
+  const result = await saveWarehouseInvoice({ warehouseId: String(formData.get("warehouseId") ?? ""), occurredAt: occurredAt(formData.get("occurredAt")), file, note: String(formData.get("note") ?? "") || null }, actor);
+  revalidatePath("/kho");
+  redirect(result.stored ? "/kho?updated=invoice" : "/kho?storage=unavailable");
+}
 export async function uploadDocumentAction(formData: FormData) {
   const actor = await requireActor();
   const kind = String(formData.get("kind") ?? "") as DocumentKind;

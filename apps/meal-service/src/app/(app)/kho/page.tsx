@@ -1,26 +1,28 @@
-import { Separator } from "@/components/ui/separator";
+import { FileText, Plus, ReceiptText } from "lucide-react";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { PageHeader } from "@/components/presentation";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 import { getSessionUser } from "@/lib/auth";
 import { readWarehousePage } from "@/lib/warehouse";
-import { cancelTransactionAction, updateTransactionAction, uploadDocumentAction } from "./actions";
-import { QuickEntry } from "./quick-entry";
-import { WarehouseTable } from "./warehouse-table";
-const date = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric" });
-const typeLabel = { IN: "Nhập", OUT: "Xuất", ADJUST: "Điều chỉnh" } as const;
-const documentLabel = { BILL: "Bill", INVOICE: "Hóa đơn", PHOTO: "Ảnh", OTHER: "Khác" } as const;
+import { saveInvoiceAction } from "./actions";
+
+const dateTime = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", dateStyle: "short", timeStyle: "short" });
 const localInput = (value: Date) => new Date(value.getTime() - value.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+
 export default async function WarehousePage({ searchParams }: { searchParams: Promise<{ updated?: string; storage?: string }> }) {
- const user = await getSessionUser(); if (!user) redirect("/"); if (!["ADMIN", "DIETITIAN", "KITCHEN"].includes(user.role)) redirect("/");
- const [data, query] = await Promise.all([readWarehousePage(), searchParams]);
- const comparisonMap = new Map(data.comparisons.map((item) => [item.transactionId, item]));
- const mealOptions = data.meals.map((meal) => ({ id: meal.id, feedingRoute: meal.feedingRoute, label: `${meal.mealEvent.mealType.name} ${date.format(meal.mealEvent.mealDate)} - ${meal.dietType.name}` }));
- const success = query.updated === "created" ? "Đã lưu giao dịch và nhật ký." : query.updated === "edited" ? "Đã cập nhật giao dịch và nhật ký." : query.updated === "cancelled" ? "Đã hủy giao dịch, dữ liệu lịch sử vẫn được giữ." : query.updated === "document" ? "Đã lưu chứng từ và nhật ký." : null;
- const rows = data.transactions.map((transaction) => { const comparison = comparisonMap.get(transaction.id); return { id: transaction.id, occurredAt: transaction.occurredAt.toISOString(), occurredAtInput: localInput(transaction.occurredAt), type: typeLabel[transaction.type], warehouse: transaction.warehouse.name, creator: transaction.createdBy.displayName, lineCount: transaction.lines.length, status: transaction.status === "CANCELLED" ? "CANCELLED" as const : "ACTIVE" as const, statusLabel: transaction.status === "CANCELLED" ? "Đã hủy" : "Đang hoạt động", note: transaction.note ?? "", lines: transaction.lines.map((line) => ({ id: line.id, itemName: line.itemName, foodId: line.foodId ?? "", quantity: String(line.quantity), unit: line.unit, unitPrice: line.unitPrice == null ? "" : String(line.unitPrice) })), documents: transaction.documents.map((document) => documentLabel[document.kind]), voidedReason: transaction.voidedReason ?? "", comparison: comparison ? { lines: comparison.lines, warnings: comparison.warnings } : null }; });
- return <AppShell user={user}><main className="workspace warehouse-page"><Separator className="page-separator" aria-hidden="true"/><PageHeader eyebrow="Bàn làm việc kho" title="Giao dịch và đối chiếu nguyên liệu" description="Xem lịch sử trước, mở biểu mẫu khi cần ghi nhận một giao dịch mới." actions={<p className="scope-note">{data.mode === "A" ? "Một kho tổng" : "Tách kho bếp và kho sonde"} · <strong>{data.transactions.length}</strong> giao dịch gần đây</p>}/>
-  {success && <p className="success-banner" role="status">{success}</p>}{query.storage === "unavailable" && <p className="storage-notice" role="status">Chứng từ đang nằm im vì máy chủ chưa cấu hình nơi lưu. Giao dịch kho không bị thay đổi.</p>}
-  <div className="screen-split"><section className="warehouse-history screen-pane screen-pane-left" aria-labelledby="warehouse-history-heading"><div className="section-heading"><div><p className="eyebrow">Lịch sử</p><h2 id="warehouse-history-heading">Giao dịch gần đây</h2></div><span>{data.transactions.length ? `${data.transactions.length} giao dịch` : "—"}</span></div><WarehouseTable data={rows} updateAction={updateTransactionAction} uploadAction={uploadDocumentAction} cancelAction={cancelTransactionAction}/></section>
-  <aside className="screen-pane screen-pane-right">{data.warehouses.length === 0 ? <section className="empty-state"><h2>—</h2><p>Chưa có kho hoạt động phù hợp với Mode {data.mode}. Cần cấu hình dữ liệu trước khi nhập.</p></section> : <details className="warehouse-entry" open><summary><span><small>Giao dịch mới</small><strong>Nhập, xuất hoặc điều chỉnh kho</strong></span><em>Thu gọn</em></summary><div className="section-heading"><div><p className="eyebrow">Nhập nhanh</p><h2 id="quick-entry-heading">Lưu trước, bổ sung chứng từ sau</h2></div><span>Không bắt buộc đọc bill</span></div><QuickEntry warehouses={data.warehouses} meals={mealOptions} defaultOccurredAt={localInput(new Date())}/></details>}</aside></div>
- </main></AppShell>;
+  const user = await getSessionUser();
+  if (!user) redirect("/");
+  if (!["ADMIN", "DIETITIAN", "KITCHEN"].includes(user.role)) redirect("/");
+  const [data, query] = await Promise.all([readWarehousePage(), searchParams]);
+  const invoices = data.transactions.flatMap((transaction) => transaction.documents.filter((document) => document.kind === "INVOICE").map((document) => ({ id: document.id, occurredAt: transaction.occurredAt, warehouse: transaction.warehouse.name, creator: transaction.createdBy.displayName, note: document.note || transaction.note, active: transaction.status === "ACTIVE" })));
+  const defaultWarehouse = data.warehouses[0] ?? null;
+  const upload = <Dialog><DialogTrigger asChild><button type="button" className="primary-action" disabled={!defaultWarehouse}><Plus/> Lưu hóa đơn</button></DialogTrigger><DialogContent className="max-w-xl"><DialogHeader><DialogTitle>Lưu hóa đơn vào hệ thống</DialogTitle><DialogDescription>Chụp ảnh hoặc chọn PDF. Hệ thống chỉ lưu để tra lại, không tự cộng trừ tồn kho.</DialogDescription></DialogHeader>{defaultWarehouse ? <form action={saveInvoiceAction} className="invoice-save-form"><input type="hidden" name="warehouseId" value={defaultWarehouse.id}/><label>Ngày hóa đơn<input name="occurredAt" type="datetime-local" defaultValue={localInput(new Date())} required/></label><label>Ảnh hoặc PDF hóa đơn<input name="file" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required/></label><label>Ghi chú<input name="note" maxLength={500} placeholder="Ví dụ: chợ sáng, nhà cung cấp…"/></label><button className="primary-action"><ReceiptText/> Lưu hóa đơn</button></form> : <p className="storage-notice">Chưa có kho hoạt động để gắn hóa đơn.</p>}</DialogContent></Dialog>;
+  return <AppShell user={user}><main className="workspace warehouse-page invoice-archive"><Separator className="page-separator" aria-hidden="true"/><header className="invoice-toolbar"><div><p className="eyebrow">Kho chứng từ</p><h1>Hóa đơn đã lưu</h1><span>Admin · Dinh dưỡng · Bếp</span></div>{upload}</header>
+    {query.updated === "invoice" ? <p className="success-banner" role="status">Đã lưu hóa đơn và ghi nhật ký.</p> : null}
+    {query.storage === "unavailable" ? <p className="storage-notice" role="alert">Không lưu được tệp. Chỉ nhận JPG, PNG, WEBP hoặc PDF tối đa 10 MB.</p> : null}
+    <section className="invoice-list-panel"><div className="section-heading"><div><p className="eyebrow">Gần đây</p><h2>Danh sách hóa đơn</h2></div><span>{invoices.length ? `${invoices.length} hóa đơn` : "—"}</span></div>
+      {invoices.length ? <div className="invoice-list" role="list">{invoices.map((invoice) => <article key={invoice.id} role="listitem"><FileText/><div><strong>{invoice.note || "Hóa đơn không ghi chú"}</strong><span>{dateTime.format(invoice.occurredAt)} · {invoice.creator} · {invoice.warehouse}</span></div><a href={`/api/documents/${invoice.id}`} target="_blank" rel="noreferrer">Xem hóa đơn</a></article>)}</div> : <div className="invoice-empty"><ReceiptText/><strong>Chưa có hóa đơn</strong><span>Bấm “Lưu hóa đơn” để chụp hoặc chọn tệp đầu tiên.</span></div>}
+    </section>
+  </main></AppShell>;
 }
