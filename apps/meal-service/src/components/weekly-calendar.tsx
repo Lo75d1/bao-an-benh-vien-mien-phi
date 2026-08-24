@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { MealDetailDialog } from "@/components/meal-detail-dialog";
 import { EmptyState } from "@/components/presentation";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { addDays, displayMealState, nextReportingCutoff, rollupMealEventStatus, startOfIsoWeek, toDateKey, type CalendarEvent, type DisplayMealState } from "@/lib/meal-events";
+import { addDays, displayMealState, nextMealTimelineEvent, rollupMealEventStatus, startOfIsoWeek, toDateKey, type CalendarEvent, type DisplayMealState } from "@/lib/meal-events";
 import type { ManagementDay } from "@/lib/management";
 import { formatVnDay } from "@/lib/presentation";
 
@@ -36,12 +36,12 @@ export function WeeklyCalendar({ events, details, weekStart, role, route, sondeE
   const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
   const detailByDate = new Map(details.map((day) => [day.date, day]));
   const end = addDays(weekStart, 6);
-  const nextCutoff = nextReportingCutoff(events.map((event) => ({ ...event, cutoffTime: event.mealType.cutoffTime, serviceTime: event.mealType.serviceTime })), now);
+  const nextEvent = nextMealTimelineEvent(events.map((event) => ({ ...event, cutoffTime: event.mealType.cutoffTime, serviceTime: event.mealType.serviceTime })), now);
 
   return <>
     <div className="calendar-toolbar">
       <Tabs value={routeValue}><TabsList aria-label="Loại đường ăn"><TabsTrigger value="NORMAL" asChild><Link href={`?week=${toDateKey(weekStart)}&route=NORMAL`}>Ăn thường</Link></TabsTrigger>{sondeEnabled ? <TabsTrigger value="SONDE" asChild><Link href={`?week=${toDateKey(weekStart)}&route=SONDE`}>Qua sonde</Link></TabsTrigger> : null}</TabsList></Tabs>
-      {nextCutoff ? <div className="calendar-next-event"><Clock3 aria-hidden="true"/><span>Sự kiện tiếp theo</span><strong>{nextCutoff.meal.mealType.name} — Chốt suất ăn {nextCutoff.meal.mealType.cutoffTime}</strong></div> : null}
+      {nextEvent ? <div className="calendar-next-event"><Clock3 aria-hidden="true"/><span>Sự kiện tiếp theo</span><strong>{nextEvent.meal.mealType.name} — {nextEvent.kind === "CUTOFF" ? `Chốt suất ăn ${nextEvent.meal.mealType.cutoffTime}` : `Phục vụ ${nextEvent.meal.mealType.serviceTime}`}</strong></div> : null}
       <div className="calendar-date-tools"><div><span>Ngày đang xem</span><strong>{formatVnDay(weekStart)} đến {formatVnDay(end)}</strong></div><nav className="week-nav" aria-label="Chuyển tuần"><Link href={`?week=${toDateKey(addDays(weekStart, -7))}${routeParam}`} aria-label="Tuần trước"><ChevronLeft aria-hidden="true"/></Link>{canGoNext ? <Link href={`?week=${toDateKey(addDays(weekStart, 7))}${routeParam}`} aria-label="Tuần sau"><ChevronRight aria-hidden="true"/></Link> : null}</nav><form method="get" action="/lich"><input type="hidden" name="route" value={routeValue}/><label htmlFor="calendar-date">Chọn ngày</label><input id="calendar-date" name="week" type="date" defaultValue={toDateKey(weekStart)}/><button type="submit">Xem</button></form></div>
     </div>
     {mealTypes.length === 0 ? <EmptyState icon={CalendarDays} title="Chưa có loại bữa để hiển thị" description="Hãy kiểm tra dữ liệu loại bữa trước khi mở lịch."/> : <div className="calendar-scroll"><table className="calendar-table calendar-status-table"><thead><tr><th scope="col">Bữa</th>{days.map((day) => { const key = toDateKey(day.date); return <th scope="col" className={key === todayKey ? "calendar-today" : key < todayKey ? "calendar-past" : "calendar-future"} key={day.label}><strong>{day.label}</strong><time dateTime={key}>{formatVnDay(day.date)}</time>{key === todayKey ? <small>Hôm nay</small> : null}</th>; })}</tr></thead><tbody>{mealTypes.map((mealType) => <tr key={mealType.id}><th scope="row"><strong>{mealType.name}</strong><span>{mealType.serviceTime}</span></th>{days.map((day) => {

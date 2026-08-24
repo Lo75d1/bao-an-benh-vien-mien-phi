@@ -109,6 +109,34 @@ export function nextReportingCutoff<T extends ReportingMeal>(meals: T[], now = n
   return null;
 }
 
+export type MealTimelineEvent<T extends ReportingMeal> = {
+  meal: T;
+  at: Date;
+  kind: "CUTOFF" | "SERVICE";
+};
+
+/** Mốc vận hành gần nhất của toàn hệ thống: giờ chốt hoặc giờ phục vụ, tùy mốc nào đến trước. */
+export function nextMealTimelineEvent<T extends ReportingMeal>(meals: T[], now = new Date()): MealTimelineEvent<T> | null {
+  const nowMs = now.getTime();
+  let next: MealTimelineEvent<T> | null = null;
+
+  for (const meal of meals) {
+    const candidates = [
+      { kind: "CUTOFF" as const, at: atVietnamTime(meal.mealDate, meal.cutoffTime) },
+      { kind: "SERVICE" as const, at: atVietnamTime(meal.mealDate, meal.serviceTime) },
+    ];
+
+    for (const candidate of candidates) {
+      if (candidate.at === null || candidate.at <= nowMs) continue;
+      if (next === null || candidate.at < next.at.getTime()) {
+        next = { meal, kind: candidate.kind, at: new Date(candidate.at) };
+      }
+    }
+  }
+
+  return next;
+}
+
 export function pickLifecycleMeal<T extends LifecycleMeal>(meals: T[], now = new Date(), completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES): { meal: T; nextCycle: boolean } | null {
   if (meals.length === 0) return null;
   const stateOf = (meal: T) => displayMealState(meal.mealDate, meal.cutoffTime, meal.serviceTime, meal.status, now, completionMinutes);
