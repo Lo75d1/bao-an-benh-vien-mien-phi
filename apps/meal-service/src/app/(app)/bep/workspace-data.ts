@@ -3,7 +3,7 @@ import { hospitalDayKey, isKitchenPreparationOpen, pickLifecycleMeal, rollupMeal
 import { servingTotal } from "@/lib/late-addition";
 import { evidenceStorage } from "@/lib/evidence-storage";
 import { prisma } from "@/lib/prisma";
-import { readOperationalSettings } from "@/lib/settings";
+import { mealTimesForRoute, readOperationalSettings } from "@/lib/settings";
 
 
 const eventInclude = {
@@ -51,7 +51,7 @@ export async function readKitchenWorkspace(requestedMealId?: string, feedingRout
     }
   }
 
-  events = events.map((event) => ({ ...event, dietMeals: event.dietMeals.filter((meal) => meal.feedingRoute === feedingRoute), additions: event.additions.filter((addition) => addition.dietType.feedingRoute === feedingRoute) }));
+  events = events.map((event) => ({ ...event, mealType: { ...event.mealType, ...mealTimesForRoute(settings, event.mealType, feedingRoute) }, dietMeals: event.dietMeals.filter((meal) => meal.feedingRoute === feedingRoute), additions: event.additions.filter((addition) => addition.dietType.feedingRoute === feedingRoute) }));
   const summaries = events.map((event) => ({
     id: event.id,
     name: event.mealType.name,

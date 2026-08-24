@@ -25,7 +25,7 @@ export default async function KitchenPage({ searchParams }: { searchParams: Prom
   const query = await searchParams;
   const kitchenRoute = user.kitchenRoute ?? "NORMAL";
   let [workspace, notes] = await Promise.all([readKitchenWorkspace(query.meal, kitchenRoute), readApprovedKitchenNotes()]);
-  if (workspace.selected && await lockExpiredMealEvent(workspace.selected.id, user) > 0) workspace = await readKitchenWorkspace(query.meal, kitchenRoute);
+  if (workspace.selected && await lockExpiredMealEvent(workspace.selected.id, user, new Date(), kitchenRoute) > 0) workspace = await readKitchenWorkspace(query.meal, kitchenRoute);
   const meal = workspace.selected;
   const routeSummary = meal ? (["NORMAL", "SONDE"] as const).flatMap((route) => { const routeMeals = meal.dietMeals.filter((item) => item.feedingRoute === route); if (!routeMeals.length) return []; const hasData = routeMeals.some((item) => item.servingsPlanned > 0); const total = routeMeals.reduce((sum, item) => { const additions = meal.additions.filter((addition) => addition.dietTypeId === item.dietTypeId && addition.ackStatus === "RECEIVED"); return sum + servingTotal(item.servingsPlanned, additions).total; }, 0); return [`${route === "SONDE" ? "Qua sonde" : "Ăn đường miệng"}: ${hasData ? `${total} suất` : "—"}`]; }).join(" · ") : "";
   const updateMessage = query.updated === "prepared" ? "Đã lưu ảnh mẫu và xác nhận toàn bộ bữa đã chuẩn bị xong." : query.updated === "reopened" ? "Đã quay lại trạng thái đang chuẩn bị." : "Đã ghi nhận xử lý của bếp.";

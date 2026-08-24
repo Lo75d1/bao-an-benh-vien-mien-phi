@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS: OperationalSettings = {
   serviceCompletionMinutes: 60,
   publicMenuImages: true,
   publicViewCountVisible: true,
+  sondeMealTimes: {},
 };
 
 export type OperationalSettings = {
@@ -23,9 +24,10 @@ export type OperationalSettings = {
   serviceCompletionMinutes: number;
   publicMenuImages: boolean;
   publicViewCountVisible: boolean;
+  sondeMealTimes: Record<string, { cutoffTime: string; serviceTime: string }>;
 };
 
-export type MealTimeInput = { id: string; cutoffTime: string; serviceTime: string };
+export type MealTimeInput = { id: string; cutoffTime: string; serviceTime: string; sondeCutoffTime?: string; sondeServiceTime?: string };
 export type SettingsActor = { id: string; displayName: string; role: Role };
 
 const APPROVAL_ROLES = new Set<Role>(["ADMIN", "DIETITIAN", "KITCHEN"]);
@@ -43,6 +45,7 @@ export function parseOperationalSettings(value: unknown): OperationalSettings {
     serviceCompletionMinutes: Number.isInteger(source.serviceCompletionMinutes) && Number(source.serviceCompletionMinutes) >= 15 && Number(source.serviceCompletionMinutes) <= 240 ? Number(source.serviceCompletionMinutes) : DEFAULT_SETTINGS.serviceCompletionMinutes,
     publicMenuImages: typeof source.publicMenuImages === "boolean" ? source.publicMenuImages : DEFAULT_SETTINGS.publicMenuImages,
     publicViewCountVisible: typeof source.publicViewCountVisible === "boolean" ? source.publicViewCountVisible : DEFAULT_SETTINGS.publicViewCountVisible,
+    sondeMealTimes: source.sondeMealTimes && typeof source.sondeMealTimes === "object" && !Array.isArray(source.sondeMealTimes) ? Object.fromEntries(Object.entries(source.sondeMealTimes as Record<string, unknown>).flatMap(([id, value]) => { if (!value || typeof value !== "object") return []; const item = value as Record<string, unknown>; return typeof item.cutoffTime === "string" && TIME_PATTERN.test(item.cutoffTime) && typeof item.serviceTime === "string" && TIME_PATTERN.test(item.serviceTime) ? [[id, { cutoffTime: item.cutoffTime, serviceTime: item.serviceTime }]] : []; })) : {},
   };
 }
 
@@ -54,16 +57,22 @@ export function validateOperationalSettings(input: OperationalSettings): Operati
   return { ...input };
 }
 
-export function validateMealTimes(items: MealTimeInput[]): MealTimeInput[] {
+export function validateMealTimes(items: MealTimeInput[]): Array<Required<MealTimeInput>> {
   if (!items.length) throw new Error("Chưa có bữa ăn để cấu hình giờ.");
   return items.map((item) => {
-    if (!item.id || !TIME_PATTERN.test(item.cutoffTime) || !TIME_PATTERN.test(item.serviceTime)) throw new Error("Giờ chốt và giờ ăn phải có dạng HH:mm.");
-    return { ...item };
+    const sondeCutoffTime = item.sondeCutoffTime ?? item.cutoffTime;
+    const sondeServiceTime = item.sondeServiceTime ?? item.serviceTime;
+    if (!item.id || !TIME_PATTERN.test(item.cutoffTime) || !TIME_PATTERN.test(item.serviceTime) || !TIME_PATTERN.test(sondeCutoffTime) || !TIME_PATTERN.test(sondeServiceTime)) throw new Error("Giờ chốt và giờ ăn của cả Ăn thường/Sonde phải có dạng HH:mm.");
+    return { ...item, sondeCutoffTime, sondeServiceTime };
   });
 }
 
 export function routeVisible(route: "NORMAL" | "SONDE", sondeEnabled: boolean): boolean {
   return route === "NORMAL" || sondeEnabled;
+}
+
+export function mealTimesForRoute(settings: OperationalSettings, meal: { id: string; cutoffTime: string; serviceTime: string }, route: "NORMAL" | "SONDE") {
+  return route === "SONDE" ? settings.sondeMealTimes[meal.id] ?? { cutoffTime: meal.cutoffTime, serviceTime: meal.serviceTime } : { cutoffTime: meal.cutoffTime, serviceTime: meal.serviceTime };
 }
 
 export function entryWindowEnd(now: Date, advanceEntryDays: number): Date {
@@ -98,6 +107,7 @@ export async function updateOperationalSettings(input: OperationalSettings, meal
   if (actor.role !== "ADMIN") throw new Error("Chỉ quản trị viên được đổi cấu hình hệ thống.");
   const settings = validateOperationalSettings(input);
   const times = validateMealTimes(mealTimes);
+  settings.sondeMealTimes = Object.fromEntries(times.map((item) => [item.id, { cutoffTime: item.sondeCutoffTime, serviceTime: item.sondeServiceTime }]));
   const cleanReason = reason.trim();
   if (cleanReason.length < 3 || cleanReason.length > 500) throw new Error("Lý do thay đổi phải có từ 3 đến 500 ký tự.");
   return prisma.$transaction(async (tx) => {

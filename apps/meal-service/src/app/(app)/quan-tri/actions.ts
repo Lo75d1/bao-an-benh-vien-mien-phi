@@ -32,7 +32,9 @@ export async function saveSettingsAction(formData: FormData) {
   const ids = formData.getAll("mealTypeId").map(String);
   const cutoffs = formData.getAll("cutoffTime").map(String);
   const services = formData.getAll("serviceTime").map(String);
-  await updateOperationalSettings({ dataStartDate: String(formData.get("dataStartDate") ?? ""), advanceEntryDays: Number(formData.get("advanceEntryDays")), publicMenuImages: formData.get("publicMenuImages") === "on", publicViewCountVisible: formData.get("publicViewCountVisible") === "on", sondeEnabled: formData.get("sondeEnabled") === "on", warehouseMode: formData.get("warehouseMode") === "B" ? "B" : "A", warehouseApprovalRole: String(formData.get("warehouseApprovalRole")) as Role, serviceCompletionMinutes: Number(formData.get("serviceCompletionMinutes")) }, ids.map((id, index) => ({ id, cutoffTime: cutoffs[index], serviceTime: services[index] })), actor, String(formData.get("reason") ?? ""));
+  const sondeCutoffs = formData.getAll("sondeCutoffTime").map(String);
+  const sondeServices = formData.getAll("sondeServiceTime").map(String);
+  await updateOperationalSettings({ sondeMealTimes: {}, dataStartDate: String(formData.get("dataStartDate") ?? ""), advanceEntryDays: Number(formData.get("advanceEntryDays")), publicMenuImages: formData.get("publicMenuImages") === "on", publicViewCountVisible: formData.get("publicViewCountVisible") === "on", sondeEnabled: formData.get("sondeEnabled") === "on", warehouseMode: formData.get("warehouseMode") === "B" ? "B" : "A", warehouseApprovalRole: String(formData.get("warehouseApprovalRole")) as Role, serviceCompletionMinutes: Number(formData.get("serviceCompletionMinutes")) }, ids.map((id, index) => ({ id, cutoffTime: cutoffs[index], serviceTime: services[index], sondeCutoffTime: sondeCutoffs[index], sondeServiceTime: sondeServices[index] })), actor, String(formData.get("reason") ?? ""));
   revalidatePath("/", "layout");
   redirect("/quan-tri?updated=settings");
 }

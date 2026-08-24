@@ -12,7 +12,7 @@ import {
 import { acknowledgeLateMealAddition } from "@/lib/late-addition";
 import { isKitchenPreparationOpen } from "@/lib/meal-events";
 import { prisma } from "@/lib/prisma";
-import { readOperationalSettings } from "@/lib/settings";
+import { mealTimesForRoute, readOperationalSettings } from "@/lib/settings";
 
 async function requireKitchen() {
   const user = await getSessionUser();
@@ -58,22 +58,23 @@ async function requirePreparationOpen(
     },
     select: {
       mealDate: true,
-      mealType: { select: { cutoffTime: true, serviceTime: true } },
+      mealType: { select: { id: true, cutoffTime: true, serviceTime: true } },
     },
   });
   if (!event) throw new Error("Không tìm thấy bữa ăn đang xử lý.");
   const settings = await readOperationalSettings();
+  const times = mealTimesForRoute(settings, event.mealType, kitchenRoute);
   if (
     !isKitchenPreparationOpen(
       event.mealDate,
-      event.mealType.cutoffTime,
-      event.mealType.serviceTime,
+      times.cutoffTime,
+      times.serviceTime,
       new Date(),
       settings.serviceCompletionMinutes,
     )
   )
     throw new Error(
-      `Bếp chỉ được thao tác từ giờ chuẩn bị ${event.mealType.cutoffTime}.`,
+      `Bếp chỉ được thao tác từ giờ chuẩn bị ${times.cutoffTime}.`,
     );
 }
 export async function transitionMealAction(formData: FormData) {
