@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { ManagementMeal } from "@/lib/management";
@@ -8,8 +9,10 @@ import { formatMass } from "@/lib/presentation";
 
 const number = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
 const dateTime = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", hour12: false });
-const STATUS_LABEL = { PLANNED: "Dự kiến", LOCKED: "Đã nhận", PREPARING: "Đang chuẩn bị", PREPARED: "Đang nấu", SERVED: "Kết thúc" } as const;
+const STATUS_LABEL = { PLANNED: "Dự kiến", LOCKED: "Đã nhận", PREPARING: "Đang chuẩn bị", PREPARED: "Đã chuẩn bị", SERVED: "Đã hoàn thành" } as const;
 const ACK_LABEL = { PENDING: "Chờ bếp xác nhận", RECEIVED: "Bếp đã nhận", INSUFFICIENT: "Bếp báo không đủ", SUBSTITUTE: "Cần thay thế" } as const;
+const EVIDENCE_LABEL = { MEAL_PHOTO: "Ảnh bữa ăn", FOOD_SAMPLE: "Ảnh lưu mẫu" } as const;
+const CRITERION_LABEL = { OK: "Đạt", LOW: "Thiếu", HIGH: "Vượt", MISSING: "—" } as const;
 
 export function MealDetailDialog({ meal, date, stateLabel, trigger, canPlanMenu = false }: { meal: ManagementMeal; date: string; stateLabel: string; trigger: ReactNode; canPlanMenu?: boolean }) {
   const menuNames = [...new Set(meal.diets.flatMap((diet) => diet.menuItems.map((item) => item.dishName)))];
@@ -21,22 +24,27 @@ export function MealDetailDialog({ meal, date, stateLabel, trigger, canPlanMenu 
   const hasFoodSample = evidence.some((item) => item.kind === "FOOD_SAMPLE");
   const hasWarnings = missingDepartments.length > 0 || missingMenus.length > 0 || pendingAdditions.length > 0 || !hasMealPhoto || !hasFoodSample;
   const editableDiet = missingMenus[0] ?? meal.diets[0];
-  return <Dialog><DialogTrigger asChild>{trigger}</DialogTrigger><DialogContent className="calendar-detail-dialog max-h-[90vh] max-w-4xl overflow-y-auto"><DialogHeader><DialogTitle>{meal.name} · {date} · {stateLabel}</DialogTitle><DialogDescription>Chốt lúc {meal.cutoffTime} · Ăn lúc {meal.serviceTime}. Chỗ chưa có dữ liệu được giữ là “—”.</DialogDescription></DialogHeader>
+
+  return <Dialog><DialogTrigger asChild>{trigger}</DialogTrigger><DialogContent className="calendar-detail-dialog max-h-[90vh] max-w-6xl overflow-y-auto"><DialogHeader><DialogTitle>{meal.name} · {date} · {stateLabel}</DialogTitle><DialogDescription>Chốt lúc {meal.cutoffTime} · Ăn lúc {meal.serviceTime}. Chỗ chưa có dữ liệu được giữ là “—”.</DialogDescription></DialogHeader>
     <section className={hasWarnings ? "calendar-missing-summary warning" : "calendar-missing-summary ok"}>
-      <div><h3>{hasWarnings ? "Nội dung chưa xác nhận" : "Đã đủ thông tin xác nhận"}</h3>
-      {hasWarnings ? <ul>
-        {missingDepartments.length ? <li>Khoa chưa báo: {missingDepartments.map((item) => item.name).join(", ")}</li> : null}
-        {missingMenus.length ? <li>Thực đơn chưa duyệt hoặc còn trống: {missingMenus.map((item) => item.code).join(", ")}</li> : null}
-        {pendingAdditions.length ? <li>{pendingAdditions.length} phát sinh đang chờ bếp xác nhận.</li> : null}
-        {!hasMealPhoto ? <li>Chưa có ảnh bữa ăn.</li> : null}
-        {!hasFoodSample ? <li>Chưa có ảnh lưu mẫu.</li> : null}
-      </ul> : <p>Không có cảnh báo tại bữa này.</p>}</div>
+      <div><h3>{hasWarnings ? "Nội dung chưa xác nhận" : "Đã đủ thông tin xác nhận"}</h3>{hasWarnings ? <ul>{missingDepartments.length ? <li>Khoa chưa báo: {missingDepartments.map((item) => item.name).join(", ")}</li> : null}{missingMenus.length ? <li>Thực đơn chưa duyệt hoặc còn trống: {missingMenus.map((item) => item.code).join(", ")}</li> : null}{pendingAdditions.length ? <li>{pendingAdditions.length} phát sinh đang chờ bếp xác nhận.</li> : null}{!hasMealPhoto ? <li>Chưa có ảnh bữa ăn.</li> : null}{!hasFoodSample ? <li>Chưa có ảnh lưu mẫu.</li> : null}</ul> : <p>Không có cảnh báo tại bữa này.</p>}</div>
       {canPlanMenu && stateLabel === "Chưa đến" && editableDiet ? <Link className="button calendar-menu-action" href={`/thuc-don?meal=${encodeURIComponent(editableDiet.id)}`}>{missingMenus.length ? "Lên thực đơn" : "Sửa thực đơn"}</Link> : null}
     </section>
     <div className="calendar-detail-grid">
-      <section><h3>Mã chế độ và thực đơn</h3>{meal.diets.length ? meal.diets.map((diet) => <article className="calendar-diet-detail" key={diet.id}><header><strong><span translate="no">{diet.code}</span> · {diet.name}</strong><span>{diet.servings === null ? "—" : `${number.format(diet.servings)} suất`} · {STATUS_LABEL[diet.status]}</span></header><p>{diet.menuItems.length ? [...new Set(diet.menuItems.map((item) => item.dishName))].join(", ") : "— · Chưa có thực đơn."}</p>{diet.menuItems.length ? <table><thead><tr><th scope="col">Món</th><th scope="col">Thực phẩm</th><th scope="col">Gram</th></tr></thead><tbody>{diet.menuItems.map((item, index) => <tr key={`${item.name}-${index}`}><td>{item.dishName}</td><td>{item.name}</td><td>{item.grams === null ? "—" : number.format(item.grams)}</td></tr>)}</tbody></table> : null}<div className="ops-criteria">{diet.criteria.length ? diet.criteria.map((criterion) => <span key={criterion.key}><strong>{criterion.label}</strong>{criterion.status === "MISSING" ? "—" : criterion.status}</span>) : <span>— · Chưa có đánh giá.</span>}</div><dl className="calendar-people"><div><dt>Lên thực đơn</dt><dd>{diet.approvedBy ?? "—"}</dd></div><div><dt>Báo suất</dt><dd>{diet.reportedBy.length ? diet.reportedBy.join(", ") : "—"}</dd></div><div><dt>Bếp</dt><dd>{diet.kitchenLead ?? "—"}</dd></div></dl></article>) : <p>— · Chưa có mã chế độ.</p>}</section>
-      <aside><section><h3>Khoa đã báo / chưa báo</h3>{meal.departments.length ? <ul className="calendar-department-list">{meal.departments.map((department) => <li key={department.id}><span>{department.name}</span><strong className={department.reportId ? "ok" : "warning"}>{department.reportId ? `Đã báo · ${department.totalServings ?? "—"} suất` : "Chưa báo"}</strong></li>)}</ul> : <p>—</p>}</section><section><h3>Phát sinh / báo trễ</h3>{meal.additions.length ? meal.additions.map((item) => <article className="calendar-addition" key={item.id}><strong>+{item.quantity} suất · <span translate="no">{item.dietCode}</span></strong><p>{item.reason}</p><small>{item.submittedBy} · {dateTime.format(new Date(item.submittedAt))}</small><b className={`addition-ack ack-${item.ackStatus.toLowerCase()}`}>{ACK_LABEL[item.ackStatus]}</b></article>) : <p>— · Không có phát sinh.</p>}</section><section><h3>Bằng chứng bếp</h3><p>Ảnh bữa: {evidence.some((item) => item.kind === "MEAL_PHOTO") ? "Đã có" : "—"} · Lưu mẫu: {evidence.some((item) => item.kind === "FOOD_SAMPLE") ? "Đã có" : "—"}</p>{evidence.map((item) => <small key={item.id}><span translate="no">{item.dietCode}</span> · {item.uploadedBy} · {dateTime.format(new Date(item.uploadedAt))}</small>)}</section><section><h3>Tóm tắt thực đơn</h3><p>{menuNames.length ? menuNames.join(", ") : "—"}</p></section></aside>
+      <section><h3>Mã chế độ, số xuất và thực đơn</h3>{meal.diets.length ? meal.diets.map((diet) => {
+        const departmentLines = meal.departments.flatMap((department) => department.lines.filter((line) => line.dietCode === diet.code && line.quantity > 0).map((line) => ({ department: department.name, quantity: line.quantity })));
+        return <article className="calendar-diet-detail" key={diet.id}><header><strong><span translate="no">{diet.code}</span> · {diet.name}</strong><span>{STATUS_LABEL[diet.status]}</span></header>
+          <div className="calendar-diet-summary"><div><span>Tổng xuất</span><strong>{diet.servings === null ? "—" : number.format(diet.servings)}</strong></div><div><span>Khoa đã báo mã này</span><strong>{departmentLines.length || "—"}</strong></div><div><span>Thực đơn</span><strong>{diet.approved ? "Đã duyệt" : "Chưa duyệt"}</strong></div></div>
+          <div className="calendar-diet-departments">{departmentLines.length ? departmentLines.map((line) => <span key={`${diet.id}-${line.department}`}>{line.department}<strong>{number.format(line.quantity)} suất</strong></span>) : <span>— · Chưa có khoa báo mã này.</span>}</div>
+          <p>{diet.menuItems.length ? [...new Set(diet.menuItems.map((item) => item.dishName))].join(", ") : "— · Chưa có thực đơn."}</p>
+          {diet.menuItems.length ? <table><thead><tr><th scope="col">Món</th><th scope="col">Thực phẩm</th><th scope="col">Gram/suất</th></tr></thead><tbody>{diet.menuItems.map((item, index) => <tr key={`${item.name}-${index}`}><td>{item.dishName}</td><td>{item.name}</td><td>{item.grams === null ? "—" : number.format(item.grams)}</td></tr>)}</tbody></table> : null}
+          <div className="ops-criteria">{diet.criteria.length ? diet.criteria.map((criterion) => <span key={criterion.key}><strong>{criterion.label}</strong>{CRITERION_LABEL[criterion.status]}</span>) : <span>— · Chưa có đánh giá.</span>}</div>
+          <dl className="calendar-people"><div><dt>Lên thực đơn</dt><dd>{diet.approvedBy ?? "—"}</dd></div><div><dt>Báo suất</dt><dd>{diet.reportedBy.length ? diet.reportedBy.join(", ") : "—"}</dd></div><div><dt>Bếp</dt><dd>{diet.kitchenLead ?? "—"}</dd></div></dl>
+        </article>;
+      }) : <p>— · Chưa có mã chế độ.</p>}</section>
+      <aside><section><h3>Phát sinh / báo trễ</h3>{meal.additions.length ? meal.additions.map((item) => <article className="calendar-addition" key={item.id}><strong>+{item.quantity} suất · <span translate="no">{item.dietCode}</span></strong><p>{item.reason}</p><small>{item.submittedBy} · {dateTime.format(new Date(item.submittedAt))}</small><b className={`addition-ack ack-${item.ackStatus.toLowerCase()}`}>{ACK_LABEL[item.ackStatus]}</b></article>) : <p>— · Không có phát sinh.</p>}</section><section><h3>Tóm tắt thực đơn</h3><p>{menuNames.length ? menuNames.join(", ") : "—"}</p></section></aside>
     </div>
+    <section className="calendar-evidence-section"><h3>Bằng chứng bếp</h3>{evidence.length ? <div className="calendar-evidence-scroll"><table className="calendar-evidence-table"><thead><tr><th scope="col">Mã</th><th scope="col">Loại</th><th scope="col">Ảnh</th><th scope="col">Người gửi</th><th scope="col">Thời gian</th><th scope="col">Ghi chú</th></tr></thead><tbody>{evidence.map((item) => <tr key={item.id}><td><strong translate="no">{item.dietCode}</strong></td><td>{EVIDENCE_LABEL[item.kind]}</td><td>{item.publicUrl ? <a href={item.publicUrl} target="_blank" rel="noreferrer" aria-label={`Xem ${EVIDENCE_LABEL[item.kind]} của mã ${item.dietCode}`}><Image src={item.publicUrl} alt={EVIDENCE_LABEL[item.kind]} width={96} height={64} unoptimized/></a> : "—"}</td><td>{item.uploadedBy}</td><td>{dateTime.format(new Date(item.uploadedAt))}</td><td>{item.note ?? "—"}</td></tr>)}</tbody></table></div> : <p>— · Chưa có ảnh bằng chứng từ bếp.</p>}</section>
   </DialogContent></Dialog>;
 }
 
