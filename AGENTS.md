@@ -54,6 +54,8 @@ Tài liệu thiết kế trong `docs/bao-an-redesign/` là **NGUỒN SỰ THẬT
 - **Khi dùng:** review bảo mật PR trước merge; ưu tiên authz theo khoa, mass-assignment (Prisma), rate-limit trang QR công khai, secret trong git.
 
 ## 2. QUY TRÌNH (governance — KHÔNG được phá)
+- **Hai nhánh triển khai cố định:** `demo` là nhánh tích hợp để chủ dự án xem trên VPS demo; `main` là bản Published ổn định. Mọi thay đổi mới đi `codex/<viec>` → `demo`. Chỉ gộp `demo` → `main` khi chủ dự án nói rõ **“đẩy bản published”**.
+- Máy phát triển mặc định bám `demo`. VPS demo bám `origin/demo`; máy Published bám `origin/main`. Hai môi trường phải dùng database/secret riêng, không dùng dữ liệu demo chung với production.
 - Làm trên **nhánh riêng** theo milestone → tự rà diff và phạm vi → chạy đầy đủ nghiệm thu → mở **PR / để lại diff** → Codex tự merge khi mọi kiểm tra đạt.
 - **Codex chịu trách nhiệm cửa duyệt cuối:** kiểm tra trùng lặp, quyền truy cập, dữ liệu, secret, migration, test/build và bằng chứng UI trước khi merge.
 - **Được tự merge vào `main` sau khi tự kiểm tra đạt. KHÔNG tự deploy. KHÔNG force-push.** Deploy production vẫn cần yêu cầu rõ ràng của chủ dự án.
