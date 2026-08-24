@@ -202,6 +202,12 @@ td:is(:has(input[type="number"]), :has(.tabular)), .tabular { font-variant-numer
 .calendar-evidence-table th { background: var(--secondary); color: var(--primary); }
 .calendar-evidence-table a { display: inline-flex; border: 1px solid var(--border); border-radius: .35rem; overflow: hidden; }
 .calendar-evidence-table img { width: 96px; height: 64px; object-fit: cover; }
+.calendar-department-summary { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.calendar-department-summary th, .calendar-department-summary td { padding: .4rem .45rem; border-bottom: 1px solid var(--border); text-align: left; }
+.calendar-department-summary th:last-child, .calendar-department-summary td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.calendar-department-summary thead, .calendar-department-summary tfoot { background: var(--secondary); color: var(--primary); }
+.calendar-department-summary .ok { color: var(--success); font-weight: 700; }
+.calendar-department-summary .warning { color: var(--destructive); font-weight: 700; }
 .calendar-department-list { margin: 0; padding: 0; list-style: none; }
 .calendar-department-list li { display: flex; justify-content: space-between; gap: .5rem; padding: .35rem 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
 .calendar-department-list .ok { color: var(--accent); }.calendar-department-list .warning { color: var(--warning); }
