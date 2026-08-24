@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import type { PatientNoteStatus, Prisma, Role } from "@prisma/client";
+import { Prisma, type PatientNoteStatus, type Role } from "@prisma/client";
 import { evidenceStorage } from "./evidence-storage";
 import { prisma } from "./prisma";
 import { hospitalDate } from "./serving-report";
@@ -129,6 +129,6 @@ export async function readPublicDietMenu(dietCode?: string, selectedDate?: strin
   const end = new Date(start.getTime() + settings.advanceEntryDays * 24 * 60 * 60 * 1000);
   const requested = /^\d{4}-\d{2}-\d{2}$/.test(selectedDate ?? "") ? new Date(`${selectedDate}T00:00:00.000Z`) : start;
   const selected = Number.isFinite(requested.getTime()) && requested >= start && requested <= end ? requested : start;
-  const meals = selectedDiet ? await prisma.dietMeal.findMany({ where: { dietTypeId: selectedDiet.id, voidedAt: null, approvedAt: { not: null }, mealEvent: { mealDate: selected } }, orderBy: { mealEvent: { mealType: { sortOrder: "asc" } } }, select: { id: true, status: true, menuSnapshotJson: true, mealEvent: { select: { mealType: { select: { name: true, serviceTime: true } } } }, evidence: { where: { kind: "MEAL_PHOTO" }, orderBy: { uploadedAt: "desc" }, take: 1, select: { id: true, storagePath: true, note: true } } } }) : [];
+  const meals = selectedDiet ? await prisma.dietMeal.findMany({ where: { dietTypeId: selectedDiet.id, voidedAt: null, menuSnapshotJson: { not: Prisma.DbNull }, mealEvent: { mealDate: selected } }, orderBy: { mealEvent: { mealType: { sortOrder: "asc" } } }, select: { id: true, status: true, menuSnapshotJson: true, mealEvent: { select: { mealType: { select: { name: true, serviceTime: true } } } }, evidence: { where: { kind: "MEAL_PHOTO" }, orderBy: { uploadedAt: "desc" }, take: 1, select: { id: true, storagePath: true, note: true } } } }) : [];
   return { diets, selectedDiet, selectedDate: selected.toISOString().slice(0, 10), minDate: start.toISOString().slice(0, 10), maxDate: end.toISOString().slice(0, 10), advanceEntryDays: settings.advanceEntryDays, showImages: settings.publicMenuImages, showViewCount: settings.publicViewCountVisible, meals: meals.map((meal) => { const snapshot = meal.menuSnapshotJson as { items?: Array<{ itemName?: unknown; dishName?: unknown }> } | null; const items = Array.isArray(snapshot?.items) ? snapshot.items : []; return { id: meal.id, status: meal.status, mealType: meal.mealEvent.mealType, dishes: [...new Set(items.flatMap((item) => typeof item.dishName === "string" && item.dishName.trim() ? [item.dishName.trim()] : []))], foods: items.flatMap((item) => typeof item.itemName === "string" && item.itemName.trim() ? [item.itemName.trim()] : []), evidence: settings.publicMenuImages ? meal.evidence.map((item) => ({ id: item.id, note: item.note, publicUrl: evidenceStorage.publicUrl(item.storagePath) })) : [] }; }) };
 }
