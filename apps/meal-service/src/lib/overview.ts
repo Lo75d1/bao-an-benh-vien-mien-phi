@@ -76,7 +76,7 @@ async function readAdminOverview(now: Date): Promise<AdminOverview> {
       where: { mealDate: day },
       select: {
         id: true,
-        dietMeals: { where: { voidedAt: null, status: { not: "CANCELLED" } }, select: { approvedAt: true } },
+        dietMeals: { where: { voidedAt: null, status: { not: "CANCELLED" } }, select: { menuSnapshotJson: true } },
         reports: { where: { status: "SUBMITTED" }, select: { departmentId: true } },
       },
     }),
@@ -102,7 +102,7 @@ async function readAdminOverview(now: Date): Promise<AdminOverview> {
     kind: "ADMIN",
     mealCount: knownCount(events.length, events.length > 0),
     departmentCount: knownCount(reportedDepartments, events.length > 0 && activeDepartmentCount > 0),
-    missingMenuCount: knownCount(events.flatMap((event) => event.dietMeals).filter((meal) => !meal.approvedAt).length, events.length > 0),
+    missingMenuCount: knownCount(events.flatMap((event) => event.dietMeals).filter((meal) => !meal.menuSnapshotJson).length, events.length > 0),
     pendingAdditionCount: knownCount(pendingAdditionCount, events.length > 0),
     warehouseVarianceCount: comparableVarianceCounts.length > 0 ? comparableVarianceCounts.reduce((sum, count) => sum + count, 0) : null,
   };
@@ -132,9 +132,9 @@ async function readDietitianOverview(now: Date): Promise<DietitianOverview> {
   const horizon = entryWindowEnd(day, settings.advanceEntryDays);
   const meals = await prisma.dietMeal.findMany({
     where: { voidedAt: null, status: { not: "CANCELLED" }, mealEvent: { mealDate: { gte: day, lte: horizon } }, ...(settings.sondeEnabled ? {} : { feedingRoute: "NORMAL" }) },
-    select: { dietTypeId: true, approvedAt: true, mealEvent: { select: { mealDate: true } } },
+    select: { dietTypeId: true, menuSnapshotJson: true, mealEvent: { select: { mealDate: true } } },
   });
-  const missing = meals.filter((meal) => !meal.approvedAt);
+  const missing = meals.filter((meal) => !meal.menuSnapshotJson);
   return { kind: "DIETITIAN", missingDateDietCount: knownCount(countMissingDateDiet(missing.map((item) => ({ mealDate: item.mealEvent.mealDate, dietTypeId: item.dietTypeId }))), meals.length > 0) };
 }
 
