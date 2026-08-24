@@ -32,9 +32,7 @@ export async function saveSettingsAction(formData: FormData) {
   const ids = formData.getAll("mealTypeId").map(String);
   const cutoffs = formData.getAll("cutoffTime").map(String);
   const services = formData.getAll("serviceTime").map(String);
-  const sondeCutoffs = formData.getAll("sondeCutoffTime").map(String);
-  const sondeServices = formData.getAll("sondeServiceTime").map(String);
-  await updateOperationalSettings({ sondeMealTimes: {}, dataStartDate: String(formData.get("dataStartDate") ?? ""), advanceEntryDays: Number(formData.get("advanceEntryDays")), publicMenuImages: formData.get("publicMenuImages") === "on", publicViewCountVisible: formData.get("publicViewCountVisible") === "on", sondeEnabled: formData.get("sondeEnabled") === "on", warehouseMode: formData.get("warehouseMode") === "B" ? "B" : "A", warehouseApprovalRole: String(formData.get("warehouseApprovalRole")) as Role, serviceCompletionMinutes: Number(formData.get("serviceCompletionMinutes")) }, ids.map((id, index) => ({ id, cutoffTime: cutoffs[index], serviceTime: services[index], sondeCutoffTime: sondeCutoffs[index], sondeServiceTime: sondeServices[index] })), actor, String(formData.get("reason") ?? ""));
+  await updateOperationalSettings({ dataStartDate: String(formData.get("dataStartDate") ?? ""), advanceEntryDays: Number(formData.get("advanceEntryDays")), publicMenuImages: formData.get("publicMenuImages") === "on", publicViewCountVisible: formData.get("publicViewCountVisible") === "on", sondeEnabled: formData.get("sondeEnabled") === "on", warehouseMode: formData.get("warehouseMode") === "B" ? "B" : "A", warehouseApprovalRole: String(formData.get("warehouseApprovalRole")) as Role, serviceCompletionMinutes: Number(formData.get("serviceCompletionMinutes")) }, ids.map((id, index) => ({ id, cutoffTime: cutoffs[index], serviceTime: services[index] })), actor, String(formData.get("reason") ?? ""));
   revalidatePath("/", "layout");
   redirect("/quan-tri?updated=settings");
 }
@@ -73,7 +71,7 @@ export async function dietTypeStatusAction(formData: FormData) {
 export async function saveMealTypeAction(formData: FormData) {
   const actor = await admin();
   const id = String(formData.get("mealTypeId") ?? "") || null;
-  await saveMealType(id, { code: formData.get("code"), name: formData.get("name"), cutoffTime: formData.get("cutoffTime"), serviceTime: formData.get("serviceTime"), sortOrder: formData.get("sortOrder") }, actor);
+  await saveMealType(id, { code: formData.get("code"), name: formData.get("name"), cutoffTime: formData.get("cutoffTime"), serviceTime: formData.get("serviceTime"), feedingRoute: formData.get("feedingRoute"), sortOrder: formData.get("sortOrder") }, actor);
   revalidatePath("/", "layout");
   redirect("/quan-tri?updated=meal");
 }
