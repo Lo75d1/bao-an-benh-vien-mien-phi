@@ -18,7 +18,7 @@ function simpleState(state: DisplayMealState | null) {
   if (state.key === "SERVED") return { label: "Đã hoàn thành", tone: "done", Icon: CalendarCheck };
   if (state.key === "INCOMPLETE") return { label: "Chưa hoàn tất", tone: "danger", Icon: TriangleAlert };
   if (state.key === "PREPARING" || state.key === "COOKING") return { label: "Đang chuẩn bị", tone: "warning", Icon: ChefHat };
-  if (state.key === "SERVING") return { label: "Hiện tại", tone: "active", Icon: Clock3 };
+  if (state.key === "SERVING") return { label: "Đang tiến hành", tone: "active", Icon: Clock3 };
   return { label: "Chưa đến", tone: "muted", Icon: CalendarClock };
 }
 
