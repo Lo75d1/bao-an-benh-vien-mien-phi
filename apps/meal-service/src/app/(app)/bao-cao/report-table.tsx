@@ -9,5 +9,6 @@ export function ReportTable({ columns: source, rows }: { columns: ReportColumn[]
 }
 
 export function ReportPreview({ sections }: { sections: ReportSection[] }) {
- return <div className="report-preview-sections">{sections.map((section) => <section key={section.title}><header><div><span>Nội dung báo cáo</span><h3>{section.title}</h3></div><b>{section.rows.length} dòng</b></header><ReportTable columns={section.columns} rows={section.rows}/></section>)}</div>;
+ const sectionId = (title: string) => `report-${title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`;
+ return <div className="report-preview-sections">{sections.map((section) => <section id={sectionId(section.title)} key={section.title}><header><div><span>Nội dung báo cáo</span><h3>{section.title}</h3></div><b>{section.rows.length} dòng</b></header><ReportTable columns={section.columns} rows={section.rows}/></section>)}</div>;
 }

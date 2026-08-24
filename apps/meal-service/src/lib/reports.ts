@@ -1,6 +1,7 @@
 import type { Role } from "@prisma/client";
 import { prisma } from "./prisma";
 import { parseMenuItems } from "./menu-logic";
+import { buildDietMealShopping } from "./kitchen";
 
 export const REPORT_CONTENTS = ["full", "servings", "additions", "menus", "evidence", "warehouse"] as const;
 export type ReportContent = (typeof REPORT_CONTENTS)[number];
@@ -55,6 +56,18 @@ function evaluationSummary(value: unknown) {
   return { energy: typeof energy?.actual === "number" ? energy.actual : null, target: typeof energy?.target === "string" ? energy.target : null, overall: typeof data.overall === "string" ? data.overall : null };
 }
 
+async function readDailyOverview(range: ReturnType<typeof parseReportRange>, servings: ReportSection, additions: ReportSection): Promise<ReportSection> {
+  const columns = [{ key: "date", label: "Ngày" }, { key: "base", label: "Suất gốc" }, { key: "additions", label: "Phát sinh bếp nhận" }, { key: "total", label: "Tổng phục vụ" }, { key: "departments", label: "Theo khoa" }, { key: "diets", label: "Theo mã chế độ" }, { key: "shoppingKg", label: "Cần mua/ngày (kg)" }];
+  const days = new Map<string, { base: number; additions: number; departments: Map<string, number>; diets: Map<string, number>; shoppingGrams: number | null }>();
+  const getDay = (date: string) => { const current = days.get(date) ?? { base: 0, additions: 0, departments: new Map<string, number>(), diets: new Map<string, number>(), shoppingGrams: 0 }; days.set(date, current); return current; };
+  for (const row of servings.rows) { const date = String(row.date); const quantity = typeof row.quantity === "number" ? row.quantity : 0; const day = getDay(date); day.base += quantity; const department = String(row.department); const diet = String(row.diet); day.departments.set(department, (day.departments.get(department) ?? 0) + quantity); day.diets.set(diet, (day.diets.get(diet) ?? 0) + quantity); }
+  for (const row of additions.rows) { if (!['RECEIVED', 'SUBSTITUTE'].includes(String(row.ack))) continue; const date = String(row.date); const quantity = typeof row.quantity === "number" ? row.quantity : 0; const day = getDay(date); day.additions += quantity; const department = String(row.department); const diet = String(row.diet); day.departments.set(department, (day.departments.get(department) ?? 0) + quantity); day.diets.set(diet, (day.diets.get(diet) ?? 0) + quantity); }
+  const events = await prisma.mealEvent.findMany({ where: { mealDate: { gte: range.from, lte: range.to } }, orderBy: [{ mealDate: "asc" }, { mealType: { sortOrder: "asc" } }], select: { mealDate: true, additions: { where: { ackStatus: { in: ["RECEIVED", "SUBSTITUTE"] } }, select: { dietTypeId: true, quantity: true } }, dietMeals: { where: { voidedAt: null, status: { not: "CANCELLED" } }, select: { id: true, dietTypeId: true, servingsPlanned: true, menuSnapshotJson: true, dietType: { select: { name: true } } } } } });
+  for (const event of events) { const date = dateCell(event.mealDate); const day = getDay(date); const shopping = buildDietMealShopping(event.dietMeals.map((meal) => ({ id: meal.id, dietTypeId: meal.dietTypeId, dietName: meal.dietType.name, servingsPlanned: meal.servingsPlanned + event.additions.filter((item) => item.dietTypeId === meal.dietTypeId).reduce((sum, item) => sum + item.quantity, 0), menuSnapshotJson: meal.menuSnapshotJson }))); if (shopping.items.length === 0 || shopping.items.some((item) => item.rawGrams === null)) day.shoppingGrams = null; else if (day.shoppingGrams !== null) day.shoppingGrams += shopping.items.reduce((sum, item) => sum + item.rawGrams, 0); }
+  const rows = [...days.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, day]) => ({ date, base: day.base || null, additions: day.additions || null, total: day.base || day.additions ? day.base + day.additions : null, departments: [...day.departments].map(([name, quantity]) => `${name}: ${quantity}`).join("; ") || null, diets: [...day.diets].map(([name, quantity]) => `${name}: ${quantity}`).join("; ") || null, shoppingKg: day.shoppingGrams === null || day.shoppingGrams === 0 ? null : Number((day.shoppingGrams / 1000).toFixed(2)) }));
+  return { title: "Tổng quan theo ngày", columns, rows: normalizeReportRows(rows, columns) };
+}
+
 export async function readReport(content: ReportContent, range: ReturnType<typeof parseReportRange>, actor: ReportActor): Promise<ReportData> {
   const memberships = actor.role === "NURSE" ? await prisma.departmentMembership.findMany({ where: { userId: actor.id }, include: { department: { select: { id: true, name: true } } } }) : [];
   const departmentIds = scopeDepartmentIds(actor.role, memberships.map((item) => item.departmentId));
@@ -64,7 +77,8 @@ export async function readReport(content: ReportContent, range: ReturnType<typeo
   if (content === "full") {
     const contents: ReportContent[] = actor.role === "NURSE" ? ["servings", "additions", "menus", "evidence"] : ["servings", "additions", "menus", "evidence", "warehouse"];
     const reports = await Promise.all(contents.map((item) => readReport(item, range, actor)));
-    return { ...base, columns: [], rows: [], sections: reports.map(({ title, columns, rows }) => ({ title, columns, rows })) };
+    const overview = await readDailyOverview(range, reports[0], reports[1]);
+    return { ...base, columns: [], rows: [], sections: [overview, ...reports.map(({ title, columns, rows }) => ({ title, columns, rows }))] };
   }
 
   if (content === "servings") {
