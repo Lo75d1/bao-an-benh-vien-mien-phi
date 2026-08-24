@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { Bell, ChevronDown, KeyRound, LogOut, UserRound } from "lucide-react";
@@ -8,6 +9,7 @@ import type { SessionUser } from "@/lib/auth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useBranding } from "@/components/branding-context";
 
 const ROLE_LABEL = { ADMIN: "Quản trị", DIETITIAN: "Dinh dưỡng", NURSE: "Điều dưỡng", KITCHEN: "Nhà bếp" } as const;
 type NavItem = { href: string; label: string };
@@ -26,5 +28,6 @@ function AccountMenu({ user }: { user: SessionUser }) {
 
 export function AppShell({ user, children, workflowStatus, adminNotifications = [] }: { user: SessionUser; children: ReactNode; workflowStatus?: ReactNode; adminNotifications?: Array<{ id: string; label: string; detail: string }> }) {
   const pathname = usePathname();
-  return <div className="app-frame"><a href="#main-content" className="skip-link">Đi tới nội dung chính</a><header className="top-shell"><Link href={user.role === "ADMIN" ? "/quan-ly" : "/"} className="top-brand"><span>SA</span><strong>Suất ăn bệnh viện</strong></Link><nav aria-label="Điều hướng chính">{NAVIGATION[user.role].map((item) => { const active = pathname.startsWith(item.href); return <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}>{item.label}</Link>; })}</nav><div className="top-shell-actions">{workflowStatus ? <div className="top-workflow-status">{workflowStatus}</div> : null}{user.role === "ADMIN" && <DropdownMenu><DropdownMenuTrigger asChild><button type="button" className={adminNotifications.length ? "top-notifications attention" : "top-notifications"} aria-label={`${adminNotifications.length} thông báo điều hành`}><Bell aria-hidden="true"/><span>{adminNotifications.length || "—"}</span></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-80"><DropdownMenuLabel>Thông báo điều hành</DropdownMenuLabel><DropdownMenuSeparator/>{adminNotifications.length ? adminNotifications.map((item) => <DropdownMenuItem key={item.id} className="grid gap-0.5"><strong>{item.label}</strong><small className="text-muted-foreground">{item.detail}</small></DropdownMenuItem>) : <DropdownMenuItem disabled>Không có cảnh báo cần xử lý.</DropdownMenuItem>}</DropdownMenuContent></DropdownMenu>}<AccountMenu user={user}/></div></header><div id="main-content" tabIndex={-1} className="app-main">{children}</div></div>;
+  const branding = useBranding();
+  return <div className="app-frame"><a href="#main-content" className="skip-link">Đi tới nội dung chính</a><header className="top-shell"><Link href={user.role === "ADMIN" ? "/quan-ly" : "/"} className="top-brand"><span>{branding.logoDataUrl ? <Image src={branding.logoDataUrl} alt="" width={38} height={38} unoptimized/> : branding.shortName}</span><strong>{branding.organizationName}</strong></Link><nav aria-label="Điều hướng chính">{NAVIGATION[user.role].map((item) => { const active = pathname.startsWith(item.href); return <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}>{item.label}</Link>; })}</nav><div className="top-shell-actions">{workflowStatus ? <div className="top-workflow-status">{workflowStatus}</div> : null}{user.role === "ADMIN" && <DropdownMenu><DropdownMenuTrigger asChild><button type="button" className={adminNotifications.length ? "top-notifications attention" : "top-notifications"} aria-label={`${adminNotifications.length} thông báo điều hành`}><Bell aria-hidden="true"/><span>{adminNotifications.length || "—"}</span></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-80"><DropdownMenuLabel>Thông báo điều hành</DropdownMenuLabel><DropdownMenuSeparator/>{adminNotifications.length ? adminNotifications.map((item) => <DropdownMenuItem key={item.id} className="grid gap-0.5"><strong>{item.label}</strong><small className="text-muted-foreground">{item.detail}</small></DropdownMenuItem>) : <DropdownMenuItem disabled>Không có cảnh báo cần xử lý.</DropdownMenuItem>}</DropdownMenuContent></DropdownMenu>}<AccountMenu user={user}/></div></header><div id="main-content" tabIndex={-1} className="app-main">{children}</div></div>;
 }

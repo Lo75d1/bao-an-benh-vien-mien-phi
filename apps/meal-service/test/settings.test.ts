@@ -4,6 +4,17 @@ import { canApproveWarehouse, entryWindowEnd, parseOperationalSettings, routeVis
 import { validateAccountInput } from "../src/lib/accounts";
 import { hashPassword, verifyPassword } from "../src/lib/password";
 import { validateMealTypeInput } from "../src/lib/meal-types";
+import { blendHex, parseBrandingSettings, readableForeground, validateBrandingSettings } from "../src/lib/branding";
+
+test("nhận diện bệnh viện giữ giá trị hợp lệ và tự chọn màu chữ tương phản", () => {
+  const branding = parseBrandingSettings({ organizationName: "Bệnh viện An Bình", shortName: "AB", primaryColor: "#F3E8C8" });
+  assert.equal(branding.organizationName, "Bệnh viện An Bình");
+  assert.equal(branding.primaryColor, "#F3E8C8");
+  assert.equal(readableForeground(branding.primaryColor), "#17241F");
+  assert.equal(readableForeground("#123C36"), "#FFFFFF");
+  assert.equal(blendHex("#123C36", "#FFFFFF", .9), "#E7ECEB");
+  assert.throws(() => validateBrandingSettings({ ...branding, primaryColor: "red" }));
+});
 
 test("setting giờ chốt chỉ nhận HH:mm hợp lệ", () => {
   assert.deepEqual(validateMealTimes([{ id: "breakfast", cutoffTime: "05:30", serviceTime: "06:30" }])[0].cutoffTime, "05:30");

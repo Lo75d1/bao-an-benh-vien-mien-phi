@@ -8,8 +8,24 @@ import { getSessionUser } from "@/lib/auth";
 import { saveDietType, setDietTypeStatus } from "@/lib/diet-types";
 import { saveMealType, setMealTypeStatus } from "@/lib/meal-types";
 import { updateOperationalSettings } from "@/lib/settings";
+import { readBrandingSettings, updateBrandingSettings } from "@/lib/branding";
 
 async function admin() { const user = await getSessionUser(); if (!user || user.role !== "ADMIN") throw new Error("Chỉ quản trị viên được thực hiện thao tác này."); return user; }
+
+export async function saveBrandingAction(formData: FormData) {
+  const actor = await admin();
+  const current = await readBrandingSettings();
+  const file = formData.get("logo");
+  let logoDataUrl = formData.get("removeLogo") === "on" ? null : current.logoDataUrl;
+  if (file instanceof File && file.size > 0) {
+    if (!new Set(["image/png", "image/jpeg", "image/webp"]).has(file.type)) throw new Error("Logo chỉ nhận PNG, JPG hoặc WebP.");
+    if (file.size > 300_000) throw new Error("Logo tối đa 300 KB.");
+    logoDataUrl = `data:${file.type};base64,${Buffer.from(await file.arrayBuffer()).toString("base64")}`;
+  }
+  await updateBrandingSettings({ organizationName: String(formData.get("organizationName") ?? ""), shortName: String(formData.get("shortName") ?? ""), primaryColor: String(formData.get("primaryColor") ?? ""), logoDataUrl }, actor, String(formData.get("reason") ?? ""));
+  revalidatePath("/", "layout");
+  redirect("/quan-tri?updated=branding#branding");
+}
 
 export async function saveSettingsAction(formData: FormData) {
   const actor = await admin();
