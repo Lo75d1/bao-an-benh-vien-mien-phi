@@ -9,7 +9,7 @@ import type { MenuItemInput } from "@/lib/menu-logic";
 type MealOption = { id: string; code: string; approved: boolean };
 const fieldLabels: Array<[ImportField, string]> = [["dietCode", "Mã chế độ ăn"], ["mealName", "Bữa ăn"], ["dishName", "Kiểu / tên món"], ["foodName", "Tên thực phẩm"], ["grams", "Gram sạch/suất"], ["energyKcal", "Năng lượng (kcal)"], ["proteinG", "Đạm (g)"], ["lipidG", "Béo (g)"], ["glucidG", "Bột đường (g)"], ["sodiumMg", "Natri (mg)"], ["potassiumMg", "Kali (mg)"], ["waterG", "Nước (g)"]];
 
-export function MenuExcelImportDialog({ meals, onApply }: { meals: MealOption[]; onApply: (rows: Array<{ mealId: string; item: MenuItemInput }>) => void }) {
+export function MenuExcelImportDialog({ meals, mealName, onApply }: { meals: MealOption[]; mealName: string; onApply: (rows: Array<{ mealId: string; item: MenuItemInput }>) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [headers, setHeaders] = useState<string[]>([]);
@@ -27,7 +27,7 @@ export function MenuExcelImportDialog({ meals, onApply }: { meals: MealOption[];
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Nhap thuc don");
     sheet.addRow(["Bữa ăn", "Mã chế độ ăn", "Kiểu món", "Tên thực phẩm", "Gram sạch/suất", "Năng lượng kcal", "Đạm g", "Béo g", "Bột đường g", "Natri mg", "Kali mg", "Nước g"]);
-    sheet.addRow(["Trưa", meals[0]?.code ?? "COM_THUONG", "Món mặn", "", "", "", "", "", "", "", "", ""]);
+    sheet.addRow([mealName, meals[0]?.code ?? "COM_THUONG", "Món mặn", "", "", "", "", "", "", "", "", ""]);
     sheet.getRow(1).font = { bold: true };
     sheet.columns.forEach((column, index) => { column.width = index === 3 ? 28 : 18; });
     const data = await workbook.xlsx.writeBuffer();
