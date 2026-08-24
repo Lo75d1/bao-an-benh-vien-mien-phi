@@ -40,7 +40,7 @@ export async function saveSettingsAction(formData: FormData) {
 export async function saveAccountAction(formData: FormData) {
   const actor = await admin();
   const id = String(formData.get("userId") ?? "");
-  const input = { email: formData.get("email"), displayName: formData.get("displayName"), role: formData.get("role"), password: formData.get("password"), departmentId: formData.get("departmentId") };
+  const input = { email: formData.get("email"), displayName: formData.get("displayName"), role: formData.get("role"), password: formData.get("password"), departmentId: formData.get("departmentId"), kitchenRoute: formData.get("kitchenRoute") };
   if (id) await updateAccount(id, input, actor); else await createAccount(input, actor);
   revalidatePath("/quan-tri");
   redirect(`/quan-tri?updated=${id ? "account" : "created"}`);
