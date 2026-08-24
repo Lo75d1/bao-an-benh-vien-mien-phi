@@ -66,7 +66,7 @@ export async function readReport(content: ReportContent, range: ReturnType<typeo
   }
   if (actor.role === "NURSE") return { ...base, columns: [], rows: [] };
   const columns = [{ key: "occurredAt", label: "Thời điểm" }, { key: "warehouse", label: "Kho" }, { key: "type", label: "Loại" }, { key: "item", label: "Mặt hàng" }, { key: "quantity", label: "Số lượng" }, { key: "unit", label: "Đơn vị" }, { key: "unitPrice", label: "Đơn giá" }, { key: "status", label: "Trạng thái" }];
-  const transactions = await prisma.inventoryTransaction.findMany({ where: { occurredAt: { gte: range.from, lte: range.to } }, include: { warehouse: true, lines: true }, orderBy: { occurredAt: "asc" } });
+  const transactions = await prisma.inventoryTransaction.findMany({ where: { occurredAt: { gte: range.from, lte: range.to }, lines: { some: {} } }, include: { warehouse: true, lines: true }, orderBy: { occurredAt: "asc" } });
   const rows = transactions.flatMap((transaction) => transaction.lines.map((line) => ({ occurredAt: dateTimeCell(transaction.occurredAt), warehouse: transaction.warehouse.name, type: transaction.type, item: line.itemName, quantity: Number(line.quantity), unit: line.unit, unitPrice: line.unitPrice == null ? null : Number(line.unitPrice), status: transaction.status })));
   return { ...base, columns, rows: normalizeReportRows(rows, columns) };
 }

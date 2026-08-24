@@ -17,7 +17,7 @@ FROM node:22.18.0-bookworm-slim AS app
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
-RUN groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 nextjs
+RUN groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 nextjs && mkdir -p /app/uploads && chown nextjs:nodejs /app/uploads
 COPY --from=builder --chown=nextjs:nodejs /app/apps/meal-service/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/meal-service/.next/static ./apps/meal-service/.next/static
 USER nextjs

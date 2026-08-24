@@ -130,6 +130,22 @@ export async function attachInventoryDocument(input: { transactionId: string; ki
   return { stored: true as const };
 }
 
+export async function saveWarehouseInvoice(input: { warehouseId: string; occurredAt: Date; file: File; note?: string | null }, actor: WarehouseActor) {
+  requireWarehouseRole(actor.role);
+  if (!(input.occurredAt instanceof Date) || Number.isNaN(input.occurredAt.getTime())) throw new Error("Ngày hóa đơn không hợp lệ.");
+  const stored = await evidenceStorage.store(input.file);
+  if (!stored) return { stored: false as const };
+  const cleanNote = input.note?.trim().slice(0, 500) || null;
+  const result = await prisma.$transaction(async (tx) => {
+    await assertWarehouseRoute(tx, input.warehouseId, null);
+    const transaction = await tx.inventoryTransaction.create({ data: { warehouseId: input.warehouseId, type: "IN", occurredAt: input.occurredAt, createdById: actor.id, note: cleanNote } });
+    const document = await tx.document.create({ data: { transactionId: transaction.id, kind: "INVOICE", storagePath: stored.storagePath, note: cleanNote } });
+    await tx.auditLog.create({ data: { entityType: "Document", entityId: document.id, action: "UPLOAD", actorId: actor.id, actorName: actor.displayName, afterJson: { transactionId: transaction.id, kind: document.kind, storagePath: document.storagePath, note: document.note } as Prisma.InputJsonValue, reason: "Lưu hóa đơn kho" } });
+    return { transaction, document };
+  });
+  return { stored: true as const, ...result };
+}
+
 export function expectedIssueForMeal(meal: { id: string; dietTypeId: string; dietName: string; servings: number; menuSnapshotJson: unknown }) {
   const result = buildDietMealShopping([{ id: meal.id, dietTypeId: meal.dietTypeId, dietName: meal.dietName, servingsPlanned: meal.servings, menuSnapshotJson: meal.menuSnapshotJson }]);
   return { items: result.items, warnings: result.incomplete.map((item) => item.reason) };

@@ -23,9 +23,11 @@ services:
     restart: "no"
   app:
     build: { context: ., target: app }
-    environment: { DATABASE_URL: "postgresql://meal_service:local-compose-only@db:5432/meal_service?schema=public", DEMO_LOGIN_BUTTONS: "1", INSECURE_COOKIES: "1" }
+    environment: { DATABASE_URL: "postgresql://meal_service:local-compose-only@db:5432/meal_service?schema=public", DEMO_LOGIN_BUTTONS: "1", INSECURE_COOKIES: "1", EVIDENCE_STORAGE_DIR: "/app/uploads" }
     depends_on: { seed: { condition: service_completed_successfully } }
     ports: ["3000:3000"]
+    volumes: ["meal_service_uploads:/app/uploads"]
     restart: unless-stopped
 volumes:
   meal_service_db:
+  meal_service_uploads:
