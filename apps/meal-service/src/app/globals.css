@@ -11,7 +11,7 @@
 @import "./operations.css";
 
 @theme inline {
-  --font-sans: "Times New Roman", Times, serif;
+  --font-sans: "Noto Sans", Arial, sans-serif;
   --font-mono: "Courier New", Courier, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -47,23 +47,23 @@
 
 :root {
   color-scheme: light;
-  --background: #f4f6f3;
-  --foreground: #172b27;
+  --background: #f6f8f7;
+  --foreground: #17241f;
   --card: #ffffff;
-  --card-foreground: #172b27;
+  --card-foreground: #17241f;
   --popover: #ffffff;
-  --popover-foreground: #172b27;
+  --popover-foreground: #17241f;
   --primary: #123c36;
   --primary-foreground: #ffffff;
-  --secondary: #e1f5ee;
+  --secondary: #edf5f2;
   --secondary-foreground: #123c36;
-  --muted: #edf1ef;
-  --muted-foreground: #60716b;
+  --muted: #eff3f1;
+  --muted-foreground: #64726c;
   --accent: #0f6e56;
   --accent-foreground: #ffffff;
   --destructive: #8b2d2d;
-  --border: #d7e1dc;
-  --input: #b9c8c2;
+  --border: #e1e7e4;
+  --input: #c5d0cc;
   --ring: #0f6e56;
   --sidebar: #103832;
   --sidebar-foreground: #ffffff;
@@ -74,6 +74,7 @@
   --sidebar-border: #315e56;
   --sidebar-ring: #72bba5;
   --radius: 0.875rem;
+  --font-serif: "Noto Sans", Arial, sans-serif;
   --fs-xs: 0.75rem;
   --fs-sm: 0.8125rem;
   --fs-table: 0.875rem;
@@ -100,7 +101,7 @@
   font-family: var(--font-sans);
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--background); font-size: var(--fs-base); line-height: var(--lh); }
+body { margin: 0; background: var(--background); font-size: var(--fs-base); line-height: var(--lh); text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
 a { color: inherit; text-decoration: none; }
 button, input, textarea { font: inherit; }
 select { font: inherit; }

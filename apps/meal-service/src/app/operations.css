@@ -791,3 +791,55 @@ body:has(.nutrition-menu-page) .top-shell,body:has(.nutrition-menu-page) [role="
 .top-account{min-height:42px!important;gap:8px!important;padding:4px 7px!important;border:1px solid transparent!important;border-radius:9px!important;color:#fff!important}.top-account:hover{border-color:rgb(255 255 255/.10)!important;background:rgb(255 255 255/.07)!important}.top-account>span{gap:1px}.top-account strong{max-width:140px;font-size:12px;font-weight:600}.top-account small{color:#b8d1c9;font-size:10px}.top-account svg{color:#a9c9bf}.top-account [data-slot="avatar"]{box-shadow:0 0 0 1px rgb(255 255 255/.14)}
 .top-shell a:focus-visible,.top-shell button:focus-visible{outline:3px solid rgb(127 198 175/.42);outline-offset:2px}
 @media(max-width:900px){.top-shell{height:auto;min-height:58px;grid-template-columns:1fr auto;gap:5px 10px;padding:7px 10px}.top-shell nav{grid-column:1/-1;height:40px}.top-shell nav a{min-height:34px;padding:0 10px}.top-brand>span{width:34px;height:34px}.top-shell-actions{height:40px}}
+
+/* Clinical SaaS system layer: tái sử dụng cùng token và nhịp giao diện cho mọi vai trò. */
+.app-main,.app-main>main{background:var(--background);font-family:"Noto Sans",Arial,sans-serif}
+.app-main button,.app-main input,.app-main select,.app-main textarea,[role="dialog"]{font-family:"Noto Sans",Arial,sans-serif}
+.primary-action,.secondary-button,.app-main button{border-radius:8px;font-weight:650;letter-spacing:-.01em}
+.primary-action{box-shadow:0 1px 2px rgb(18 60 54/.12)}
+.primary-action:hover:not(:disabled){box-shadow:0 5px 14px rgb(18 60 54/.14);transform:translateY(-1px)}
+.app-main input,.app-main select,.app-main textarea{border-radius:8px;background:#fff}
+.app-main input:focus-visible,.app-main select:focus-visible,.app-main textarea:focus-visible,.app-main button:focus-visible,.app-main a:focus-visible{outline:3px solid rgb(15 110 86/.16);outline-offset:2px}
+[role="dialog"]{border:1px solid var(--border);border-radius:16px!important;background:#fff;box-shadow:0 24px 80px rgb(18 60 54/.18)!important}
+.app-main table{font-variant-numeric:tabular-nums}.app-main thead th{font-size:11px;font-weight:650;letter-spacing:.015em;text-transform:none}.app-main tbody tr{transition:background-color 140ms ease}
+.app-main tbody tr:hover{background:#f7faf8}
+
+/* Trang chủ / đăng nhập. */
+.login-page{font-family:"Noto Sans",Arial,sans-serif;background:#f6f8f7}
+.login-intro{position:relative;isolation:isolate;overflow:hidden;background:#103e37}
+.login-intro::before{content:"";position:absolute;z-index:-1;inset:auto auto -28% -8%;width:min(52vw,680px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgb(127 198 175/.15),rgb(127 198 175/0) 68%)}
+.login-intro .eyebrow{color:#a8ccc0;font-size:11px;letter-spacing:.12em}
+.login-intro h1{font-family:"Noto Sans",Arial,sans-serif;font-weight:650;letter-spacing:-.045em}
+.login-intro>h1+p{color:#c8ddd6;font-size:var(--fs-md);line-height:1.65}
+.public-patient-entry{padding:18px;border:1px solid rgb(255 255 255/.13);border-radius:14px;background:rgb(255 255 255/.055);backdrop-filter:blur(8px)}
+.login-panel{background:#f6f8f7}.login-card{padding:clamp(24px,4vw,38px);border:1px solid #e2e8e5;border-radius:18px;background:#fff;box-shadow:0 24px 70px rgb(18 60 54/.09)}
+.login-panel h2{font-family:"Noto Sans",Arial,sans-serif;font-weight:650}.demo-login-btn{box-shadow:0 1px 2px rgb(18 60 54/.04)}
+
+/* Lịch tuần. */
+.calendar-page>.calendar-toolbar{min-height:70px;padding:10px 16px;background:rgb(255 255 255/.96)}
+.calendar-toolbar [role="tablist"]{padding:3px;border:1px solid var(--border);border-radius:10px;background:#eff3f1}.calendar-toolbar [role="tab"]{border-radius:7px;font-weight:600}
+.calendar-date-tools form input,.calendar-date-tools form button,.week-nav a{border-color:var(--border);background:#fff;box-shadow:0 1px 2px rgb(18 60 54/.035)}
+.calendar-page>.calendar-scroll{background:#fff}.calendar-status-table thead th,.calendar-status-table tbody th{background:#fafcfb}.calendar-status-table th,.calendar-status-table td{border-color:var(--border)}
+.calendar-cell-button:hover .calendar-status-cell{background:#f7faf8}.calendar-current-meal{background:#f1f8f5;box-shadow:inset 0 0 0 2px rgb(15 110 86/.72)}
+.calendar-cell-facts span{border-color:#e5eae8;background:#fafcfb}.calendar-next-event{box-shadow:0 1px 2px rgb(18 60 54/.04)}
+
+/* Điều dưỡng, bếp và điều hành dùng cùng ngôn ngữ tiến trình. */
+.nurse-progress-card,.shared-lifecycle{background:#fff}.nurse-progress-card ol{border-color:#dfe6e3;border-radius:10px;background:#f1f4f3}.nurse-progress-card li{background:#f1f4f3}.nurse-progress-card li.done{background:#e9f4f0}.nurse-progress-card li.active{background:#103e37}
+.nurse-serving-master>header,.nurse-serving-detail>header,.kitchen-operation-main>header,.kitchen-operation-side>header,.admin-serving-master>header,.admin-serving-detail>header{background:#fafcfb}
+.nurse-serving-master h1,.nurse-serving-detail h2,.kitchen-operation-main h2,.kitchen-operation-side h2,.admin-serving-master h1,.admin-serving-detail h2{font-family:"Noto Sans",Arial,sans-serif;font-weight:650;letter-spacing:-.025em}
+.nurse-serving-table thead th,.kitchen-operation-scroll thead th,.admin-serving-table thead th{background:#f7f9f8;color:#344b44}
+.nurse-serving-table tfoot,.kitchen-operation-scroll tfoot,.admin-serving-table tfoot{background:#edf4f1}
+.nurse-detail-scroll dl div,.admin-detail-scroll dl div{border:1px solid #e8edeb;border-radius:9px;background:#fafcfb}
+.nurse-detail-scroll article,.admin-detail-scroll article,.kitchen-side-scroll article{border:1px solid #e6ebe9;border-left:3px solid var(--accent);border-radius:9px;background:#fff;box-shadow:0 1px 2px rgb(18 60 54/.035)}
+.kitchen-quick-bar,.invoice-toolbar{background:rgb(255 255 255/.96)}
+.kitchen-operation-scroll tbody tr:hover,.kitchen-operation-scroll tbody tr:focus,.admin-serving-table tbody tr:hover,.admin-serving-table tbody tr.selected{background:#f3f8f6}
+.kitchen-operation-side>header button,.admin-view-switch button,.admin-add-incident{border-radius:8px}.kitchen-side-scroll{background:#f7f9f8}
+.admin-review-trigger{border-color:#d8e5e0;border-radius:10px;background:#f4f9f7}.admin-meal-calendar a,.admin-meal-calendar button{border-radius:8px;background:#fafcfb}.admin-view-switch{padding:3px;border:1px solid var(--border);border-radius:10px;background:#eff3f1}.admin-view-switch button{border:0;background:transparent;box-shadow:none}.admin-view-switch button.active{background:#fff;color:var(--primary);box-shadow:0 1px 3px rgb(18 60 54/.11)}
+
+/* Kho, báo cáo, hồ sơ và trang cấu hình. */
+.invoice-toolbar{min-height:70px;padding:10px 16px}.invoice-toolbar h1{font-family:"Noto Sans",Arial,sans-serif;font-weight:650;letter-spacing:-.03em}.invoice-list-panel{border-color:var(--border);border-radius:12px}.invoice-list article:hover{background:#f8faf9}.invoice-list article>a{border-color:var(--border);border-radius:8px;background:#fff}
+.report-builder,.warehouse-entry,.warehouse-history{border-color:var(--border);background:#fff;box-shadow:0 1px 2px rgb(18 60 54/.035)}
+.report-builder-copy,.report-builder-preview{background:#fff}.report-builder h1,.report-builder h2,.warehouse-page h1,.warehouse-page h2,.admin-workspace h1,.admin-workspace h2,.audit-page h1{font-family:"Noto Sans",Arial,sans-serif;font-weight:650;letter-spacing:-.025em}
+.admin-workspace section,.audit-page section{border-color:var(--border)}.admin-workspace table thead th,.audit-page table thead th{background:#f7f9f8;color:#344b44}.admin-workspace .page-heading,.audit-page .page-heading{background:#fff}
+
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
