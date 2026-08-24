@@ -858,3 +858,6 @@ body:has(.nutrition-menu-page) .top-shell,body:has(.nutrition-menu-page) [role="
 
 /* Bảng xem trước phải hiện đủ mọi cột trong khung, không giấu cột ở vùng cuộn ngang. */
 .report-preview-sections [data-slot="table-container"]{overflow-x:visible}.report-preview-sections [data-slot="table"]{width:100%;min-width:0!important;table-layout:fixed;font-size:11px}.report-preview-sections [data-slot="table"] th,.report-preview-sections [data-slot="table"] td{height:auto;min-width:0;padding:6px 7px;white-space:normal;overflow-wrap:anywhere;word-break:break-word}.report-preview-sections [data-slot="table"] th button{width:100%;min-width:0;min-height:30px;white-space:normal}.report-preview-sections [data-slot="table"] td{line-height:1.35}
+
+/* Khối bảng tự giãn theo hàng; chỉ cột xem trước bên phải đảm nhiệm cuộn dọc. */
+.report-preview-sections{grid-auto-rows:max-content;align-items:start}.report-preview-sections>section{height:max-content;overflow:visible}.report-preview-sections>section>header{border-radius:11px 11px 0 0}.report-preview-sections>section>div{min-height:0}
