@@ -27,7 +27,7 @@ const eventInclude = {
   },
 } as const;
 
-export async function readKitchenWorkspace(requestedMealId?: string, now = new Date()) {
+export async function readKitchenWorkspace(requestedMealId?: string, feedingRoute: "NORMAL" | "SONDE" = "NORMAL", now = new Date()) {
   const settings = await readOperationalSettings();
   const today = new Date(`${hospitalDayKey(now)}T00:00:00.000Z`);
   let events = await prisma.mealEvent.findMany({
@@ -51,6 +51,7 @@ export async function readKitchenWorkspace(requestedMealId?: string, now = new D
     }
   }
 
+  events = events.map((event) => ({ ...event, dietMeals: event.dietMeals.filter((meal) => meal.feedingRoute === feedingRoute), additions: event.additions.filter((addition) => addition.dietType.feedingRoute === feedingRoute) }));
   const summaries = events.map((event) => ({
     id: event.id,
     name: event.mealType.name,
