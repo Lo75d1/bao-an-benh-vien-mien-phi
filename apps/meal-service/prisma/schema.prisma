@@ -371,6 +371,16 @@ model AppSetting {
   updatedAt DateTime @updatedAt
 }
 
+model PublicPageView {
+  id          String   @id @default(cuid())
+  viewedOn    DateTime @db.Date
+  visitorHash String
+  createdAt   DateTime @default(now())
+
+  @@unique([viewedOn, visitorHash])
+  @@index([viewedOn])
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   entityType String

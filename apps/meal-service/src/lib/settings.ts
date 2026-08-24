@@ -10,6 +10,7 @@ export const DEFAULT_SETTINGS: OperationalSettings = {
   warehouseApprovalRole: "ADMIN",
   serviceCompletionMinutes: 60,
   publicMenuImages: true,
+  publicViewCountVisible: true,
 };
 
 export type OperationalSettings = {
@@ -19,6 +20,7 @@ export type OperationalSettings = {
   warehouseApprovalRole: Role;
   serviceCompletionMinutes: number;
   publicMenuImages: boolean;
+  publicViewCountVisible: boolean;
 };
 
 export type MealTimeInput = { id: string; cutoffTime: string; serviceTime: string };
@@ -37,6 +39,7 @@ export function parseOperationalSettings(value: unknown): OperationalSettings {
     warehouseApprovalRole: typeof source.warehouseApprovalRole === "string" && APPROVAL_ROLES.has(source.warehouseApprovalRole as Role) ? source.warehouseApprovalRole as Role : DEFAULT_SETTINGS.warehouseApprovalRole,
     serviceCompletionMinutes: Number.isInteger(source.serviceCompletionMinutes) && Number(source.serviceCompletionMinutes) >= 15 && Number(source.serviceCompletionMinutes) <= 240 ? Number(source.serviceCompletionMinutes) : DEFAULT_SETTINGS.serviceCompletionMinutes,
     publicMenuImages: typeof source.publicMenuImages === "boolean" ? source.publicMenuImages : DEFAULT_SETTINGS.publicMenuImages,
+    publicViewCountVisible: typeof source.publicViewCountVisible === "boolean" ? source.publicViewCountVisible : DEFAULT_SETTINGS.publicViewCountVisible,
   };
 }
 

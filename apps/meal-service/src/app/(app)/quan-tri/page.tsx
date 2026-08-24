@@ -6,6 +6,7 @@ import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { readOperationalSettings } from "@/lib/settings";
 import { readBrandingSettings } from "@/lib/branding";
+import { readPublicViewStats } from "@/lib/public-page-views";
 import { accountStatusAction, dietTypeStatusAction, mealTypeStatusAction, saveAccountAction, saveBrandingAction, saveDietTypeAction, saveMealTypeAction, saveSettingsAction } from "./actions";
 import { AccountCreateForm, SettingsForm } from "./admin-forms";
 import { BrandingForm } from "./branding-form";
@@ -20,10 +21,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const user = await getSessionUser();
   if (!user) redirect("/");
   if (user.role !== "ADMIN") redirect("/");
-  const [{ updated }, branding, settings, mealTypes, users, departments, dietTypes, dietCodes] = await Promise.all([
+  const [{ updated }, branding, settings, viewStats, mealTypes, users, departments, dietTypes, dietCodes] = await Promise.all([
     searchParams,
     readBrandingSettings(),
     readOperationalSettings(),
+    readPublicViewStats(),
     prisma.mealType.findMany({ orderBy: [{ status: "asc" }, { sortOrder: "asc" }] }),
     prisma.user.findMany({ orderBy: [{ status: "asc" }, { displayName: "asc" }], include: { memberships: { include: { department: true } } } }),
     prisma.department.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" } }),
@@ -35,7 +37,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   return <AppShell user={user}><main className="workspace admin-page admin-workspace"><Separator className="page-separator" aria-hidden="true"/>
     <PageHeader eyebrow="Trung tâm quản trị" title="Thiết lập để hệ thống vận hành đúng" description="Theo dõi cấu hình đang áp dụng, quản lý nhân sự và danh mục từ một nơi." actions={<p className="scope-note">Chỉ ADMIN · mọi thay đổi đều được truy vết</p>}/>
     {updated && messages[updated] && <p className="success-banner" role="status">{messages[updated]}</p>}
-    <section className="admin-status-strip" aria-label="Trạng thái cấu hình"><div><span>Tài khoản hoạt động</span><strong className="tabular">{activeUsers}<small> / {users.length}</small></strong></div><div><span>Khoa đang dùng</span><strong className="tabular">{departments.length}</strong></div><div><span>Mã chế độ hoạt động</span><strong className="tabular">{activeDiets}<small> / {dietTypes.length}</small></strong></div><div><span>Cửa sổ nhập liệu</span><strong className="tabular">{settings.advanceEntryDays}<small> ngày</small></strong></div><div><span>Đường nuôi Sonde</span><strong className={settings.sondeEnabled ? "status-on" : "status-off"}>{settings.sondeEnabled ? "Đang bật" : "Đang tắt"}</strong></div><div><span>Mô hình kho</span><strong>Mode {settings.warehouseMode}</strong></div></section>
+    <section className="admin-status-strip" aria-label="Trạng thái cấu hình"><div><span>Tài khoản hoạt động</span><strong className="tabular">{activeUsers}<small> / {users.length}</small></strong></div><div><span>Khoa đang dùng</span><strong className="tabular">{departments.length}</strong></div><div><span>Mã chế độ hoạt động</span><strong className="tabular">{activeDiets}<small> / {dietTypes.length}</small></strong></div><div><span>Lượt xem hôm nay</span><strong className="tabular">{viewStats.today}</strong></div><div><span>Tổng lượt xem</span><strong className="tabular">{viewStats.total}</strong></div><div><span>Cửa sổ nhập liệu</span><strong className="tabular">{settings.advanceEntryDays}<small> ngày</small></strong></div><div><span>Đường nuôi Sonde</span><strong className={settings.sondeEnabled ? "status-on" : "status-off"}>{settings.sondeEnabled ? "Đang bật" : "Đang tắt"}</strong></div><div><span>Mô hình kho</span><strong>Mode {settings.warehouseMode}</strong></div></section>
 
     <div className="admin-command-layout"><aside className="admin-context-rail"><p>Đi tới</p><nav className="admin-section-nav" aria-label="Mục quản trị"><a href="#branding"><strong>Nhận diện bệnh viện</strong><span>Tên, logo, màu chủ đạo</span></a><a href="#settings"><strong>Cài đặt vận hành</strong><span>Giờ chốt, Sonde, kho</span></a><a href="#accounts"><strong>Nhân sự</strong><span>{activeUsers} tài khoản hoạt động</span></a><a href="#diet-types"><strong>Mã chế độ</strong><span>{activeDiets} mã đang dùng</span></a></nav><div className="admin-rail-links"><a href="/quan-ly">Mở bàn điều phối</a><a href="/quan-tri/audit">Xem nhật ký thay đổi</a></div></aside><div className="admin-command-content">
 
@@ -44,7 +46,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     </section>
 
     <section id="settings" className="admin-panel"><div className="section-heading"><div><p className="eyebrow">Cài đặt vận hành</p><h2>Áp dụng cho các luồng nghiệp vụ</h2></div><span>Giờ chốt · Sonde · Kho</span></div>
-      <SettingsForm settings={{ advanceEntryDays: settings.advanceEntryDays, serviceCompletionMinutes: settings.serviceCompletionMinutes, publicMenuImages: settings.publicMenuImages, sondeEnabled: settings.sondeEnabled, warehouseMode: settings.warehouseMode, warehouseApprovalRole: settings.warehouseApprovalRole as "ADMIN" | "DIETITIAN" | "KITCHEN" }} mealTypes={mealTypes.filter((meal) => meal.status === "ACTIVE")} action={saveSettingsAction}/>
+      <SettingsForm settings={{ advanceEntryDays: settings.advanceEntryDays, serviceCompletionMinutes: settings.serviceCompletionMinutes, publicMenuImages: settings.publicMenuImages, publicViewCountVisible: settings.publicViewCountVisible, sondeEnabled: settings.sondeEnabled, warehouseMode: settings.warehouseMode, warehouseApprovalRole: settings.warehouseApprovalRole as "ADMIN" | "DIETITIAN" | "KITCHEN" }} mealTypes={mealTypes.filter((meal) => meal.status === "ACTIVE")} action={saveSettingsAction}/>
     </section>
 
     <section id="meal-types" className="admin-panel"><div className="section-heading"><div><p className="eyebrow">Bữa ăn</p><h2>Danh mục giờ phục vụ</h2></div><span>Tạo · sửa · vô hiệu hóa</span></div>

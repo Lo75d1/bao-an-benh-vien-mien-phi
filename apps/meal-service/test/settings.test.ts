@@ -22,6 +22,11 @@ test("nhận diện mặc định ưu tiên nền sáng", () => {
   assert.equal(readableForeground(branding.primaryColor), "#17241F");
 });
 
+test("cấu hình lượt xem mặc định hiển thị và đọc được trạng thái tắt", () => {
+  assert.equal(parseOperationalSettings(null).publicViewCountVisible, true);
+  assert.equal(parseOperationalSettings({ publicViewCountVisible: false }).publicViewCountVisible, false);
+});
+
 test("setting giờ chốt chỉ nhận HH:mm hợp lệ", () => {
   assert.deepEqual(validateMealTimes([{ id: "breakfast", cutoffTime: "05:30", serviceTime: "06:30" }])[0].cutoffTime, "05:30");
   assert.throws(() => validateMealTimes([{ id: "breakfast", cutoffTime: "25:00", serviceTime: "06:30" }]));
