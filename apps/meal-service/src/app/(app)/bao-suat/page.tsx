@@ -5,7 +5,7 @@ import { NurseMealProgress } from "@/components/nurse-meal-progress";
 import { EmptyState } from "@/components/presentation";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getSessionUser } from "@/lib/auth";
-import { MEAL_PHASE_LABEL, mealTimePhase } from "@/lib/meal-events";
+import { MEAL_PHASE_LABEL, mealTimePhase, pickReportingMeal } from "@/lib/meal-events";
 import { readPendingPatientNotes } from "@/lib/patient-note";
 import { readNurseServingDay } from "@/lib/serving-report";
 import { addLateMealAction, reviewPatientNoteAction, saveServingReportAction } from "./actions";
@@ -28,10 +28,9 @@ export default async function ServingReportPage({ searchParams }: { searchParams
   const [{ saved }, data, pendingNotes] = await Promise.all([searchParams, readNurseServingDay(user.id), readPendingPatientNotes(user.id)]);
   // Mốc giờ lấy từ nguồn sự thật duy nhất (lib/meal-events) — dùng chung với bếp, lịch và admin.
   const phaseOf = (event: (typeof data.events)[number]) => mealTimePhase(event.mealDate, event.mealType.cutoffTime, event.mealType.serviceTime, new Date(), data.serviceCompletionMinutes);
-  const activeEvent = data.events.find((event) => phaseOf(event) !== "PASSED");
-  const currentEvent = activeEvent ?? data.events.at(-1);
+  const currentEvent = pickReportingMeal(data.events.map((event) => ({ ...event, cutoffTime: event.mealType.cutoffTime, serviceTime: event.mealType.serviceTime })), new Date(), data.serviceCompletionMinutes);
   const currentPhase = currentEvent ? phaseOf(currentEvent) : null;
-  const dayOver = !activeEvent;
+  const dayOver = !currentEvent || currentPhase === "PASSED";
   const selectedIndex = Math.max(0, data.events.findIndex((event) => event.id === currentEvent?.id));
   const event = data.events[selectedIndex];
   const previous = selectedIndex > 0 ? data.events[selectedIndex - 1] : null;

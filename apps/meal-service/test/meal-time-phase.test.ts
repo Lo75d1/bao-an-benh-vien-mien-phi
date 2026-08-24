@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isKitchenPreparationOpen, mealTimePhase } from "../src/lib/meal-events";
+import { isKitchenPreparationOpen, mealTimePhase, nextReportingCutoff, pickReportingMeal } from "../src/lib/meal-events";
 
 // Chuyển từ test/nurse-workflow.test.ts cũ: sau khi gộp, mốc giờ của điều dưỡng
 // dùng chung `mealTimePhase` với bếp / lịch / admin.
@@ -21,6 +21,15 @@ test("bữa đã qua thì bữa kế mới là bữa đang xử lý", () => {
   const meals = [trua, chieu];
   const now = "2026-08-23T05:30:00Z"; // 12:30 VN
   assert.equal(meals.findIndex((meal) => phase(meal, now) !== "PASSED"), 1);
+});
+
+test("điều dưỡng chuyển sang bữa còn nhận báo dù bữa trước vẫn đang phục vụ", () => {
+  const meals = [{ id: "trua", mealDate: day, ...trua }, { id: "chieu", mealDate: day, ...chieu }];
+  const now = new Date("2026-08-23T06:00:00Z"); // 13:00 VN
+  assert.equal(pickReportingMeal(meals, now)?.id, "chieu");
+  const next = nextReportingCutoff(meals, now);
+  assert.equal(next?.meal.id, "chieu");
+  assert.equal(next?.at.toISOString(), "2026-08-23T07:00:00.000Z");
 });
 
 test("cửa sổ phục vụ theo cấu hình serviceCompletionMinutes, không cứng 60 phút", () => {
