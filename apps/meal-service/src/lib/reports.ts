@@ -1,15 +1,16 @@
 import type { Role } from "@prisma/client";
 import { prisma } from "./prisma";
 
-export const REPORT_CONTENTS = ["servings", "additions", "warehouse"] as const;
+export const REPORT_CONTENTS = ["full", "servings", "additions", "warehouse"] as const;
 export type ReportContent = (typeof REPORT_CONTENTS)[number];
 export type ReportFormat = "excel" | "pdf" | "print";
 export type ReportCell = string | number;
 export type ReportRow = Record<string, ReportCell | null | undefined>;
-export type ReportData = { title: string; from: string; to: string; scope: string; columns: { key: string; label: string }[]; rows: Record<string, ReportCell>[] };
+export type ReportSection = { title: string; columns: { key: string; label: string }[]; rows: Record<string, ReportCell>[] };
+export type ReportData = ReportSection & { from: string; to: string; scope: string; sections?: ReportSection[] };
 export type ReportActor = { id: string; role: Role };
 
-const CONTENT_LABEL: Record<ReportContent, string> = { servings: "Báo suất theo khoa", additions: "Suất bổ sung", warehouse: "Nhập, xuất và điều chỉnh kho" };
+const CONTENT_LABEL: Record<ReportContent, string> = { full: "Báo cáo vận hành đầy đủ", servings: "Báo suất theo khoa", additions: "Suất bổ sung", warehouse: "Nhập, xuất và điều chỉnh kho" };
 const MISSING = "—";
 
 export function parseReportRange(fromValue: string, toValue: string) {
@@ -51,6 +52,12 @@ export async function readReport(content: ReportContent, range: ReturnType<typeo
   const departmentIds = scopeDepartmentIds(actor.role, memberships.map((item) => item.departmentId));
   const scope = departmentIds ? (memberships.length ? memberships.map((item) => item.department.name).join(", ") : "—") : "Toàn viện";
   const base = { title: CONTENT_LABEL[content], from: range.fromValue, to: range.toValue, scope };
+
+  if (content === "full") {
+    const contents: ReportContent[] = actor.role === "NURSE" ? ["servings", "additions"] : ["servings", "additions", "warehouse"];
+    const reports = await Promise.all(contents.map((item) => readReport(item, range, actor)));
+    return { ...base, columns: [], rows: [], sections: reports.map(({ title, columns, rows }) => ({ title, columns, rows })) };
+  }
 
   if (content === "servings") {
     const columns = [{ key: "date", label: "Ngày" }, { key: "meal", label: "Bữa" }, { key: "department", label: "Khoa" }, { key: "diet", label: "Chế độ" }, { key: "quantity", label: "Suất gốc" }, { key: "status", label: "Trạng thái báo" }, { key: "submittedAt", label: "Gửi lúc" }];

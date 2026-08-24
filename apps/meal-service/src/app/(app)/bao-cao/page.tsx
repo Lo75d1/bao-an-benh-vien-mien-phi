@@ -3,9 +3,9 @@ import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { getSessionUser } from "@/lib/auth";
 import { PageHeader } from "@/components/presentation";
-import { FileDown } from "lucide-react";
+import { AlertTriangle, Check, FileDown, FileSpreadsheet, Printer, ShieldCheck } from "lucide-react";
 import { parseReportContent, parseReportRange, readReport } from "@/lib/reports";
-import { ReportTable } from "./report-table";
+import { ReportPreview } from "./report-table";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const monthStart = () => `${today().slice(0, 8)}01`;
@@ -15,19 +15,23 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   if (!user) redirect("/");
   const params = await searchParams;
   const preview = params.preview === "1" && params.from && params.to && params.content ? await readReport(parseReportContent(params.content), parseReportRange(params.from, params.to), user) : null;
-  return <AppShell user={user}><main className="workspace report-page"><Separator className="page-separator" aria-hidden="true"/>
+  const sections = preview?.sections ?? (preview ? [{ title: preview.title, columns: preview.columns, rows: preview.rows }] : []);
+  const rowCount = sections.reduce((sum, section) => sum + section.rows.length, 0);
+  return <AppShell user={user}><main className="workspace report-page report-workbench"><Separator className="page-separator" aria-hidden="true"/>
     <PageHeader eyebrow="Bàn làm việc báo cáo" title="Xem trước rồi xuất đúng dữ liệu" description="Chọn phạm vi một lần; hệ thống giữ nguyên dữ liệu gốc và không tự điền ô thiếu." actions={<p className="scope-note">{user.role === "NURSE" ? "Theo khoa được phân công" : "Phạm vi toàn viện"}</p>}/>
-    <div className="screen-split"><section className="report-builder screen-pane screen-pane-left" aria-labelledby="report-builder-title">
-      <div className="report-builder-copy"><span><FileDown aria-hidden="true"/></span><div><h2 id="report-builder-title">Thiết lập báo cáo</h2><p>Xem trước ngay trên màn hình hoặc tải Excel, PDF và bản in.</p></div></div>
-      <form action="/bao-cao/xuat" method="get" target="_blank" className="report-flow">
-        <label><span>1 · Từ ngày</span><input type="date" name="from" defaultValue={monthStart()} required/></label>
-        <label><span>2 · Đến ngày</span><input type="date" name="to" defaultValue={today()} required/></label>
-        <label><span>3 · Chọn nội dung</span><select name="content" required><option value="servings">Báo suất theo khoa</option><option value="additions">Suất bổ sung</option>{user.role !== "NURSE" && <option value="warehouse">Nhập, xuất và điều chỉnh kho</option>}</select></label>
-        <label><span>4 · Định dạng</span><select name="format" required><option value="excel">Excel (.xlsx)</option><option value="pdf">PDF</option><option value="print">In</option></select></label>
-        <button className="secondary-button" type="submit" name="preview" value="1" formTarget="_self" formAction="/bao-cao">Xem trước</button><button className="primary-action" type="submit">Xuất báo cáo</button>
-      </form>
-      <p className="report-footnote">Khoảng xuất tối đa 367 ngày. Báo suất gốc và suất bổ sung luôn nằm ở hai nội dung riêng để không làm sai lịch sử.</p>
-    </section>
-    <section className="report-builder screen-pane screen-pane-right" aria-labelledby="report-preview-title">{preview ? <><div className="section-heading"><div><p className="eyebrow">Xem trước</p><h2 id="report-preview-title">{preview.title}</h2></div><span>{preview.scope}</span></div><ReportTable columns={preview.columns} rows={preview.rows}/></> : <div className="split-placeholder"><FileDown aria-hidden="true"/><h2 id="report-preview-title">Bản xem trước</h2><p>Chọn phạm vi ở bên trái rồi bấm “Xem trước”. Dữ liệu thiếu vẫn hiển thị “—”.</p></div>}</section></div>
+    <form action="/bao-cao/xuat" method="get" target="_blank" className="report-scope-bar">
+      <div><span>Phạm vi báo cáo</span><strong>{user.role === "NURSE" ? "Khoa được phân công" : "Toàn viện"}</strong></div>
+      <label><span>Từ ngày</span><input type="date" name="from" defaultValue={params.from ?? monthStart()} required/></label>
+      <label><span>Đến ngày</span><input type="date" name="to" defaultValue={params.to ?? today()} required/></label>
+      <label><span>Bộ báo cáo</span><select name="content" defaultValue={params.content ?? "full"} required><option value="full">Đầy đủ · khuyến nghị</option><option value="servings">Chỉ báo suất theo khoa</option><option value="additions">Chỉ suất bổ sung</option>{user.role !== "NURSE" && <option value="warehouse">Chỉ dữ liệu kho</option>}</select></label>
+      <button className="secondary-button" type="submit" name="preview" value="1" formTarget="_self" formAction="/bao-cao">Xem trước</button>
+      <button className="primary-action" type="submit" name="format" value="excel"><FileSpreadsheet aria-hidden="true"/>Xuất Excel</button>
+      <button className="secondary-button" type="submit" name="format" value="pdf"><FileDown aria-hidden="true"/>PDF</button>
+      <button className="report-print-action" type="submit" name="format" value="print"><Printer aria-hidden="true"/><span className="sr-only">In</span></button>
+    </form>
+    <div className="report-work-grid"><aside className="report-content-panel" aria-labelledby="report-builder-title"><header><span><ShieldCheck aria-hidden="true"/></span><div><h2 id="report-builder-title">Nội dung sẽ xuất</h2><p>Bộ đầy đủ đã chọn sẵn các dữ liệu cần đối chiếu.</p></div></header>
+      <div className="report-content-list"><label><input type="checkbox" checked readOnly/><span><strong>Báo suất theo khoa</strong><small>Suất gốc, người báo, thời gian và trạng thái</small></span><Check aria-hidden="true"/></label><label><input type="checkbox" checked readOnly/><span><strong>Phát sinh sau chốt</strong><small>Số bổ sung, lý do và xác nhận của bếp</small></span><Check aria-hidden="true"/></label>{user.role !== "NURSE" && <label><input type="checkbox" checked readOnly/><span><strong>Dữ liệu kho</strong><small>Nhập, xuất, điều chỉnh và đơn vị ghi nhận</small></span><Check aria-hidden="true"/></label>}<label className="report-content-coming"><input type="checkbox" disabled/><span><strong>Thực đơn & dinh dưỡng</strong><small>Sẽ nối từ dữ liệu thực đơn ở bước hoàn thiện sau</small></span><AlertTriangle aria-hidden="true"/></label><label className="report-content-coming"><input type="checkbox" disabled/><span><strong>Bằng chứng bếp</strong><small>Sẽ bổ sung ảnh và thời điểm hoàn tất</small></span><AlertTriangle aria-hidden="true"/></label></div>
+      <p className="report-footnote">Thiếu dữ liệu luôn hiển thị “—”, không tự chuyển thành 0. Khoảng xuất tối đa 367 ngày.</p>
+    </aside><section className="report-preview-panel" aria-labelledby="report-preview-title">{preview ? <><header className="report-preview-head"><div><span>Xem trước báo cáo</span><h2 id="report-preview-title">{preview.title}</h2><p>{preview.scope} · {preview.from} đến {preview.to}</p></div><dl><div><dt>Nhóm dữ liệu</dt><dd>{sections.length}</dd></div><div><dt>Tổng dòng</dt><dd>{rowCount || "—"}</dd></div><div><dt>Cảnh báo</dt><dd>{rowCount ? "—" : "Thiếu dữ liệu"}</dd></div></dl></header><ReportPreview sections={sections}/></> : <div className="split-placeholder"><FileDown aria-hidden="true"/><h2 id="report-preview-title">Kiểm tra trước khi xuất</h2><p>Chọn khoảng ngày rồi bấm “Xem trước”. Hệ thống sẽ tách từng nhóm dữ liệu để bạn rà nhanh trước khi tải file.</p><span>Bộ mặc định: báo suất + phát sinh{user.role !== "NURSE" ? " + dữ liệu kho" : ""}</span></div>}</section></div>
   </main></AppShell>;
 }
