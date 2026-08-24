@@ -89,16 +89,15 @@ export type LifecycleMeal = { cutoffTime: string; serviceTime: string; mealDate:
 
 export type ReportingMeal = { cutoffTime: string; serviceTime: string; mealDate: Date };
 
-/** Điều dưỡng ưu tiên bữa còn nhận báo; hết giờ chốt thì giữ bữa đang vận hành để báo bổ sung. */
+/** Trong giờ phục vụ, điều dưỡng giữ bữa hiện tại ở trạng thái khóa. Hết thời lượng phục vụ mới chuyển sang bữa còn nhận báo tiếp theo. */
 export function pickReportingMeal<T extends ReportingMeal>(meals: T[], now = new Date(), completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES): T | null {
   if (meals.length === 0) return null;
+  const serving = meals.find((meal) => mealTimePhase(meal.mealDate, meal.cutoffTime, meal.serviceTime, now, completionMinutes) === "SERVING");
+  if (serving) return serving;
   const receiving = meals.find((meal) => mealTimePhase(meal.mealDate, meal.cutoffTime, meal.serviceTime, now, completionMinutes) === "BEFORE_CUTOFF");
   if (receiving) return receiving;
-  const operating = meals.find((meal) => {
-    const phase = mealTimePhase(meal.mealDate, meal.cutoffTime, meal.serviceTime, now, completionMinutes);
-    return phase === "PREPARING" || phase === "SERVING";
-  });
-  return operating ?? meals.at(-1) ?? null;
+  const preparing = meals.find((meal) => mealTimePhase(meal.mealDate, meal.cutoffTime, meal.serviceTime, now, completionMinutes) === "PREPARING");
+  return preparing ?? meals.at(-1) ?? null;
 }
 
 export function nextReportingCutoff<T extends ReportingMeal>(meals: T[], now = new Date()): { meal: T; at: Date } | null {

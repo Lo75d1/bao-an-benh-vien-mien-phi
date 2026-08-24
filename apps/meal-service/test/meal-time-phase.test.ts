@@ -23,11 +23,13 @@ test("bữa đã qua thì bữa kế mới là bữa đang xử lý", () => {
   assert.equal(meals.findIndex((meal) => phase(meal, now) !== "PASSED"), 1);
 });
 
-test("điều dưỡng chuyển sang bữa còn nhận báo dù bữa trước vẫn đang phục vụ", () => {
+test("điều dưỡng giữ bữa đang phục vụ, hết giờ mới chuyển sang bữa báo tiếp theo", () => {
   const meals = [{ id: "trua", mealDate: day, ...trua }, { id: "chieu", mealDate: day, ...chieu }];
-  const now = new Date("2026-08-23T06:00:00Z"); // 13:00 VN
-  assert.equal(pickReportingMeal(meals, now)?.id, "chieu");
-  const next = nextReportingCutoff(meals, now);
+  const serving = new Date("2026-08-23T04:30:00Z"); // 11:30 VN
+  assert.equal(pickReportingMeal(meals, serving)?.id, "trua");
+  const afterServing = new Date("2026-08-23T05:01:00Z"); // 12:01 VN
+  assert.equal(pickReportingMeal(meals, afterServing)?.id, "chieu");
+  const next = nextReportingCutoff(meals, afterServing);
   assert.equal(next?.meal.id, "chieu");
   assert.equal(next?.at.toISOString(), "2026-08-23T07:00:00.000Z");
 });
