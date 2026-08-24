@@ -204,13 +204,14 @@ export async function ensureEmptyMealEvents(
     prisma.dietType.findMany({ where: { status: "ACTIVE" }, orderBy: { sortOrder: "asc" } }),
     readOperationalSettings(),
   ]);
+  const visibleMealTypes = mealTypes.filter((item) => settings.sondeEnabled || item.feedingRoute === "NORMAL");
   const dietTypes = allDietTypes.filter((item) => settings.sondeEnabled || item.feedingRoute === "NORMAL");
   if (mealTypes.length === 0 || dietTypes.length === 0) return;
 
   await prisma.$transaction(async (tx) => {
     for (let day = 0; day < 7; day += 1) {
       const mealDate = addDays(weekStart, day);
-      for (const mealType of mealTypes) {
+      for (const mealType of visibleMealTypes) {
         let mealEvent = await tx.mealEvent.findUnique({
           where: { mealDate_mealTypeId: { mealDate, mealTypeId: mealType.id } },
         });
@@ -228,7 +229,7 @@ export async function ensureEmptyMealEvents(
             },
           });
         }
-        for (const dietType of dietTypes) {
+        for (const dietType of dietTypes.filter((item) => item.feedingRoute === mealType.feedingRoute)) {
           const existing = await tx.dietMeal.findUnique({
             where: { mealEventId_dietTypeId: { mealEventId: mealEvent.id, dietTypeId: dietType.id } },
             select: { id: true },
@@ -266,7 +267,7 @@ export async function readCalendarWeek(
 ) {
   const scope = buildCalendarScope(role, departmentIds);
   return prisma.mealEvent.findMany({
-    where: { mealDate: { gte: weekStart, lt: addDays(weekStart, 7) } },
+    where: { mealDate: { gte: weekStart, lt: addDays(weekStart, 7) }, ...(feedingRoute ? { mealType: { feedingRoute } } : {}) },
     orderBy: [{ mealDate: "asc" }, { mealType: { sortOrder: "asc" } }],
     include: {
       mealType: true,

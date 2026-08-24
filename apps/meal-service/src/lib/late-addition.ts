@@ -1,7 +1,6 @@
 import type { AckStatus, AdditionKind, DietMealStatus, Prisma, Role } from "@prisma/client";
 import { cutoffAt } from "./serving-report";
 import { prisma } from "./prisma";
-import { mealTimesForRoute, readOperationalSettings } from "./settings";
 
 export const ACK_LABEL: Record<Exclude<AckStatus, "PENDING">, string> = {
   RECEIVED: "Đã nhận",
@@ -41,20 +40,19 @@ export function assertAckStatus(status: AckStatus): asserts status is Exclude<Ac
 type Actor = { id: string; displayName: string; role: Role };
 
 export async function lockExpiredMealEvent(mealEventId: string, actor: Actor, now = new Date(), feedingRoute?: "NORMAL" | "SONDE") {
-  const settings = await readOperationalSettings();
   return prisma.$transaction(async (tx) => {
     const event = await tx.mealEvent.findUnique({
-      where: { id: mealEventId },
+      where: { id: mealEventId, ...(feedingRoute ? { mealType: { feedingRoute } } : {}) },
       include: { mealType: true, dietMeals: { where: { voidedAt: null, ...(feedingRoute ? { feedingRoute } : {}) }, select: { id: true, status: true, feedingRoute: true } } },
     });
     if (!event) throw new Error("Không tìm thấy bữa ăn.");
-    const lockable = event.dietMeals.filter((meal) => shouldLockMeal(event.mealDate, mealTimesForRoute(settings, event.mealType, meal.feedingRoute).cutoffTime, meal.status, now));
+    const lockable = event.dietMeals.filter((meal) => shouldLockMeal(event.mealDate, event.mealType.cutoffTime, meal.status, now));
     for (const meal of lockable) {
       await tx.dietMeal.update({ where: { id: meal.id }, data: { status: "LOCKED" } });
-      await tx.auditLog.create({ data: { entityType: "DietMeal", entityId: meal.id, action: "CUTOFF_LOCK", actorId: actor.id, actorName: actor.displayName, beforeJson: { status: "PLANNED" }, afterJson: { status: "LOCKED" }, reason: `Tự động khóa ${meal.feedingRoute} theo giờ chốt ${mealTimesForRoute(settings, event.mealType, meal.feedingRoute).cutoffTime}` } });
+      await tx.auditLog.create({ data: { entityType: "DietMeal", entityId: meal.id, action: "CUTOFF_LOCK", actorId: actor.id, actorName: actor.displayName, beforeJson: { status: "PLANNED" }, afterJson: { status: "LOCKED" }, reason: `Tự động khóa ${meal.feedingRoute} theo giờ chốt ${event.mealType.cutoffTime}` } });
     }
     const allSettledAtCutoff = event.dietMeals.every((meal) => meal.status === "LOCKED" || meal.status === "CANCELLED" || lockable.some((item) => item.id === meal.id));
-    if (!feedingRoute && lockable.length > 0 && allSettledAtCutoff && event.status !== "LOCKED") {
+    if (lockable.length > 0 && allSettledAtCutoff && event.status !== "LOCKED") {
       await tx.mealEvent.update({ where: { id: event.id }, data: { status: "LOCKED" } });
       await tx.auditLog.create({ data: { entityType: "MealEvent", entityId: event.id, action: "CUTOFF_LOCK", actorId: actor.id, actorName: actor.displayName, beforeJson: { status: event.status }, afterJson: { status: "LOCKED" }, reason: `Tất cả chế độ đã khóa theo giờ chốt ${event.mealType.cutoffTime}` } });
     }
@@ -66,7 +64,6 @@ export async function createLateMealAddition(input: { mealEventId: string; depar
   if (actor.role !== "NURSE") throw new Error("Chỉ điều dưỡng được báo suất bổ sung.");
   if (!Number.isInteger(input.quantity) || input.quantity <= 0) throw new Error("Số suất bổ sung phải là số nguyên dương.");
   const reason = normalizeAdditionReason(input.reason);
-  const settings = await readOperationalSettings();
   return prisma.$transaction(async (tx) => {
     const [membership, event, meal] = await Promise.all([
       tx.departmentMembership.findUnique({ where: { userId_departmentId: { userId: actor.id, departmentId: input.departmentId } }, select: { id: true } }),
@@ -75,7 +72,7 @@ export async function createLateMealAddition(input: { mealEventId: string; depar
     ]);
     if (!membership) throw new Error("Bạn không có quyền báo bổ sung cho khoa này.");
     if (!event || !meal || meal.voidedAt) throw new Error("Không tìm thấy chế độ ăn đang hoạt động.");
-    const cutoffTime = mealTimesForRoute(settings, event.mealType, meal.feedingRoute).cutoffTime;
+    const cutoffTime = event.mealType.cutoffTime;
     const cutoff = cutoffAt(event.mealDate, cutoffTime);
     if (meal.status !== "SERVED" && (!cutoff || now < cutoff)) throw new Error("Chỉ báo bổ sung sau giờ chốt. Trước giờ chốt hãy sửa báo suất gốc.");
     if (shouldLockMeal(event.mealDate, cutoffTime, meal.status, now)) {

@@ -158,7 +158,7 @@ export async function readManagementDay(date?: string, now = new Date(), departm
     configuredCompletionMinutes === undefined ? readOperationalSettings() : null,
     prisma.department.findMany({ where: { status: "ACTIVE", ...(departmentIds ? { id: { in: departmentIds } } : {}) }, orderBy: [{ code: "asc" }, { name: "asc" }], select: { id: true, code: true, name: true } }),
     prisma.mealEvent.findMany({
-      where: { mealDate: day }, orderBy: { mealType: { sortOrder: "asc" } },
+      where: { mealDate: day, ...(feedingRoute ? { mealType: { feedingRoute } } : {}) }, orderBy: { mealType: { sortOrder: "asc" } },
       select: {
         id: true, mealType: { select: { name: true, cutoffTime: true, serviceTime: true } },
         dietMeals: { where: { voidedAt: null, status: { not: "CANCELLED" }, ...(feedingRoute ? { feedingRoute } : {}) }, orderBy: { dietType: { sortOrder: "asc" } }, select: { id: true, status: true, servingsPlanned: true, approvedAt: true, menuSnapshotJson: true, evaluationJson: true, approvedBy: { select: { displayName: true } }, dietType: { select: { code: true, name: true } }, evidence: { where: { kind: { in: ["MEAL_PHOTO", "FOOD_SAMPLE"] } }, orderBy: { uploadedAt: "desc" }, select: { id: true, kind: true, storagePath: true, note: true, uploadedAt: true, uploadedBy: { select: { displayName: true } } } } } },

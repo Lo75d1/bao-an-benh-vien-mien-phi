@@ -146,9 +146,12 @@ model MealType {
   name        String
   cutoffTime  String
   serviceTime String
+  feedingRoute FeedingRoute @default(NORMAL)
   sortOrder   Int          @default(0)
   status      ActiveStatus @default(ACTIVE)
   events      MealEvent[]
+
+  @@index([feedingRoute, status, sortOrder])
 }
 
 model DietType {
