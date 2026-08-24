@@ -87,6 +87,28 @@ export function displayMealState(mealDate: Date, cutoffTime: string, serviceTime
  */
 export type LifecycleMeal = { cutoffTime: string; serviceTime: string; mealDate: Date; status: DietMealStatus | null };
 
+export type ReportingMeal = { cutoffTime: string; serviceTime: string; mealDate: Date };
+
+/** Điều dưỡng ưu tiên bữa còn nhận báo; hết giờ chốt thì giữ bữa đang vận hành để báo bổ sung. */
+export function pickReportingMeal<T extends ReportingMeal>(meals: T[], now = new Date(), completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES): T | null {
+  if (meals.length === 0) return null;
+  const receiving = meals.find((meal) => mealTimePhase(meal.mealDate, meal.cutoffTime, meal.serviceTime, now, completionMinutes) === "BEFORE_CUTOFF");
+  if (receiving) return receiving;
+  const operating = meals.find((meal) => {
+    const phase = mealTimePhase(meal.mealDate, meal.cutoffTime, meal.serviceTime, now, completionMinutes);
+    return phase === "PREPARING" || phase === "SERVING";
+  });
+  return operating ?? meals.at(-1) ?? null;
+}
+
+export function nextReportingCutoff<T extends ReportingMeal>(meals: T[], now = new Date()): { meal: T; at: Date } | null {
+  for (const meal of meals) {
+    const cutoffAt = atVietnamTime(meal.mealDate, meal.cutoffTime);
+    if (cutoffAt !== null && cutoffAt > now.getTime()) return { meal, at: new Date(cutoffAt) };
+  }
+  return null;
+}
+
 export function pickLifecycleMeal<T extends LifecycleMeal>(meals: T[], now = new Date(), completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES): { meal: T; nextCycle: boolean } | null {
   if (meals.length === 0) return null;
   const stateOf = (meal: T) => displayMealState(meal.mealDate, meal.cutoffTime, meal.serviceTime, meal.status, now, completionMinutes);
