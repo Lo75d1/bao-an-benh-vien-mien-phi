@@ -84,6 +84,7 @@ export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<
   });
 
   const weekStart = mondayOfCurrentWeek(now);
+  const menuHorizon = new Date(hospitalDate(now).getTime() + 2 * DAY_MS);
   const mealsByKey = new Map<string, { id: string; eventId: string; dietTypeId: string }>();
 
   for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
@@ -99,6 +100,7 @@ export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<
 
       for (let dietIndex = 0; dietIndex < dietTypes.length; dietIndex += 1) {
         const dietType = dietTypes[dietIndex];
+        const existingMeal = await prisma.dietMeal.findUnique({ where: { mealEventId_dietTypeId: { mealEventId: event.id, dietTypeId: dietType.id } }, select: { id: true, menuSnapshotJson: true } });
         const selectedFoods = [0, 1, 2].map((offset) => foods[(dayIndex + mealIndex + dietIndex + offset) % foods.length]);
         const baseGrams = dietType.code === "CHAO" ? [70, 55, 45] : dietType.code === "DTD" ? [90, 70, 80] : [120, 85, 100];
         const grams = baseGrams.map((value, foodIndex) => Math.max(20, value + demoVariation(dayIndex, mealIndex, dietIndex, foodIndex)));
@@ -119,8 +121,11 @@ export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<
         const status = demoMealStatus(mealDate, mealType.cutoffTime, mealType.serviceTime, now, intentionallyIncomplete);
         const [cutoffHour, cutoffMinute] = mealType.cutoffTime.split(":").map(Number);
         const cutoffAt = atVietnamTime(mealDate, cutoffHour, cutoffMinute);
-        const menuApproved = cutoffAt.getTime() <= now.getTime();
+        const menuInHorizon = mealDate.getTime() <= menuHorizon.getTime();
+        const menuApproved = menuInHorizon && cutoffAt.getTime() <= now.getTime();
         const approvedAt = menuApproved ? new Date(cutoffAt.getTime() - 30 * 60 * 1000) : null;
+        const botShouldFillMenu = menuInHorizon && !existingMeal?.menuSnapshotJson;
+        const botShouldClearMenu = !menuInHorizon && existingMeal?.id.startsWith("demo-meal-");
         const id = `demo-meal-${dateKey(mealDate)}-${mealType.code.toLowerCase()}-${dietType.code.toLowerCase()}`;
         const meal = await prisma.dietMeal.upsert({
           where: { mealEventId_dietTypeId: { mealEventId: event.id, dietTypeId: dietType.id } },
@@ -129,20 +134,18 @@ export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<
             mealEventId: event.id,
             dietTypeId: dietType.id,
             feedingRoute: dietType.feedingRoute,
-            menuSnapshotJson: json({ version: 1, items }),
-            evaluationJson: json(evaluation),
+            menuSnapshotJson: menuInHorizon ? json({ version: 1, items }) : Prisma.DbNull,
+            evaluationJson: menuInHorizon ? json(evaluation) : Prisma.DbNull,
             approvedAt,
-            approvedById: menuApproved ? dietitian.id : null,
+            approvedById: menuInHorizon ? dietitian.id : null,
             status,
             internalNote: dietIndex === 1 ? "Bếp lưu ý độ mềm và nhiệt độ khi chia suất." : null,
             patientVisibleNote: dietIndex === 2 ? "Suất ăn hạn chế đường, phục vụ theo chỉ định của khoa." : null,
           },
           update: {
             feedingRoute: dietType.feedingRoute,
-            menuSnapshotJson: json({ version: 1, items }),
-            evaluationJson: json(evaluation),
-            approvedAt,
-            approvedById: menuApproved ? dietitian.id : null,
+            ...(botShouldFillMenu ? { menuSnapshotJson: json({ version: 1, items }), evaluationJson: json(evaluation), approvedAt, approvedById: dietitian.id } : {}),
+            ...(botShouldClearMenu ? { menuSnapshotJson: Prisma.DbNull, evaluationJson: Prisma.DbNull, approvedAt: null, approvedById: null } : {}),
             status,
             internalNote: dietIndex === 1 ? "Bếp lưu ý độ mềm và nhiệt độ khi chia suất." : null,
             patientVisibleNote: dietIndex === 2 ? "Suất ăn hạn chế đường, phục vụ theo chỉ định của khoa." : null,

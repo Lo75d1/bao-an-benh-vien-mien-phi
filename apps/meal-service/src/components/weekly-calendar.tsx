@@ -52,9 +52,10 @@ export function WeeklyCalendar({ events, details, weekStart, role, route, sondeE
       const status = simpleState(state);
       const detail = event ? detailByDate.get(dayKey)?.meals.find((meal) => meal.id === event.id) : null;
       const menuTotal = detail?.diets.length ?? 0;
-      const menuReady = detail?.diets.filter((diet) => diet.approved && diet.menuItems.length > 0).length ?? 0;
-      const menuComplete = menuTotal > 0 && menuReady === menuTotal;
-      const menuStatus = menuTotal === 0 ? "Thực đơn —" : menuComplete ? `Đã lên thực đơn ${menuReady}/${menuTotal}` : `Thiếu thực đơn ${menuTotal - menuReady}/${menuTotal}`;
+      const menuSaved = detail?.diets.filter((diet) => diet.menuItems.length > 0).length ?? 0;
+      const menuLocked = detail?.diets.filter((diet) => diet.approved && diet.menuItems.length > 0).length ?? 0;
+      const menuComplete = menuTotal > 0 && menuSaved === menuTotal;
+      const menuStatus = menuTotal === 0 ? "Thực đơn —" : !menuComplete ? `Thiếu thực đơn ${menuTotal - menuSaved}/${menuTotal}` : menuLocked === menuTotal ? `Thực đơn đã chốt ${menuLocked}/${menuTotal}` : `Đã lên thực đơn ${menuSaved}/${menuTotal} · Chờ tự khóa`;
       const content = <div className="calendar-status-cell"><span className={`calendar-simple-state ${status.tone}`}><status.Icon aria-hidden="true"/><strong>{status.label}</strong></span>{detail ? <div className="calendar-cell-facts">{state?.key === "RECEIVING" ? <span className="reporting-open">Khoa báo <b>{detail.reportedDepartmentCount ?? "—"}/{detail.totalDepartmentCount ?? "—"}</b></span> : null}<span><Utensils aria-hidden="true"/> Tổng suất <b>{detail.reportedServings ?? "—"}</b></span></div> : <small>— · Chưa có dữ liệu</small>}<em className={menuComplete ? "menu-ready" : "menu-missing"}>{menuComplete ? <CalendarCheck aria-hidden="true"/> : <TriangleAlert aria-hidden="true"/>}{menuStatus}</em></div>;
       return <td key={dayKey} className={`${dayKey === todayKey ? "calendar-today" : dayKey < todayKey ? "calendar-past" : "calendar-future"} ${state?.isCurrent ? "calendar-current-meal" : ""} ${state?.tone === "danger" ? "calendar-incomplete" : ""}`}>{detail && state ? <MealDetailDialog meal={detail} date={formatVnDay(day.date)} stateLabel={status.label} canPlanMenu={role === "DIETITIAN" || role === "ADMIN"} trigger={<button type="button" className="calendar-cell-button" aria-label={`Xem chi tiết ${mealType.name} ${formatVnDay(day.date)}`}>{content}</button>}/> : content}</td>;
     })}</tr>)}</tbody></table></div>}
