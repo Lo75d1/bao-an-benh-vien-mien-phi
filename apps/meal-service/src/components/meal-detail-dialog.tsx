@@ -20,6 +20,7 @@ export function MealDetailDialog({ meal, date, stateLabel, trigger, canPlanMenu 
   const hasMealPhoto = evidence.some((item) => item.kind === "MEAL_PHOTO");
   const hasFoodSample = evidence.some((item) => item.kind === "FOOD_SAMPLE");
   const hasWarnings = missingDepartments.length > 0 || missingMenus.length > 0 || pendingAdditions.length > 0 || !hasMealPhoto || !hasFoodSample;
+  const editableDiet = missingMenus[0] ?? meal.diets[0];
   return <Dialog><DialogTrigger asChild>{trigger}</DialogTrigger><DialogContent className="calendar-detail-dialog max-h-[90vh] max-w-4xl overflow-y-auto"><DialogHeader><DialogTitle>{meal.name} · {date} · {stateLabel}</DialogTitle><DialogDescription>Chốt lúc {meal.cutoffTime} · Ăn lúc {meal.serviceTime}. Chỗ chưa có dữ liệu được giữ là “—”.</DialogDescription></DialogHeader>
     <section className={hasWarnings ? "calendar-missing-summary warning" : "calendar-missing-summary ok"}>
       <div><h3>{hasWarnings ? "Nội dung chưa xác nhận" : "Đã đủ thông tin xác nhận"}</h3>
@@ -30,7 +31,7 @@ export function MealDetailDialog({ meal, date, stateLabel, trigger, canPlanMenu 
         {!hasMealPhoto ? <li>Chưa có ảnh bữa ăn.</li> : null}
         {!hasFoodSample ? <li>Chưa có ảnh lưu mẫu.</li> : null}
       </ul> : <p>Không có cảnh báo tại bữa này.</p>}</div>
-      {canPlanMenu && missingMenus[0] ? <Link className="button calendar-menu-action" href={`/thuc-don?meal=${encodeURIComponent(missingMenus[0].id)}`}>Lên thực đơn</Link> : null}
+      {canPlanMenu && stateLabel === "Chưa đến" && editableDiet ? <Link className="button calendar-menu-action" href={`/thuc-don?meal=${encodeURIComponent(editableDiet.id)}`}>{missingMenus.length ? "Lên thực đơn" : "Sửa thực đơn"}</Link> : null}
     </section>
     <div className="calendar-detail-grid">
       <section><h3>Mã chế độ và thực đơn</h3>{meal.diets.length ? meal.diets.map((diet) => <article className="calendar-diet-detail" key={diet.id}><header><strong><span translate="no">{diet.code}</span> · {diet.name}</strong><span>{diet.servings === null ? "—" : `${number.format(diet.servings)} suất`} · {STATUS_LABEL[diet.status]}</span></header><p>{diet.menuItems.length ? [...new Set(diet.menuItems.map((item) => item.dishName))].join(", ") : "— · Chưa có thực đơn."}</p>{diet.menuItems.length ? <table><thead><tr><th scope="col">Món</th><th scope="col">Thực phẩm</th><th scope="col">Gram</th></tr></thead><tbody>{diet.menuItems.map((item, index) => <tr key={`${item.name}-${index}`}><td>{item.dishName}</td><td>{item.name}</td><td>{item.grams === null ? "—" : number.format(item.grams)}</td></tr>)}</tbody></table> : null}<div className="ops-criteria">{diet.criteria.length ? diet.criteria.map((criterion) => <span key={criterion.key}><strong>{criterion.label}</strong>{criterion.status === "MISSING" ? "—" : criterion.status}</span>) : <span>— · Chưa có đánh giá.</span>}</div><dl className="calendar-people"><div><dt>Lên thực đơn</dt><dd>{diet.approvedBy ?? "—"}</dd></div><div><dt>Báo suất</dt><dd>{diet.reportedBy.length ? diet.reportedBy.join(", ") : "—"}</dd></div><div><dt>Bếp</dt><dd>{diet.kitchenLead ?? "—"}</dd></div></dl></article>) : <p>— · Chưa có mã chế độ.</p>}</section>
