@@ -5,7 +5,7 @@ export const BRANDING_KEY = "branding";
 export const DEFAULT_BRANDING: BrandingSettings = {
   organizationName: "Suất ăn bệnh viện",
   shortName: "SA",
-  primaryColor: "#123C36",
+  primaryColor: "#DDF1EA",
   logoDataUrl: null,
 };
 

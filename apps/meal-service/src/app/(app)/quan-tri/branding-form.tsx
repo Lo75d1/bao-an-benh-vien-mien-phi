@@ -5,7 +5,7 @@ import Image from "next/image";
 import { startTransition, useMemo, useState, useTransition, type CSSProperties } from "react";
 import type { BrandingSettings } from "@/lib/branding";
 
-const PRESETS = ["#123C36", "#0F5E55", "#244A73", "#6A3D52", "#72572C"];
+const PRESETS = ["#DDF1EA", "#E3F0FA", "#F4E9F0", "#F6EDDB", "#E8ECEA", "#123C36"];
 const previewForeground = (hex: string) => {
   const value = hex.replace("#", "");
   const rgb = [0, 2, 4].map((offset) => Number.parseInt(value.slice(offset, offset + 2), 16));

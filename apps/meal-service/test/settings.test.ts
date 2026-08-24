@@ -16,6 +16,12 @@ test("nhận diện bệnh viện giữ giá trị hợp lệ và tự chọn m�
   assert.throws(() => validateBrandingSettings({ ...branding, primaryColor: "red" }));
 });
 
+test("nhận diện mặc định ưu tiên nền sáng", () => {
+  const branding = parseBrandingSettings(null);
+  assert.equal(branding.primaryColor, "#DDF1EA");
+  assert.equal(readableForeground(branding.primaryColor), "#17241F");
+});
+
 test("setting giờ chốt chỉ nhận HH:mm hợp lệ", () => {
   assert.deepEqual(validateMealTimes([{ id: "breakfast", cutoffTime: "05:30", serviceTime: "06:30" }])[0].cutoffTime, "05:30");
   assert.throws(() => validateMealTimes([{ id: "breakfast", cutoffTime: "25:00", serviceTime: "06:30" }]));
