@@ -2,7 +2,7 @@ import path from "node:path";
 import PDFDocument from "pdfkit";
 import ExcelJS from "exceljs";
 import { getSessionUser } from "@/lib/auth";
-import { parseReportContent, parseReportFormat, parseReportRange, readReport, type ReportData } from "@/lib/reports";
+import { parseReportContent, parseReportFormat, parseReportRange, readReportBundle, type ReportData } from "@/lib/reports";
 
 export const runtime = "nodejs";
 
@@ -60,9 +60,9 @@ export async function GET(request: Request) {
   const user = await getSessionUser();
   if (!user) return new Response("Cần đăng nhập.", { status: 401 });
   try {
-    const url = new URL(request.url); const range = parseReportRange(url.searchParams.get("from") ?? "", url.searchParams.get("to") ?? ""); const content = parseReportContent(url.searchParams.get("content") ?? ""); const format = parseReportFormat(url.searchParams.get("format") ?? "");
-    if (user.role === "NURSE" && content === "warehouse") return new Response("Không có quyền xuất nội dung này.", { status: 403 });
-    const report = await readReport(content, range, user);
+    const url = new URL(request.url); const range = parseReportRange(url.searchParams.get("from") ?? "", url.searchParams.get("to") ?? ""); const requested = url.searchParams.getAll("content").map(parseReportContent); const contents = requested.includes("full") ? (user.role === "NURSE" ? ["servings", "additions", "menus", "evidence"] : ["servings", "additions", "menus", "evidence", "warehouse"]).map(parseReportContent) : requested; const format = parseReportFormat(url.searchParams.get("format") ?? "");
+    if (user.role === "NURSE" && contents.includes("warehouse")) return new Response("Không có quyền xuất nội dung này.", { status: 403 });
+    const report = await readReportBundle(contents, range, user);
     if (format === "print") return new Response(printHtml(report), { headers: { "content-type": "text/html; charset=utf-8" } });
     const body = format === "excel" ? await excel(report) : await pdf(report);
     return new Response(new Uint8Array(body), { headers: { "content-type": format === "excel" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "application/pdf", "content-disposition": `attachment; filename="${filename(report)}.${format === "excel" ? "xlsx" : "pdf"}"`, "cache-control": "no-store" } });

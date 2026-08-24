@@ -79,9 +79,7 @@ export async function readReport(content: ReportContent, range: ReturnType<typeo
 
   if (content === "full") {
     const contents: ReportContent[] = actor.role === "NURSE" ? ["servings", "additions", "menus", "evidence"] : ["servings", "additions", "menus", "evidence", "warehouse"];
-    const reports = await Promise.all(contents.map((item) => readReport(item, range, actor)));
-    const { overview, shopping } = await readDailyOverview(range, reports[0], reports[1]);
-    return { ...base, columns: [], rows: [], sections: [overview, shopping, ...reports.map(({ title, columns, rows }) => ({ title, columns, rows }))] };
+    return readReportBundle(contents, range, actor);
   }
 
   if (content === "servings") {
@@ -113,6 +111,16 @@ export async function readReport(content: ReportContent, range: ReturnType<typeo
   const transactions = await prisma.inventoryTransaction.findMany({ where: { occurredAt: { gte: range.from, lte: range.to }, lines: { some: {} } }, include: { warehouse: true, lines: true }, orderBy: { occurredAt: "asc" } });
   const rows = transactions.flatMap((transaction) => transaction.lines.map((line) => ({ occurredAt: dateTimeCell(transaction.occurredAt), warehouse: transaction.warehouse.name, type: transaction.type, item: line.itemName, quantity: Number(line.quantity), unit: line.unit, unitPrice: line.unitPrice == null ? null : Number(line.unitPrice), status: transaction.status })));
   return { ...base, columns, rows: normalizeReportRows(rows, columns) };
+}
+
+export async function readReportBundle(contents: ReportContent[], range: ReturnType<typeof parseReportRange>, actor: ReportActor): Promise<ReportData> {
+  const selected = [...new Set(contents.filter((item) => item !== "full" && !(actor.role === "NURSE" && item === "warehouse")))];
+  if (!selected.length) throw new Error("Cần chọn ít nhất một nội dung báo cáo.");
+  if (selected.length === 1) return readReport(selected[0], range, actor);
+  const reports = await Promise.all(selected.map((item) => readReport(item, range, actor)));
+  const sections: ReportSection[] = reports.map(({ title, columns, rows }) => ({ title, columns, rows }));
+  if (selected.includes("servings") && selected.includes("additions")) { const servings = reports[selected.indexOf("servings")]; const additions = reports[selected.indexOf("additions")]; const summary = await readDailyOverview(range, servings, additions); sections.unshift(summary.overview, summary.shopping); }
+  return { title: "Báo cáo vận hành đã chọn", from: range.fromValue, to: range.toValue, scope: reports[0].scope, columns: [], rows: [], sections };
 }
 
 export async function readAuditLogs(limit = 100) {
