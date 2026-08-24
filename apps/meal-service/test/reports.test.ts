@@ -18,7 +18,10 @@ test("định dạng xuất và nội dung chỉ nhận giá trị cho phép", (
   assert.equal(parseReportFormat("excel"), "excel");
   assert.equal(parseReportFormat("pdf"), "pdf");
   assert.equal(parseReportFormat("print"), "print");
+  assert.equal(parseReportContent("full"), "full");
   assert.equal(parseReportContent("additions"), "additions");
+  assert.equal(parseReportContent("menus"), "menus");
+  assert.equal(parseReportContent("evidence"), "evidence");
   assert.throws(() => parseReportFormat("csv"), /Định dạng/);
   assert.throws(() => parseReportContent("patients"), /Nội dung/);
 });

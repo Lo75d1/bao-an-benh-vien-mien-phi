@@ -1,7 +1,8 @@
 import type { Role } from "@prisma/client";
 import { prisma } from "./prisma";
+import { parseMenuItems } from "./menu-logic";
 
-export const REPORT_CONTENTS = ["full", "servings", "additions", "warehouse"] as const;
+export const REPORT_CONTENTS = ["full", "servings", "additions", "menus", "evidence", "warehouse"] as const;
 export type ReportContent = (typeof REPORT_CONTENTS)[number];
 export type ReportFormat = "excel" | "pdf" | "print";
 export type ReportCell = string | number;
@@ -10,7 +11,7 @@ export type ReportSection = { title: string; columns: { key: string; label: stri
 export type ReportData = ReportSection & { from: string; to: string; scope: string; sections?: ReportSection[] };
 export type ReportActor = { id: string; role: Role };
 
-const CONTENT_LABEL: Record<ReportContent, string> = { full: "Báo cáo vận hành đầy đủ", servings: "Báo suất theo khoa", additions: "Suất bổ sung", warehouse: "Nhập, xuất và điều chỉnh kho" };
+const CONTENT_LABEL: Record<ReportContent, string> = { full: "Báo cáo vận hành đầy đủ", servings: "Báo suất theo khoa", additions: "Suất bổ sung", menus: "Thực đơn và dinh dưỡng", evidence: "Bằng chứng bếp", warehouse: "Nhập, xuất và điều chỉnh kho" };
 const MISSING = "—";
 
 export function parseReportRange(fromValue: string, toValue: string) {
@@ -46,6 +47,13 @@ export function normalizeReportRows(rows: ReportRow[], columns: ReportData["colu
 
 function dateCell(value: Date) { return value.toISOString().slice(0, 10); }
 function dateTimeCell(value: Date | null) { return value ? new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", dateStyle: "short", timeStyle: "short" }).format(value) : null; }
+function evaluationSummary(value: unknown) {
+  if (!value || typeof value !== "object") return { energy: null, target: null, overall: null };
+  const data = value as Record<string, unknown>;
+  const criteria = Array.isArray(data.criteria) ? data.criteria : [];
+  const energy = criteria.find((item) => item && typeof item === "object" && (item as Record<string, unknown>).key === "energyKcal") as Record<string, unknown> | undefined;
+  return { energy: typeof energy?.actual === "number" ? energy.actual : null, target: typeof energy?.target === "string" ? energy.target : null, overall: typeof data.overall === "string" ? data.overall : null };
+}
 
 export async function readReport(content: ReportContent, range: ReturnType<typeof parseReportRange>, actor: ReportActor): Promise<ReportData> {
   const memberships = actor.role === "NURSE" ? await prisma.departmentMembership.findMany({ where: { userId: actor.id }, include: { department: { select: { id: true, name: true } } } }) : [];
@@ -54,7 +62,7 @@ export async function readReport(content: ReportContent, range: ReturnType<typeo
   const base = { title: CONTENT_LABEL[content], from: range.fromValue, to: range.toValue, scope };
 
   if (content === "full") {
-    const contents: ReportContent[] = actor.role === "NURSE" ? ["servings", "additions"] : ["servings", "additions", "warehouse"];
+    const contents: ReportContent[] = actor.role === "NURSE" ? ["servings", "additions", "menus", "evidence"] : ["servings", "additions", "menus", "evidence", "warehouse"];
     const reports = await Promise.all(contents.map((item) => readReport(item, range, actor)));
     return { ...base, columns: [], rows: [], sections: reports.map(({ title, columns, rows }) => ({ title, columns, rows })) };
   }
@@ -69,6 +77,18 @@ export async function readReport(content: ReportContent, range: ReturnType<typeo
     const columns = [{ key: "date", label: "Ngày" }, { key: "meal", label: "Bữa" }, { key: "department", label: "Khoa" }, { key: "diet", label: "Chế độ" }, { key: "quantity", label: "Suất bổ sung" }, { key: "kind", label: "Loại" }, { key: "ack", label: "Bếp xử lý" }, { key: "reason", label: "Lý do" }];
     const additions = await prisma.lateMealAddition.findMany({ where: { mealEvent: { mealDate: { gte: range.from, lte: range.to } }, ...(departmentIds ? { departmentId: { in: departmentIds } } : {}) }, include: { department: true, mealEvent: { include: { mealType: true } }, dietType: true }, orderBy: [{ mealEvent: { mealDate: "asc" } }, { submittedAt: "asc" }] });
     const rows = additions.map((item) => ({ date: dateCell(item.mealEvent.mealDate), meal: item.mealEvent.mealType.name, department: item.department.name, diet: `${item.dietType.code} — ${item.dietType.name}`, quantity: item.quantity, kind: item.kind, ack: item.ackStatus, reason: item.reason }));
+    return { ...base, columns, rows: normalizeReportRows(rows, columns) };
+  }
+  if (content === "menus") {
+    const columns = [{ key: "date", label: "Ngày" }, { key: "meal", label: "Bữa" }, { key: "diet", label: "Mã chế độ" }, { key: "dishes", label: "Món ăn" }, { key: "foods", label: "Thực phẩm" }, { key: "energy", label: "kcal/suất" }, { key: "target", label: "Khuyến nghị" }, { key: "overall", label: "Đánh giá" }, { key: "approvedBy", label: "Người duyệt" }];
+    const meals = await prisma.dietMeal.findMany({ where: { voidedAt: null, status: { not: "CANCELLED" }, mealEvent: { mealDate: { gte: range.from, lte: range.to } } }, orderBy: [{ mealEvent: { mealDate: "asc" } }, { mealEvent: { mealType: { sortOrder: "asc" } } }, { dietType: { sortOrder: "asc" } }], select: { menuSnapshotJson: true, evaluationJson: true, approvedAt: true, approvedBy: { select: { displayName: true } }, dietType: { select: { code: true, name: true } }, mealEvent: { select: { mealDate: true, mealType: { select: { name: true } } } } } });
+    const rows = meals.map((meal) => { const items = parseMenuItems(meal.menuSnapshotJson); const evaluation = evaluationSummary(meal.evaluationJson); return { date: dateCell(meal.mealEvent.mealDate), meal: meal.mealEvent.mealType.name, diet: `${meal.dietType.code} — ${meal.dietType.name}`, dishes: [...new Set(items.map((item) => item.dishName))].join(", ") || null, foods: items.map((item) => `${item.itemName} ${item.grams}g`).join("; ") || null, energy: evaluation.energy, target: evaluation.target, overall: evaluation.overall, approvedBy: meal.approvedAt ? meal.approvedBy?.displayName ?? null : null }; });
+    return { ...base, columns, rows: normalizeReportRows(rows, columns) };
+  }
+  if (content === "evidence") {
+    const columns = [{ key: "date", label: "Ngày" }, { key: "meal", label: "Bữa" }, { key: "diet", label: "Mã chế độ" }, { key: "kind", label: "Loại bằng chứng" }, { key: "status", label: "Tệp" }, { key: "note", label: "Ghi chú" }, { key: "uploadedBy", label: "Người lưu" }, { key: "uploadedAt", label: "Lưu lúc" }];
+    const evidence = await prisma.mealEvidence.findMany({ where: { dietMeal: { voidedAt: null, mealEvent: { mealDate: { gte: range.from, lte: range.to } } } }, orderBy: [{ dietMeal: { mealEvent: { mealDate: "asc" } } }, { uploadedAt: "asc" }], select: { kind: true, note: true, uploadedAt: true, uploadedBy: { select: { displayName: true } }, dietMeal: { select: { dietType: { select: { code: true, name: true } }, mealEvent: { select: { mealDate: true, mealType: { select: { name: true } } } } } } } });
+    const rows = evidence.map((item) => ({ date: dateCell(item.dietMeal.mealEvent.mealDate), meal: item.dietMeal.mealEvent.mealType.name, diet: `${item.dietMeal.dietType.code} — ${item.dietMeal.dietType.name}`, kind: item.kind === "MEAL_PHOTO" ? "Ảnh món ăn" : "Ảnh lưu mẫu", status: "Đã lưu", note: item.note, uploadedBy: item.uploadedBy.displayName, uploadedAt: dateTimeCell(item.uploadedAt) }));
     return { ...base, columns, rows: normalizeReportRows(rows, columns) };
   }
   if (actor.role === "NURSE") return { ...base, columns: [], rows: [] };
