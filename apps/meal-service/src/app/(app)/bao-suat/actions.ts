@@ -8,6 +8,11 @@ import { createLateMealAddition, normalizeAdditionReason } from "@/lib/late-addi
 import { reviewPatientNote } from "@/lib/patient-note";
 import { normalizeReporterName, normalizeServingNote, requireNurseDepartment, saveServingReport, type ServingLineInput } from "@/lib/serving-report";
 
+function nurseRedirect(formData: FormData, saved: string) {
+  const route = formData.get("route") === "SONDE" ? "SONDE" : "NORMAL";
+  redirect(`/bao-suat?route=${route}&saved=${saved}`);
+}
+
 export async function saveServingReportAction(formData: FormData) {
   const user = await getSessionUser();
   if (!user) redirect("/");
@@ -23,7 +28,7 @@ export async function saveServingReportAction(formData: FormData) {
   await saveServingReport({ mealEventId, departmentId, reportedByName: normalizeReporterName(formData.get("reportedByName")), lines }, user);
   revalidatePath("/bao-suat");
   revalidatePath("/lich");
-  redirect("/bao-suat?saved=1");
+  nurseRedirect(formData, "1");
 }
 
 export async function addLateMealAction(formData: FormData) {
@@ -37,7 +42,7 @@ export async function addLateMealAction(formData: FormData) {
   revalidatePath("/bao-suat");
   revalidatePath("/bep");
   revalidatePath("/lich");
-  redirect("/bao-suat?saved=addition");
+  nurseRedirect(formData, "addition");
 }
 
 export async function reviewPatientNoteAction(formData: FormData) {
@@ -48,5 +53,5 @@ export async function reviewPatientNoteAction(formData: FormData) {
   await reviewPatientNote({ id: String(formData.get("noteId") ?? ""), status, reviewNote: formData.get("reviewNote") }, user);
   revalidatePath("/bao-suat");
   revalidatePath("/bep");
-  redirect("/bao-suat?saved=patient-note");
+  nurseRedirect(formData, "patient-note");
 }
