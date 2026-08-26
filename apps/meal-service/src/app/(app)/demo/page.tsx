@@ -39,6 +39,6 @@ export default async function DemoLandingPage() {
 
     <section id="ho-tro" className="demo-support"><div><MessageCircle aria-hidden="true"/><span><strong>Cần hỗ trợ triển khai hoặc góp ý dự án?</strong><p>Liên hệ trực tiếp người phát triển để tránh nhầm với đơn vị bệnh viện đang sử dụng bản clone.</p></span></div><a href="https://zalo.me/0986703396" target="_blank" rel="noreferrer"><span>Lê Công Bảo Long</span><strong>Zalo 0986703396</strong><ArrowRight aria-hidden="true"/></a></section>
 
-    <footer className="demo-product-footer"><div><strong>Suất ăn bệnh viện miễn phí</strong><span>Dự án cộng đồng, có thể tự triển khai và tùy chỉnh cho từng bệnh viện.</span></div><div><a href="https://dinhduong2598.food" target="_blank" rel="noreferrer">Dinh dưỡng 2598</a><a href="https://zalo.me/0986703396" target="_blank" rel="noreferrer">Hỗ trợ qua Zalo</a></div></footer>
+    <footer className="demo-product-footer"><div><strong>Suất ăn bệnh viện miễn phí</strong><span>Dự án cộng đồng, có thể tự triển khai và tùy chỉnh cho từng bệnh viện.</span></div><div><a href="https://github.com/Lo75d1/bao-an-benh-vien-mien-phi" target="_blank" rel="noreferrer">Mã nguồn GitHub</a><a href="https://dinhduong2598.food" target="_blank" rel="noreferrer">Dinh dưỡng 2598</a><a href="https://zalo.me/0986703396" target="_blank" rel="noreferrer">Hỗ trợ qua Zalo</a></div></footer>
   </main>;
 }
