@@ -1,6 +1,6 @@
 import { pathToFileURL } from "node:url";
 import { evaluateDiet } from "@suat-an/nutrition-engine";
-import { DietMealStatus, Prisma, PrismaClient } from "@prisma/client";
+import { DietMealStatus, FeedingRoute, Prisma, PrismaClient } from "@prisma/client";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -23,7 +23,7 @@ function atVietnamTime(date: Date, hour: number, minute = 0): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), hour - 7, minute));
 }
 
-function demoMealStatus(mealDate: Date, cutoffTime: string, serviceTime: string, now: Date, intentionallyIncomplete = false): DietMealStatus {
+export function demoMealStatus(mealDate: Date, cutoffTime: string, serviceTime: string, now: Date, intentionallyIncomplete = false): DietMealStatus {
   const [cutoffHour, cutoffMinute] = cutoffTime.split(":").map(Number);
   const [serviceHour, serviceMinute] = serviceTime.split(":").map(Number);
   const cutoffAt = atVietnamTime(mealDate, cutoffHour, cutoffMinute).getTime();
@@ -32,6 +32,10 @@ function demoMealStatus(mealDate: Date, cutoffTime: string, serviceTime: string,
   if (now.getTime() >= serviceAt) return "PREPARED";
   if (now.getTime() >= cutoffAt) return "PREPARING";
   return "PLANNED";
+}
+
+export function dietTypesForRoute<T extends { feedingRoute: FeedingRoute }>(feedingRoute: FeedingRoute, dietTypes: T[]): T[] {
+  return dietTypes.filter((dietType) => dietType.feedingRoute === feedingRoute);
 }
 
 function json(value: unknown): Prisma.InputJsonValue {
@@ -46,9 +50,9 @@ function demoVariation(...parts: number[]): number {
 export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<void> {
   const [departments, mealTypes, dietTypes, users, warehouse, foods] = await Promise.all([
     prisma.department.findMany({ where: { code: { in: ["NOI", "NGOAI"] } } }),
-    prisma.mealType.findMany({ where: { code: { in: ["SANG", "TRUA", "CHIEU"] } }, orderBy: { sortOrder: "asc" } }),
-    prisma.dietType.findMany({ where: { code: { in: ["COM_THUONG", "CHAO", "DTD"] } }, orderBy: { sortOrder: "asc" } }),
-    prisma.user.findMany({ where: { email: { in: ["dietitian@demo.local", "nurse@demo.local", "kitchen@demo.local"] } } }),
+    prisma.mealType.findMany({ where: { status: "ACTIVE" }, orderBy: { sortOrder: "asc" } }),
+    prisma.dietType.findMany({ where: { status: "ACTIVE" }, orderBy: { sortOrder: "asc" } }),
+    prisma.user.findMany({ where: { email: { in: ["dietitian@demo.local", "nurse@demo.local", "kitchen@demo.local", "sonde@demo.local"] } } }),
     prisma.warehouse.findUnique({ where: { code: "TONG" } }),
     prisma.food.findMany({
       where: { OR: [
@@ -71,7 +75,10 @@ export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<
   const dietitian = userByEmail.get("dietitian@demo.local");
   const nurse = userByEmail.get("nurse@demo.local");
   const kitchen = userByEmail.get("kitchen@demo.local");
-  if (!noi || !ngoai || !dietitian || !nurse || !kitchen || !warehouse || mealTypes.length !== 3 || dietTypes.length !== 3 || foods.length < 3) {
+  const sondeKitchen = userByEmail.get("sonde@demo.local");
+  const hasNormalData = mealTypes.some((item) => item.feedingRoute === "NORMAL") && dietTypes.some((item) => item.feedingRoute === "NORMAL");
+  const hasSondeData = mealTypes.some((item) => item.feedingRoute === "SONDE") && dietTypes.some((item) => item.feedingRoute === "SONDE");
+  if (!noi || !ngoai || !dietitian || !nurse || !kitchen || !sondeKitchen || !warehouse || !hasNormalData || !hasSondeData || foods.length < 3) {
     throw new Error("Seed nền chưa đầy đủ; hãy chạy seed.ts trước seed demo.");
   }
 
@@ -91,6 +98,8 @@ export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<
     const mealDate = new Date(weekStart.getTime() + dayIndex * DAY_MS);
     for (let mealIndex = 0; mealIndex < mealTypes.length; mealIndex += 1) {
       const mealType = mealTypes[mealIndex];
+      const routeDietTypes = dietTypesForRoute(mealType.feedingRoute, dietTypes);
+      const routeKitchen = mealType.feedingRoute === "SONDE" ? sondeKitchen : kitchen;
       const eventId = `demo-event-${dateKey(mealDate)}-${mealType.code.toLowerCase()}`;
       const event = await prisma.mealEvent.upsert({
         where: { mealDate_mealTypeId: { mealDate, mealTypeId: mealType.id } },
@@ -98,16 +107,16 @@ export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<
         update: {},
       });
 
-      for (let dietIndex = 0; dietIndex < dietTypes.length; dietIndex += 1) {
-        const dietType = dietTypes[dietIndex];
+      for (let dietIndex = 0; dietIndex < routeDietTypes.length; dietIndex += 1) {
+        const dietType = routeDietTypes[dietIndex];
         const existingMeal = await prisma.dietMeal.findUnique({ where: { mealEventId_dietTypeId: { mealEventId: event.id, dietTypeId: dietType.id } }, select: { id: true, menuSnapshotJson: true } });
         const selectedFoods = [0, 1, 2].map((offset) => foods[(dayIndex + mealIndex + dietIndex + offset) % foods.length]);
-        const baseGrams = dietType.code === "CHAO" ? [70, 55, 45] : dietType.code === "DTD" ? [90, 70, 80] : [120, 85, 100];
+        const baseGrams = mealType.feedingRoute === "SONDE" ? [55, 35, 25] : dietType.code === "CHAO" ? [70, 55, 45] : dietType.code === "DTD" ? [90, 70, 80] : [120, 85, 100];
         const grams = baseGrams.map((value, foodIndex) => Math.max(20, value + demoVariation(dayIndex, mealIndex, dietIndex, foodIndex)));
         const items = selectedFoods.map((food, index) => ({
           foodId: food.id,
           itemName: food.name,
-          dishName: index < 2 ? `${mealType.name} · Món chính` : `${mealType.name} · Món kèm`,
+          dishName: mealType.feedingRoute === "SONDE" ? `${mealType.name} · Công thức Sonde` : index < 2 ? `${mealType.name} · Món chính` : `${mealType.name} · Món kèm`,
           grams: grams[index],
           wastePercent: food.wastePercent ?? 0,
         }));
@@ -117,7 +126,7 @@ export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<
           return [key, Number(values.reduce<number>((sum, value, index) => sum + (value as number) * grams[index] / 100, 0).toFixed(2))];
         }));
         const evaluation = evaluateDiet({ ...totals, sodiumMg: null, potassiumMg: null, waterG: null, meals: 1 }, null);
-        const intentionallyIncomplete = dayIndex === 0 && mealIndex === 0 && dietIndex === 0;
+        const intentionallyIncomplete = mealType.feedingRoute === "NORMAL" && dayIndex === 0 && mealIndex === 0 && dietIndex === 0;
         const status = demoMealStatus(mealDate, mealType.cutoffTime, mealType.serviceTime, now, intentionallyIncomplete);
         const [cutoffHour, cutoffMinute] = mealType.cutoffTime.split(":").map(Number);
         const cutoffAt = atVietnamTime(mealDate, cutoffHour, cutoffMinute);
@@ -154,14 +163,14 @@ export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<
         const milestoneAt = status === "SERVED" || status === "PREPARED" ? atVietnamTime(mealDate, Number(mealType.serviceTime.slice(0, 2)), Number(mealType.serviceTime.slice(3))) : atVietnamTime(mealDate, Number(mealType.cutoffTime.slice(0, 2)), Number(mealType.cutoffTime.slice(3)));
         await prisma.auditLog.upsert({
           where: { id: `demo-kitchen-status-${id}` },
-          create: { id: `demo-kitchen-status-${id}`, entityType: "DietMeal", entityId: meal.id, action: "KITCHEN_STATUS_CHANGE", actorId: kitchen.id, actorName: kitchen.displayName, afterJson: json({ status }), reason: "Dữ liệu demo theo khung giờ bữa ăn", createdAt: milestoneAt },
-          update: { entityId: meal.id, actorId: kitchen.id, actorName: kitchen.displayName, afterJson: json({ status }), createdAt: milestoneAt },
+          create: { id: `demo-kitchen-status-${id}`, entityType: "DietMeal", entityId: meal.id, action: "KITCHEN_STATUS_CHANGE", actorId: routeKitchen.id, actorName: routeKitchen.displayName, afterJson: json({ status, feedingRoute: mealType.feedingRoute }), reason: `Dữ liệu demo theo khung giờ ${mealType.feedingRoute}`, createdAt: milestoneAt },
+          update: { entityId: meal.id, actorId: routeKitchen.id, actorName: routeKitchen.displayName, afterJson: json({ status, feedingRoute: mealType.feedingRoute }), reason: `Dữ liệu demo theo khung giờ ${mealType.feedingRoute}`, createdAt: milestoneAt },
         });
         if (status === "SERVED") {
           for (const kind of ["MEAL_PHOTO", "FOOD_SAMPLE"] as const) await prisma.mealEvidence.upsert({
             where: { id: `demo-evidence-${kind.toLowerCase()}-${id}` },
-            create: { id: `demo-evidence-${kind.toLowerCase()}-${id}`, dietMealId: meal.id, kind, storagePath: `demo/bua-an/${id}-${kind.toLowerCase()}.jpg`, uploadedById: kitchen.id, uploadedAt: milestoneAt, note: kind === "MEAL_PHOTO" ? "Ảnh bữa ăn demo." : "Mẫu lưu bữa ăn demo." },
-            update: { dietMealId: meal.id, kind, uploadedById: kitchen.id, uploadedAt: milestoneAt },
+            create: { id: `demo-evidence-${kind.toLowerCase()}-${id}`, dietMealId: meal.id, kind, storagePath: `demo/bua-an/${id}-${kind.toLowerCase()}.jpg`, uploadedById: routeKitchen.id, uploadedAt: milestoneAt, note: kind === "MEAL_PHOTO" ? `Ảnh ${mealType.feedingRoute === "SONDE" ? "cữ Sonde" : "bữa ăn"} demo.` : `Mẫu lưu ${mealType.feedingRoute === "SONDE" ? "Sonde" : "bữa ăn"} demo.` },
+            update: { dietMealId: meal.id, kind, uploadedById: routeKitchen.id, uploadedAt: milestoneAt },
           });
         }
         mealsByKey.set(`${dateKey(mealDate)}:${mealType.code}:${dietType.code}`, { id: meal.id, eventId: event.id, dietTypeId: dietType.id });
@@ -169,13 +178,15 @@ export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<
 
       for (const [departmentIndex, department] of [noi, ngoai].entries()) {
         const reportId = `demo-report-${dateKey(mealDate)}-${mealType.code.toLowerCase()}-${department.code.toLowerCase()}`;
+        const [reportHour, reportMinute] = mealType.cutoffTime.split(":").map(Number);
+        const reportedAt = new Date(atVietnamTime(mealDate, reportHour, reportMinute).getTime() - 30 * 60 * 1000);
         const report = await prisma.servingReport.upsert({
           where: { departmentId_mealEventId: { departmentId: department.id, mealEventId: event.id } },
-          create: { id: reportId, departmentId: department.id, mealEventId: event.id, submittedById: nurse.id, submittedAt: atVietnamTime(mealDate, 4 + mealIndex * 4, 30), status: "SUBMITTED", note: departmentIndex === 0 ? "Khoa đã rà soát số suất trong ca trực." : "Đã tổng hợp theo buồng bệnh." },
-          update: { submittedById: nurse.id, submittedAt: atVietnamTime(mealDate, 4 + mealIndex * 4, 30), status: "SUBMITTED", note: departmentIndex === 0 ? "Khoa đã rà soát số suất trong ca trực." : "Đã tổng hợp theo buồng bệnh." },
+          create: { id: reportId, departmentId: department.id, mealEventId: event.id, submittedById: nurse.id, submittedAt: reportedAt, status: "SUBMITTED", note: departmentIndex === 0 ? "Khoa đã rà soát số suất trong ca trực." : "Đã tổng hợp theo buồng bệnh." },
+          update: { submittedById: nurse.id, submittedAt: reportedAt, status: "SUBMITTED", note: departmentIndex === 0 ? "Khoa đã rà soát số suất trong ca trực." : "Đã tổng hợp theo buồng bệnh." },
         });
-        for (let dietIndex = 0; dietIndex < dietTypes.length; dietIndex += 1) {
-          const dietType = dietTypes[dietIndex];
+        for (let dietIndex = 0; dietIndex < routeDietTypes.length; dietIndex += 1) {
+          const dietType = routeDietTypes[dietIndex];
           const quantity = 8 + departmentIndex * 3 + dietIndex * 2 + ((dayIndex + mealIndex) % 3);
           await prisma.servingReportLine.upsert({
             where: { servingReportId_dietTypeId: { servingReportId: report.id, dietTypeId: dietType.id } },
@@ -185,7 +196,7 @@ export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<
         }
       }
 
-      for (const dietType of dietTypes) {
+      for (const dietType of routeDietTypes) {
         const totals = await prisma.servingReportLine.aggregate({
           where: { dietTypeId: dietType.id, servingReport: { mealEventId: event.id, status: "SUBMITTED" } },
           _sum: { quantity: true },
@@ -206,6 +217,22 @@ export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<
     where: { id: "demo-addition-pending" },
     create: { id: "demo-addition-pending", departmentId: noi.id, mealEventId: additionMeal.eventId, dietTypeId: additionMeal.dietTypeId, quantity: 2, reason: "Khoa tiếp nhận thêm người bệnh sau giờ chốt.", submittedById: nurse.id, submittedAt: new Date(now.getTime() - 20 * 60 * 1000), kind: "SUPPLEMENT", ackStatus: "PENDING" },
     update: { departmentId: noi.id, mealEventId: additionMeal.eventId, dietTypeId: additionMeal.dietTypeId, quantity: 2, reason: "Khoa tiếp nhận thêm người bệnh sau giờ chốt.", submittedById: nurse.id, kind: "SUPPLEMENT", ackStatus: "PENDING", ackById: null, ackAt: null, kitchenNote: null },
+  });
+
+  const sondeMealType = mealTypes
+    .filter((item) => item.feedingRoute === "SONDE")
+    .filter((item) => {
+      const [hour, minute] = item.cutoffTime.split(":").map(Number);
+      return atVietnamTime(hospitalDate(now), hour, minute) <= now;
+    })
+    .at(-1) ?? mealTypes.find((item) => item.feedingRoute === "SONDE");
+  const sondeAdditionMeal = sondeMealType
+    ? mealsByKey.get(`${todayKey}:${sondeMealType.code}:SONDE_TC`) ?? mealsByKey.get(`${fallbackKey}:${sondeMealType.code}:SONDE_TC`)
+    : null;
+  if (sondeAdditionMeal) await prisma.lateMealAddition.upsert({
+    where: { id: "demo-sonde-addition-pending" },
+    create: { id: "demo-sonde-addition-pending", departmentId: noi.id, mealEventId: sondeAdditionMeal.eventId, dietTypeId: sondeAdditionMeal.dietTypeId, quantity: 1, reason: "Bổ sung cữ Sonde theo thay đổi chỉ định tại khoa.", submittedById: nurse.id, submittedAt: new Date(now.getTime() - 10 * 60 * 1000), kind: "SUPPLEMENT", ackStatus: "PENDING" },
+    update: { departmentId: noi.id, mealEventId: sondeAdditionMeal.eventId, dietTypeId: sondeAdditionMeal.dietTypeId, quantity: 1, reason: "Bổ sung cữ Sonde theo thay đổi chỉ định tại khoa.", submittedById: nurse.id, submittedAt: new Date(now.getTime() - 10 * 60 * 1000), kind: "SUPPLEMENT", ackStatus: "PENDING", ackById: null, ackAt: null, kitchenNote: null },
   });
   await prisma.lateMealAddition.upsert({
     where: { id: "demo-addition-received" },
