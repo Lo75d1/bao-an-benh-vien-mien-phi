@@ -10,7 +10,7 @@ const accounts = [
   { label: "Dinh dưỡng", email: "dietitian@demo.local", password: "Demo-Dietitian-2026!" },
   { label: "Điều dưỡng", email: "nurse@demo.local", password: "Demo-Nurse-2026!" },
   { label: "Bếp ăn thường", email: "kitchen@demo.local", password: "Demo-Kitchen-2026!" },
-  { label: "Bếp Sonde", email: "sonde-kitchen@demo.local", password: "Demo-Sonde-2026!" },
+  { label: "Bếp Sonde", email: "sonde@demo.local", password: "Demo-Sonde-2026!" },
 ];
 
 export default async function DemoLandingPage() {
