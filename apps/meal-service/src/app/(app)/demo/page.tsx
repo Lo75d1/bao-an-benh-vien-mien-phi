@@ -27,7 +27,7 @@ export default async function DemoLandingPage() {
   const user = await getSessionUser();
   if (user) redirect({ ADMIN: "/quan-ly", DIETITIAN: "/quan-ly", NURSE: "/bao-suat", KITCHEN: "/bep" }[user.role]);
   return <main className="demo-product-home">
-    <header className="demo-product-header"><Link href="/demo" className="demo-product-brand"><span>SA</span><strong>Suất ăn bệnh viện miễn phí</strong></Link><nav aria-label="Điều hướng trang Demo"><a href="#huong-dan">Hướng dẫn Demo</a><a href="#ho-tro">Hỗ trợ</a><Link href="/?patient=1" className="demo-header-action">Xem thực đơn bệnh nhân</Link></nav></header>
+    <header className="demo-product-header"><Link href="/demo" className="demo-product-brand"><span>SA</span><strong>Suất ăn bệnh viện miễn phí</strong></Link><nav aria-label="Điều hướng trang Demo"><a href="#huong-dan">Hướng dẫn Demo</a><a href="#ho-tro">Hỗ trợ</a><DemoEntry accounts={demoEntries} triggerLabel="Vào Demo" triggerClassName="demo-header-action"/></nav></header>
 
     <section className="demo-product-intro" aria-labelledby="demo-title"><div><p className="demo-kicker"><ShieldCheck aria-hidden="true"/>Dự án mã nguồn mở cho bệnh viện</p><h1 id="demo-title">Một quy trình rõ ràng cho mỗi suất ăn.</h1><p>Kết nối khoa điều trị, dinh dưỡng và nhà bếp trong cùng một luồng vận hành theo thời gian thực.</p><DemoEntry accounts={demoEntries}/></div><aside aria-label="Quy trình sản phẩm"><span>Luồng vận hành</span><ol><li><ClipboardCheck/><strong>Khoa báo suất</strong></li><li><HeartPulse/><strong>Dinh dưỡng lên thực đơn</strong></li><li><ChefHat/><strong>Bếp chuẩn bị</strong></li><li><Utensils/><strong>Khoa xác nhận giao nhận</strong></li></ol></aside></section>
 
