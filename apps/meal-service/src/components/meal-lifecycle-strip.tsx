@@ -16,9 +16,9 @@ function statusOf(meal: ManagementMeal) {
   return rollupMealEventStatus(meal.diets.map((diet) => diet.status));
 }
 
-export function MealLifecycleStrip({ data, role, selectedMealId }: { data: ManagementDay; role: Role; selectedMealId?: string }) {
+export function MealLifecycleStrip({ data, role, selectedMealId, liveClock = true }: { data: ManagementDay; role: Role; selectedMealId?: string; liveClock?: boolean }) {
   const [now, setNow] = useState(() => new Date(data.generatedAt));
-  useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 30_000); return () => window.clearInterval(timer); }, []);
+  useEffect(() => { if (!liveClock) return; const timer = window.setInterval(() => setNow(new Date()), 30_000); return () => window.clearInterval(timer); }, [liveClock]);
   const dayDate = useMemo(() => new Date(`${data.date}T00:00:00.000Z`), [data.date]);
   const picked = useMemo(() => {
     const chosen = selectedMealId ? data.meals.find((meal) => meal.id === selectedMealId) : undefined;

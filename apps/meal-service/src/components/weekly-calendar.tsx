@@ -23,9 +23,9 @@ function simpleState(state: DisplayMealState | null) {
   return { label: "Chưa đến", tone: "muted", Icon: CalendarClock };
 }
 
-export function WeeklyCalendar({ events, details, weekStart, dataStartDate, role, route, sondeEnabled = true, serviceCompletionMinutes }: { events: CalendarEvent[]; details: ManagementDay[]; weekStart: Date; dataStartDate: string; role: Role; route?: FeedingRoute; sondeEnabled?: boolean; serviceCompletionMinutes: number }) {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 30_000); return () => window.clearInterval(timer); }, []);
+export function WeeklyCalendar({ events, details, weekStart, dataStartDate, role, route, sondeEnabled = true, serviceCompletionMinutes, initialNowIso, liveClock = true }: { events: CalendarEvent[]; details: ManagementDay[]; weekStart: Date; dataStartDate: string; role: Role; route?: FeedingRoute; sondeEnabled?: boolean; serviceCompletionMinutes: number; initialNowIso: string; liveClock?: boolean }) {
+  const [now, setNow] = useState(() => new Date(initialNowIso));
+  useEffect(() => { if (!liveClock) return; const timer = window.setInterval(() => setNow(new Date()), 30_000); return () => window.clearInterval(timer); }, [liveClock]);
   const days = DAY_LABELS.map((label, index) => ({ label, date: addDays(weekStart, index) }));
   const mealTypes = [...new Map(events.map((event) => [event.mealType.id, event.mealType])).values()];
   const byCell = new Map(events.map((event) => [`${toDateKey(event.mealDate)}:${event.mealTypeId}`, event]));
