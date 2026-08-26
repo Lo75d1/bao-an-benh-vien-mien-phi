@@ -1,8 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ACK_LABEL, additionKindFor, assertAckStatus, normalizeAdditionReason, servingTotal, shouldLockMeal } from "../src/lib/late-addition";
+import { ACK_LABEL, additionKindFor, assertAckStatus, assertAdditionRoute, normalizeAdditionReason, servingTotal, shouldLockMeal } from "../src/lib/late-addition";
 
 const mealDate = new Date("2026-08-21T00:00:00.000Z");
+
+test("báo bổ sung không được đi chéo giữa lịch thường và lịch Sonde", () => {
+  assert.doesNotThrow(() => assertAdditionRoute("SONDE", "SONDE", "SONDE"));
+  assert.throws(() => assertAdditionRoute("SONDE", "NORMAL", "SONDE"), /đường nuôi/);
+  assert.throws(() => assertAdditionRoute("NORMAL", "NORMAL", "SONDE"), /đường nuôi/);
+});
 
 test("qua giờ chốt chỉ khóa số suất gốc đang PLANNED", () => {
   assert.equal(shouldLockMeal(mealDate, "09:00", "PLANNED", new Date("2026-08-21T02:00:00.000Z")), true);

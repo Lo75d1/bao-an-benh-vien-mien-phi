@@ -40,9 +40,10 @@ export async function addLateMealAction(formData: FormData) {
   const memberships = await prisma.departmentMembership.findMany({ where: { userId: user.id }, select: { departmentId: true } });
   const departmentId = requireNurseDepartment(user.role, memberships.map((item) => item.departmentId));
   const rawQuantity = String(formData.get("quantity") ?? "").trim();
+  const feedingRoute = formData.get("route") === "SONDE" ? "SONDE" : "NORMAL";
   if (!/^\d+$/.test(rawQuantity) || Number(rawQuantity) <= 0) throw new Error("Số suất bổ sung phải là số nguyên dương.");
   const clock = await readRequestClock();
-  await createLateMealAddition({ mealEventId: String(formData.get("mealEventId") ?? ""), departmentId, dietTypeId: String(formData.get("dietTypeId") ?? ""), quantity: Number(rawQuantity), reason: normalizeAdditionReason(formData.get("reason")) }, user, clock.now);
+  await createLateMealAddition({ mealEventId: String(formData.get("mealEventId") ?? ""), departmentId, dietTypeId: String(formData.get("dietTypeId") ?? ""), feedingRoute, quantity: Number(rawQuantity), reason: normalizeAdditionReason(formData.get("reason")) }, user, clock.now);
   revalidatePath("/bao-suat");
   revalidatePath("/bep");
   revalidatePath("/lich");

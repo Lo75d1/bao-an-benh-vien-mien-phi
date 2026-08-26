@@ -39,6 +39,10 @@ export function assertAckStatus(status: AckStatus): asserts status is Exclude<Ac
 
 type Actor = { id: string; displayName: string; role: Role };
 
+export function assertAdditionRoute(requestedRoute: "NORMAL" | "SONDE", eventRoute: "NORMAL" | "SONDE", mealRoute: "NORMAL" | "SONDE") {
+  if (eventRoute !== requestedRoute || mealRoute !== requestedRoute) throw new Error("Bữa ăn không thuộc đúng đường nuôi đang báo bổ sung.");
+}
+
 export async function lockExpiredMealEvent(mealEventId: string, actor: Actor, now = new Date(), feedingRoute?: "NORMAL" | "SONDE") {
   return prisma.$transaction(async (tx) => {
     const event = await tx.mealEvent.findUnique({
@@ -60,7 +64,7 @@ export async function lockExpiredMealEvent(mealEventId: string, actor: Actor, no
   });
 }
 
-export async function createLateMealAddition(input: { mealEventId: string; departmentId: string; dietTypeId: string; quantity: number; reason: string }, actor: Actor, now = new Date()) {
+export async function createLateMealAddition(input: { mealEventId: string; departmentId: string; dietTypeId: string; feedingRoute: "NORMAL" | "SONDE"; quantity: number; reason: string }, actor: Actor, now = new Date()) {
   if (actor.role !== "NURSE") throw new Error("Chỉ điều dưỡng được báo suất bổ sung.");
   if (!Number.isInteger(input.quantity) || input.quantity <= 0) throw new Error("Số suất bổ sung phải là số nguyên dương.");
   const reason = normalizeAdditionReason(input.reason);
@@ -72,6 +76,7 @@ export async function createLateMealAddition(input: { mealEventId: string; depar
     ]);
     if (!membership) throw new Error("Bạn không có quyền báo bổ sung cho khoa này.");
     if (!event || !meal || meal.voidedAt) throw new Error("Không tìm thấy chế độ ăn đang hoạt động.");
+    assertAdditionRoute(input.feedingRoute, event.mealType.feedingRoute, meal.feedingRoute);
     const cutoffTime = event.mealType.cutoffTime;
     const cutoff = cutoffAt(event.mealDate, cutoffTime);
     if (meal.status !== "SERVED" && (!cutoff || now < cutoff)) throw new Error("Chỉ báo bổ sung sau giờ chốt. Trước giờ chốt hãy sửa báo suất gốc.");
@@ -80,7 +85,8 @@ export async function createLateMealAddition(input: { mealEventId: string; depar
       await tx.auditLog.create({ data: { entityType: "DietMeal", entityId: meal.id, action: "CUTOFF_LOCK", actorId: actor.id, actorName: actor.displayName, beforeJson: { status: "PLANNED" }, afterJson: { status: "LOCKED" }, reason: `Tự động khóa trước khi ghi suất bổ sung, giờ chốt ${cutoffTime}` } });
     }
     const kind = additionKindFor(meal.status);
-    const addition = await tx.lateMealAddition.create({ data: { ...input, reason, kind, submittedById: actor.id } });
+    const { feedingRoute: _feedingRoute, ...additionInput } = input;
+    const addition = await tx.lateMealAddition.create({ data: { ...additionInput, reason, kind, submittedById: actor.id } });
     await tx.auditLog.create({ data: { entityType: "LateMealAddition", entityId: addition.id, action: "CREATE", actorId: actor.id, actorName: actor.displayName, afterJson: { mealEventId: input.mealEventId, departmentId: input.departmentId, dietTypeId: input.dietTypeId, quantity: input.quantity, reason, kind, ackStatus: "PENDING", originalServings: meal.servingsPlanned } as Prisma.InputJsonValue, reason } });
     return addition;
   }, { isolationLevel: "Serializable" });
