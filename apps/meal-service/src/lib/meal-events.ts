@@ -42,6 +42,29 @@ function atVietnamTime(mealDate: Date, value: string): number | null {
 
 export const DEFAULT_SERVICE_COMPLETION_MINUTES = 60;
 
+export type MealTimeMilestones = {
+  cutoffAt: Date;
+  serviceAt: Date;
+  completionAt: Date;
+};
+
+/** Các mốc tuyệt đối của một bữa, dùng chung cho hiển thị và AuditLog hệ thống. */
+export function mealTimeMilestones(
+  mealDate: Date,
+  cutoffTime: string,
+  serviceTime: string,
+  completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES,
+): MealTimeMilestones | null {
+  const cutoffAt = atVietnamTime(mealDate, cutoffTime);
+  const serviceAt = atVietnamTime(mealDate, serviceTime);
+  if (cutoffAt === null || serviceAt === null || serviceAt < cutoffAt) return null;
+  return {
+    cutoffAt: new Date(cutoffAt),
+    serviceAt: new Date(serviceAt),
+    completionAt: new Date(serviceAt + completionMinutes * 60_000),
+  };
+}
+
 /**
  * Mốc giờ của một bữa — NGUỒN SỰ THẬT DUY NHẤT về thời gian trong toàn hệ thống.
  * Thuần thời gian, không xét trạng thái lưu. Mọi màn (điều dưỡng / bếp / dinh dưỡng /
@@ -52,13 +75,14 @@ export type MealTimePhase = "BEFORE_CUTOFF" | "PREPARING" | "SERVING" | "PASSED"
 export const MEAL_PHASE_LABEL: Record<MealTimePhase, string> = { BEFORE_CUTOFF: "Báo suất ăn", PREPARING: "Bếp đang chuẩn bị", SERVING: "Đang phục vụ", PASSED: "Đã kết thúc" };
 
 export function mealTimePhase(mealDate: Date, cutoffTime: string, serviceTime: string, now = new Date(), completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES): MealTimePhase | null {
-  const cutoffAt = atVietnamTime(mealDate, cutoffTime);
-  const serviceAt = atVietnamTime(mealDate, serviceTime);
-  if (cutoffAt === null || serviceAt === null) return null;
+  const milestones = mealTimeMilestones(mealDate, cutoffTime, serviceTime, completionMinutes);
+  if (milestones === null) return null;
+  const cutoffAt = milestones.cutoffAt.getTime();
+  const serviceAt = milestones.serviceAt.getTime();
   const nowMs = now.getTime();
   if (nowMs < cutoffAt) return "BEFORE_CUTOFF";
   if (nowMs < serviceAt) return "PREPARING";
-  if (nowMs < serviceAt + completionMinutes * 60_000) return "SERVING";
+  if (nowMs < milestones.completionAt.getTime()) return "SERVING";
   return "PASSED";
 }
 
