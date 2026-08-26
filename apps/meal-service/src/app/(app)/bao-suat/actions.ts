@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createLateMealAddition, normalizeAdditionReason } from "@/lib/late-addition";
+import { confirmMealDelivery } from "@/lib/delivery-receipt";
 import { reviewPatientNote } from "@/lib/patient-note";
 import { normalizeReporterName, normalizeServingNote, requireNurseDepartment, saveServingReport, type ServingLineInput } from "@/lib/serving-report";
 
@@ -54,4 +55,16 @@ export async function reviewPatientNoteAction(formData: FormData) {
   revalidatePath("/bao-suat");
   revalidatePath("/bep");
   nurseRedirect(formData, "patient-note");
+}
+
+export async function confirmDeliveryReceiptAction(formData: FormData) {
+  const user = await getSessionUser();
+  if (!user) redirect("/");
+  const memberships = await prisma.departmentMembership.findMany({ where: { userId: user.id }, select: { departmentId: true } });
+  const departmentId = requireNurseDepartment(user.role, memberships.map((item) => item.departmentId));
+  await confirmMealDelivery({ mealEventId: String(formData.get("mealEventId") ?? ""), departmentId, status: formData.get("status"), receivedQuantity: formData.get("receivedQuantity"), note: formData.get("note") }, user);
+  revalidatePath("/bao-suat");
+  revalidatePath("/quan-ly");
+  revalidatePath("/lich");
+  nurseRedirect(formData, "receipt");
 }

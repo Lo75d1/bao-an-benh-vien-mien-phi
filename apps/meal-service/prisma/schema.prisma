@@ -39,6 +39,11 @@ enum ServingReportStatus {
   CANCELLED
 }
 
+enum DeliveryReceiptStatus {
+  FULL
+  SHORT
+}
+
 enum AdditionKind {
   SUPPLEMENT
   URGENT_POST_SERVE
@@ -98,6 +103,7 @@ model User {
   approvedMeals         DietMeal[]             @relation("DietMealApprover")
   voidedMeals           DietMeal[]             @relation("DietMealVoider")
   servingReports        ServingReport[]
+  deliveryReceipts      MealDeliveryReceipt[]
   additions             LateMealAddition[]     @relation("AdditionSubmitter")
   acknowledgedAdditions LateMealAddition[]     @relation("AdditionAcknowledger")
   evidence              MealEvidence[]
@@ -126,6 +132,7 @@ model Department {
   status      ActiveStatus           @default(ACTIVE)
   memberships DepartmentMembership[]
   reports     ServingReport[]
+  deliveryReceipts MealDeliveryReceipt[]
   additions   LateMealAddition[]
   notes       PatientNote[]
 }
@@ -179,6 +186,7 @@ model MealEvent {
   mealType   MealType           @relation(fields: [mealTypeId], references: [id])
   dietMeals  DietMeal[]
   reports    ServingReport[]
+  deliveryReceipts MealDeliveryReceipt[]
   additions  LateMealAddition[]
 
   @@unique([mealDate, mealTypeId])
@@ -241,6 +249,25 @@ model ServingReportLine {
   dietType           DietType      @relation(fields: [dietTypeId], references: [id])
 
   @@unique([servingReportId, dietTypeId])
+}
+
+model MealDeliveryReceipt {
+  id               String                @id @default(cuid())
+  departmentId     String
+  mealEventId      String
+  expectedQuantity Int
+  receivedQuantity Int
+  status           DeliveryReceiptStatus
+  note             String?
+  confirmedById    String
+  confirmedAt      DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  department       Department            @relation(fields: [departmentId], references: [id])
+  mealEvent        MealEvent              @relation(fields: [mealEventId], references: [id])
+  confirmedBy      User                   @relation(fields: [confirmedById], references: [id])
+
+  @@unique([departmentId, mealEventId])
+  @@index([mealEventId, status])
 }
 
 model LateMealAddition {
