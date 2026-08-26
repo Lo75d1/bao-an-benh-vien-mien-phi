@@ -3,7 +3,6 @@ import { resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { PrismaClient, Role } from "@prisma/client";
 import { hashPassword } from "../src/lib/password";
-import { seedDemo } from "./seed-demo";
 const prisma = new PrismaClient();
 const dataDir = resolve(process.cwd(), "../../data/reference");
 async function rows(file: string, flush: (batch: any[]) => Promise<void>) {
@@ -194,32 +193,18 @@ async function seedFoundation() {
       create: diet,
       update: diet,
     });
-  const demos: Array<[Role, string, string, string, "NORMAL" | "SONDE" | null]> = [
-    [Role.ADMIN, "admin@demo.local", "Quản trị demo", "Demo-Admin-2026!", null],
-    [
-      Role.DIETITIAN,
-      "dietitian@demo.local",
-      "Dinh dưỡng demo",
-      "Demo-Dietitian-2026!",
-      null,
-    ],
-    [Role.NURSE, "nurse@demo.local", "Điều dưỡng demo", "Demo-Nurse-2026!", null],
-    [Role.KITCHEN, "kitchen@demo.local", "Bếp ăn thường demo", "Demo-Kitchen-2026!", "NORMAL"],
-    [Role.KITCHEN, "sonde@demo.local", "Bếp Sonde demo", "Demo-Sonde-2026!", "SONDE"],
-  ];
-  for (const [role, email, displayName, password, kitchenRoute] of demos) {
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (!existing)
-      await prisma.user.create({
-        data: {
-          role,
-          email,
-          displayName,
-          kitchenRoute,
-          passwordHash: hashPassword(password),
-        },
-      });
-    console.log(`${role}: ${email} / ${password}`);
+  const email = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
+  const displayName = process.env.BOOTSTRAP_ADMIN_NAME?.trim() || "Quản trị hệ thống";
+  if (!email || !password) throw new Error("Thiếu BOOTSTRAP_ADMIN_EMAIL hoặc BOOTSTRAP_ADMIN_PASSWORD.");
+  if (!email.includes("@")) throw new Error("BOOTSTRAP_ADMIN_EMAIL không hợp lệ.");
+  if (password.length < 12) throw new Error("BOOTSTRAP_ADMIN_PASSWORD phải có ít nhất 12 ký tự.");
+  const existingAdmin = await prisma.user.findUnique({ where: { email } });
+  if (!existingAdmin) {
+    await prisma.user.create({ data: { role: Role.ADMIN, email, displayName, passwordHash: hashPassword(password) } });
+    console.log(`Đã tạo tài khoản quản trị khởi tạo: ${email}`);
+  } else {
+    console.log(`Tài khoản quản trị khởi tạo đã tồn tại: ${email}`);
   }
 }
 async function seedWarehouses() {
@@ -244,6 +229,5 @@ async function main() {
   await seedReference();
   await seedFoundation();
   await seedWarehouses();
-  if (process.env.DEMO_SEED === "1") await seedDemo(prisma);
 }
 main().finally(() => prisma.$disconnect());
