@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { MultiCodeMenuBoard } from "@/components/multi-code-menu-board";
 import { EmptyState } from "@/components/presentation";
-import { Utensils } from "lucide-react";
+import { CalendarDays, CheckCircle2, CircleAlert, LockKeyhole, Utensils } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { hospitalDayKey, mealTimePhase } from "@/lib/meal-events";
 import { parseMenuItems } from "@/lib/menu-logic";
@@ -18,7 +19,7 @@ function thresholdsOf(code: { energyKcalMin: number | null; energyKcalMax: numbe
 
 export const dynamic = "force-dynamic";
 
-export default async function MenuPage({ searchParams }: { searchParams: Promise<{ meal?: string; saved?: string }> }) {
+export default async function MenuPage({ searchParams }: { searchParams: Promise<{ meal?: string; saved?: string; route?: string }> }) {
   const user = await getSessionUser();
   if (!user) redirect("/");
   if (user.role !== "DIETITIAN") redirect("/");
@@ -30,8 +31,10 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   ]);
   if (!params.meal) {
     const today = hospitalDayKey(clock.now);
-    const nearestMissing = meals.find((meal) => meal.mealEvent.mealDate.toISOString().slice(0, 10) >= today && parseMenuItems(meal.menuSnapshotJson).length === 0);
-    const nearestUpcoming = meals.find((meal) => meal.mealEvent.mealDate.toISOString().slice(0, 10) >= today);
+    const requestedRoute = params.route === "SONDE" ? "SONDE" : "NORMAL";
+    const routeMeals = meals.filter((meal) => meal.feedingRoute === requestedRoute);
+    const nearestMissing = routeMeals.find((meal) => meal.mealEvent.mealDate.toISOString().slice(0, 10) >= today && parseMenuItems(meal.menuSnapshotJson).length === 0);
+    const nearestUpcoming = routeMeals.find((meal) => meal.mealEvent.mealDate.toISOString().slice(0, 10) >= today);
     const target = nearestMissing ?? nearestUpcoming;
     if (target) redirect(`/thuc-don?meal=${encodeURIComponent(target.id)}`);
     redirect("/lich");
@@ -39,6 +42,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   const selected = meals.find((meal) => meal.id === params.meal);
   if (!selected) redirect("/lich");
   const relatedMeals = meals.filter((meal) => meal.mealEventId === selected.mealEventId && meal.feedingRoute === selected.feedingRoute);
+  const eventGroups = [...new Map(meals.map((meal) => [meal.mealEventId, meals.filter((item) => item.mealEventId === meal.mealEventId && item.feedingRoute === meal.feedingRoute)])).values()];
   const copyEventIds = [...new Set(meals.filter((meal) => meal.mealEvent.mealDate.toISOString().slice(0, 10) >= settings.dataStartDate && meal.mealEventId !== selected.mealEventId && meal.feedingRoute === selected.feedingRoute && parseMenuItems(meal.menuSnapshotJson).length > 0).map((meal) => meal.mealEventId))].reverse().slice(0, 12);
   const copyGroups = copyEventIds.map((eventId) => meals.filter((meal) => meal.mealEventId === eventId && meal.feedingRoute === selected.feedingRoute));
   const foodIds = [...new Set([...relatedMeals.flatMap((meal) => parseMenuItems(meal.menuSnapshotJson).flatMap((item) => item.foodId ? [item.foodId] : [])), ...copyGroups.flatMap((group) => group.flatMap((meal) => parseMenuItems(meal.menuSnapshotJson).flatMap((item) => item.foodId ? [item.foodId] : []))), ...templates.flatMap((template) => template.items.flatMap((item) => item.foodId ? [item.foodId] : []))])];
@@ -48,6 +52,17 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   const message = params.saved === "menus" || params.saved === "menu" ? "Đã lưu thực đơn. Hệ thống sẽ tự khóa khi tới giờ chốt." : params.saved === "template" ? "Đã lưu mẫu cá nhân." : null;
   return <AppShell user={user} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined}><main className="nutrition-menu-page">
     {message ? <p className="success-banner" role="status">{message}</p> : null}
+    <section className="nutrition-meal-picker" aria-label="Chọn bữa để lên thực đơn" data-demo-guide="nutrition-picker">
+      <header><div><CalendarDays aria-hidden="true"/><span><strong>Chọn bữa cần lên thực đơn</strong><small>Hai lịch ăn thường và Sonde vận hành độc lập.</small></span></div><nav aria-label="Chọn đường nuôi"><Link href="/thuc-don?route=NORMAL" aria-current={selected.feedingRoute === "NORMAL" ? "page" : undefined}>Bếp ăn thường</Link>{settings.sondeEnabled ? <Link href="/thuc-don?route=SONDE" aria-current={selected.feedingRoute === "SONDE" ? "page" : undefined}>Bếp Sonde</Link> : null}</nav></header>
+      <div className="nutrition-meal-options">{eventGroups.filter((group) => group[0].feedingRoute === selected.feedingRoute).map((group) => {
+        const first = group[0];
+        const filled = group.filter((meal) => parseMenuItems(meal.menuSnapshotJson).length > 0).length;
+        const phase = mealTimePhase(first.mealEvent.mealDate, first.mealEvent.mealType.cutoffTime, first.mealEvent.mealType.serviceTime, clock.now);
+        const locked = phase !== "BEFORE_CUTOFF";
+        const complete = filled === group.length;
+        return <Link key={first.mealEventId} href={`/thuc-don?meal=${encodeURIComponent(first.id)}`} aria-current={first.mealEventId === selected.mealEventId ? "true" : undefined}><span><strong>{formatVnDay(first.mealEvent.mealDate)}</strong><small>{first.mealEvent.mealType.name}</small></span><span className={complete ? "meal-picker-state complete" : "meal-picker-state missing"}>{complete ? <CheckCircle2 aria-hidden="true"/> : <CircleAlert aria-hidden="true"/>}{filled}/{group.length} mã</span><span className={locked ? "meal-picker-lock locked" : "meal-picker-lock"}>{locked ? <LockKeyhole aria-hidden="true"/> : null}{locked ? "Đã khóa" : "Còn sửa"}</span></Link>;
+      })}</div>
+    </section>
     {!relatedMeals.length ? <EmptyState icon={Utensils} title="Bữa chưa có mã chế độ ăn" description="Quay lại lịch tuần hoặc nhờ quản trị bổ sung mã cho bữa này."/> : <MultiCodeMenuBoard
       context={{ eventId: selected.mealEventId, date: formatVnDay(selected.mealEvent.mealDate), mealName: selected.mealEvent.mealType.name, feedingRoute: selected.feedingRoute }} dataStartDate={settings.dataStartDate}
       meals={relatedMeals.map((meal) => ({ id: meal.id, dietTypeId: meal.dietTypeId, code: meal.dietType.code, name: meal.dietType.name, approved: mealTimePhase(meal.mealEvent.mealDate, meal.mealEvent.mealType.cutoffTime, meal.mealEvent.mealType.serviceTime, clock.now) !== "BEFORE_CUTOFF", thresholds: thresholdsOf(meal.dietType.dietCodeRef), items: parseMenuItems(meal.menuSnapshotJson).map((item) => ({ ...item, nutrients: item.foodId ? nutrientsByFood.get(item.foodId) ?? fallbackNutrients : fallbackNutrients })) }))}
