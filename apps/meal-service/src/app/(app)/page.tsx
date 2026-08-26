@@ -18,10 +18,11 @@ const DEMO_ACCOUNTS = process.env.DEMO_LOGIN_BUTTONS === "1" ? [
 ] : [];
 const dateLabel = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
 
-export default async function HomePage({ searchParams }: { searchParams: Promise<{ diet?: string; date?: string }> }) {
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ diet?: string; date?: string; patient?: string }> }) {
   const query = await searchParams;
   const [user, branding, menu, views] = await Promise.all([getSessionUser(), readBrandingSettings(), readPublicDietMenu(query.diet, query.date), readPublicViewStats()]);
   if (user) redirect({ ADMIN: "/quan-ly", DIETITIAN: "/quan-ly", NURSE: "/bao-suat", KITCHEN: "/bep" }[user.role]);
+  if (process.env.DEMO_MODE === "1" && query.patient !== "1") redirect("/demo");
 
   return <main className="public-menu-home">
     <PublicViewTracker/>
