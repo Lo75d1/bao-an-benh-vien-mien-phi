@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, ChefHat, ClipboardCheck, FileSpreadsheet, HeartPulse, Home, MessageCircle, Settings2, ShieldCheck, Soup, Utensils } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { LoginForm } from "@/components/login-form";
+import { DemoEntry, type DemoEntryAccount } from "@/components/demo-entry";
 import { getSessionUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
@@ -13,9 +12,15 @@ const roles = [
   { key: "admin", icon: Settings2, title: "Quản trị và điều hành", description: "Theo dõi vận hành hôm nay, lịch tuần, báo cáo, nhân sự và cấu hình giờ nghiệp vụ.", action: "Vào trang điều hành", badge: undefined, account: { label: "Quản trị", email: "admin@demo.local", password: "Demo-Admin-2026!" } },
 ] as const;
 
+const demoEntries: DemoEntryAccount[] = [
+  { key: "patient", label: "Trang bệnh nhân", description: "Xem thực đơn công khai", href: "/?patient=1" },
+  ...roles.map((role) => ({ key: role.key, label: role.title, description: role.badge ?? role.action, email: role.account.email, password: role.account.password })),
+];
+
 function RoleDialog({ role }: { role: (typeof roles)[number] }) {
   const Icon = role.icon;
-  return <article className={`demo-journey-item ${role.key}`}><div className="demo-journey-icon"><Icon aria-hidden="true"/></div><div className="demo-journey-copy"><span>{role.badge ?? `Vai trò ${role.title}`}</span><h3>{role.title}</h3><p>{role.description}</p><Dialog><DialogTrigger asChild><button type="button">{role.action}<ArrowRight aria-hidden="true"/></button></DialogTrigger><DialogContent className="max-h-[92vh] max-w-md overflow-y-auto"><DialogHeader><DialogTitle>Trải nghiệm {role.title}</DialogTitle><DialogDescription>Đăng nhập nhanh bằng dữ liệu minh họa. Hướng dẫn đúng vai trò sẽ xuất hiện sau khi vào hệ thống.</DialogDescription></DialogHeader><LoginForm demoAccounts={[role.account]}/></DialogContent></Dialog></div></article>;
+  const entry = demoEntries.find((item) => item.key === role.key)!;
+  return <article className={`demo-journey-item ${role.key}`}><div className="demo-journey-icon"><Icon aria-hidden="true"/></div><div className="demo-journey-copy"><span>{role.badge ?? `Vai trò ${role.title}`}</span><h3>{role.title}</h3><p>{role.description}</p><DemoEntry accounts={demoEntries} compactAccount={{ ...entry, label: role.action }}/></div></article>;
 }
 
 export default async function DemoLandingPage() {
@@ -24,7 +29,7 @@ export default async function DemoLandingPage() {
   return <main className="demo-product-home">
     <header className="demo-product-header"><Link href="/demo" className="demo-product-brand"><span>SA</span><strong>Suất ăn bệnh viện miễn phí</strong></Link><nav aria-label="Điều hướng trang Demo"><a href="#huong-dan">Hướng dẫn Demo</a><a href="#ho-tro">Hỗ trợ</a><Link href="/?patient=1" className="demo-header-action">Xem thực đơn bệnh nhân</Link></nav></header>
 
-    <section className="demo-product-intro" aria-labelledby="demo-title"><div><p className="demo-kicker"><ShieldCheck aria-hidden="true"/>Dự án mã nguồn mở cho bệnh viện</p><h1 id="demo-title">Một quy trình rõ ràng cho mỗi suất ăn.</h1><p>Kết nối khoa điều trị, dinh dưỡng và nhà bếp trong cùng một luồng vận hành theo thời gian thực.</p><a href="#huong-dan" className="demo-primary-link">Bắt đầu xem hướng dẫn<ArrowRight aria-hidden="true"/></a></div><aside aria-label="Quy trình sản phẩm"><span>Luồng vận hành</span><ol><li><ClipboardCheck/><strong>Khoa báo suất</strong></li><li><HeartPulse/><strong>Dinh dưỡng lên thực đơn</strong></li><li><ChefHat/><strong>Bếp chuẩn bị</strong></li><li><Utensils/><strong>Khoa xác nhận giao nhận</strong></li></ol></aside></section>
+    <section className="demo-product-intro" aria-labelledby="demo-title"><div><p className="demo-kicker"><ShieldCheck aria-hidden="true"/>Dự án mã nguồn mở cho bệnh viện</p><h1 id="demo-title">Một quy trình rõ ràng cho mỗi suất ăn.</h1><p>Kết nối khoa điều trị, dinh dưỡng và nhà bếp trong cùng một luồng vận hành theo thời gian thực.</p><DemoEntry accounts={demoEntries}/></div><aside aria-label="Quy trình sản phẩm"><span>Luồng vận hành</span><ol><li><ClipboardCheck/><strong>Khoa báo suất</strong></li><li><HeartPulse/><strong>Dinh dưỡng lên thực đơn</strong></li><li><ChefHat/><strong>Bếp chuẩn bị</strong></li><li><Utensils/><strong>Khoa xác nhận giao nhận</strong></li></ol></aside></section>
 
     <section id="huong-dan" className="demo-guide-section" aria-labelledby="guide-title"><header><p>Hướng dẫn trải nghiệm</p><h2 id="guide-title">Đi qua hệ thống theo đúng người thực hiện</h2><span>Bắt đầu ở trang bệnh nhân, sau đó thử năm vị trí làm việc. Mỗi tài khoản có dữ liệu và hướng dẫn riêng.</span></header>
       <div className="demo-home-step"><div><Home aria-hidden="true"/><span>Điểm bắt đầu</span></div><div><h3>Trang chủ dành cho bệnh nhân</h3><p>Xem thực đơn theo mã chế độ ăn và ngày bệnh viện cho phép công khai. Không cần đăng nhập và không yêu cầu mã khoa.</p><Link href="/?patient=1">Mở trang bệnh nhân<ArrowRight aria-hidden="true"/></Link></div></div>
