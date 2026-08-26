@@ -22,7 +22,14 @@ export async function saveBrandingAction(formData: FormData) {
     if (file.size > 300_000) throw new Error("Logo tối đa 300 KB.");
     logoDataUrl = `data:${file.type};base64,${Buffer.from(await file.arrayBuffer()).toString("base64")}`;
   }
-  await updateBrandingSettings({ organizationName: String(formData.get("organizationName") ?? ""), shortName: String(formData.get("shortName") ?? ""), primaryColor: String(formData.get("primaryColor") ?? ""), logoDataUrl }, actor, String(formData.get("reason") ?? ""));
+  const heroFile = formData.get("publicHeroImage");
+  let publicHeroImageDataUrl = formData.get("removePublicHeroImage") === "on" ? null : current.publicHeroImageDataUrl;
+  if (heroFile instanceof File && heroFile.size > 0) {
+    if (!new Set(["image/jpeg", "image/webp"]).has(heroFile.type)) throw new Error("Ảnh nền chỉ nhận JPG hoặc WebP.");
+    if (heroFile.size > 1_500_000) throw new Error("Ảnh nền tối đa 1,5 MB.");
+    publicHeroImageDataUrl = `data:${heroFile.type};base64,${Buffer.from(await heroFile.arrayBuffer()).toString("base64")}`;
+  }
+  await updateBrandingSettings({ organizationName: String(formData.get("organizationName") ?? ""), shortName: String(formData.get("shortName") ?? ""), primaryColor: String(formData.get("primaryColor") ?? ""), logoDataUrl, publicPrimaryColor: String(formData.get("publicPrimaryColor") ?? ""), publicAccentColor: String(formData.get("publicAccentColor") ?? ""), publicHeroEnabled: formData.get("publicHeroEnabled") === "on", publicHeroImageDataUrl }, actor, String(formData.get("reason") ?? ""));
   revalidatePath("/", "layout");
   redirect("/quan-tri?updated=branding#branding");
 }

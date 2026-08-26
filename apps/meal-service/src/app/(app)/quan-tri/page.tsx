@@ -41,7 +41,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
     <div className="admin-command-layout"><aside className="admin-context-rail"><p>Đi tới</p><nav className="admin-section-nav" aria-label="Mục quản trị"><a href="#branding"><strong>Nhận diện bệnh viện</strong><span>Tên, logo, màu chủ đạo</span></a><a href="#settings"><strong>Cài đặt vận hành</strong><span>Giờ chốt, Sonde, kho</span></a><a href="#accounts"><strong>Nhân sự</strong><span>{activeUsers} tài khoản hoạt động</span></a><a href="#diet-types"><strong>Mã chế độ</strong><span>{activeDiets} mã đang dùng</span></a></nav><div className="admin-rail-links"><a href="/quan-ly">Mở bàn điều phối</a><a href="/quan-tri/audit">Xem nhật ký thay đổi</a></div></aside><div className="admin-command-content">
 
-    <section id="branding" className="admin-panel branding-panel"><div className="section-heading"><div><p className="eyebrow">Nhận diện bệnh viện</p><h2>Tên và màu dùng trên toàn hệ thống</h2></div><span>Header · đăng nhập · báo cáo</span></div>
+    <section id="branding" className="admin-panel branding-panel"><div className="section-heading"><div><p className="eyebrow">Nhận diện bệnh viện</p><h2>Thương hiệu và trang chủ công khai</h2></div><span>Tên · logo · màu · ảnh nền bệnh nhân</span></div>
       <BrandingForm branding={branding} action={saveBrandingAction}/>
     </section>
 

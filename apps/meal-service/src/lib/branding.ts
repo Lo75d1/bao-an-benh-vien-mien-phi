@@ -7,6 +7,10 @@ export const DEFAULT_BRANDING: BrandingSettings = {
   shortName: "SA",
   primaryColor: "#DDF1EA",
   logoDataUrl: null,
+  publicPrimaryColor: "#153B5B",
+  publicAccentColor: "#2F80B7",
+  publicHeroEnabled: true,
+  publicHeroImageDataUrl: null,
 };
 
 export type BrandingSettings = {
@@ -14,10 +18,15 @@ export type BrandingSettings = {
   shortName: string;
   primaryColor: string;
   logoDataUrl: string | null;
+  publicPrimaryColor: string;
+  publicAccentColor: string;
+  publicHeroEnabled: boolean;
+  publicHeroImageDataUrl: string | null;
 };
 
 const HEX_COLOR = /^#[0-9A-F]{6}$/;
 const LOGO_DATA_URL = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
+const HERO_DATA_URL = /^data:image\/(jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
 
 export function parseBrandingSettings(value: unknown): BrandingSettings {
   if (!value || typeof value !== "object" || Array.isArray(value)) return { ...DEFAULT_BRANDING };
@@ -27,6 +36,10 @@ export function parseBrandingSettings(value: unknown): BrandingSettings {
     shortName: typeof source.shortName === "string" && source.shortName.trim().length >= 1 ? source.shortName.trim().toUpperCase().slice(0, 5) : DEFAULT_BRANDING.shortName,
     primaryColor: typeof source.primaryColor === "string" && HEX_COLOR.test(source.primaryColor.toUpperCase()) ? source.primaryColor.toUpperCase() : DEFAULT_BRANDING.primaryColor,
     logoDataUrl: typeof source.logoDataUrl === "string" && source.logoDataUrl.length <= 410_000 && LOGO_DATA_URL.test(source.logoDataUrl) ? source.logoDataUrl : null,
+    publicPrimaryColor: typeof source.publicPrimaryColor === "string" && HEX_COLOR.test(source.publicPrimaryColor.toUpperCase()) ? source.publicPrimaryColor.toUpperCase() : DEFAULT_BRANDING.publicPrimaryColor,
+    publicAccentColor: typeof source.publicAccentColor === "string" && HEX_COLOR.test(source.publicAccentColor.toUpperCase()) ? source.publicAccentColor.toUpperCase() : DEFAULT_BRANDING.publicAccentColor,
+    publicHeroEnabled: typeof source.publicHeroEnabled === "boolean" ? source.publicHeroEnabled : DEFAULT_BRANDING.publicHeroEnabled,
+    publicHeroImageDataUrl: typeof source.publicHeroImageDataUrl === "string" && source.publicHeroImageDataUrl.length <= 2_100_000 && HERO_DATA_URL.test(source.publicHeroImageDataUrl) ? source.publicHeroImageDataUrl : null,
   };
 }
 
@@ -38,7 +51,11 @@ export function validateBrandingSettings(input: BrandingSettings): BrandingSetti
   if (!/^[\p{L}\p{N}]{1,5}$/u.test(shortName)) throw new Error("Tên viết tắt cần từ 1 đến 5 chữ hoặc số.");
   if (!HEX_COLOR.test(primaryColor)) throw new Error("Màu chủ đạo phải có dạng #123C36.");
   if (input.logoDataUrl !== null && (input.logoDataUrl.length > 410_000 || !LOGO_DATA_URL.test(input.logoDataUrl))) throw new Error("Logo không hợp lệ hoặc vượt quá giới hạn.");
-  return { organizationName, shortName, primaryColor, logoDataUrl: input.logoDataUrl };
+  const publicPrimaryColor = input.publicPrimaryColor.trim().toUpperCase();
+  const publicAccentColor = input.publicAccentColor.trim().toUpperCase();
+  if (!HEX_COLOR.test(publicPrimaryColor) || !HEX_COLOR.test(publicAccentColor)) throw new Error("Màu trang chủ công khai phải có dạng #153B5B.");
+  if (input.publicHeroImageDataUrl !== null && (input.publicHeroImageDataUrl.length > 2_100_000 || !HERO_DATA_URL.test(input.publicHeroImageDataUrl))) throw new Error("Ảnh nền trang chủ không hợp lệ hoặc vượt quá giới hạn.");
+  return { organizationName, shortName, primaryColor, logoDataUrl: input.logoDataUrl, publicPrimaryColor, publicAccentColor, publicHeroEnabled: input.publicHeroEnabled, publicHeroImageDataUrl: input.publicHeroImageDataUrl };
 }
 
 export function readableForeground(hex: string): "#FFFFFF" | "#17241F" {
