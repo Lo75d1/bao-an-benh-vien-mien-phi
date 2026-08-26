@@ -21,7 +21,7 @@ const dateLabel = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ diet?: string; date?: string }> }) {
   const query = await searchParams;
   const [user, branding, menu, views] = await Promise.all([getSessionUser(), readBrandingSettings(), readPublicDietMenu(query.diet, query.date), readPublicViewStats()]);
-  if (user) redirect({ ADMIN: "/quan-ly", DIETITIAN: "/lich", NURSE: "/bao-suat", KITCHEN: "/bep" }[user.role]);
+  if (user) redirect({ ADMIN: "/quan-ly", DIETITIAN: "/quan-ly", NURSE: "/bao-suat", KITCHEN: "/bep" }[user.role]);
 
   return <main className="public-menu-home">
     <PublicViewTracker/>

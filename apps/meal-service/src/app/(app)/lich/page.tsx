@@ -7,15 +7,16 @@ import { addDays, ensureEmptyMealEvents, parseWeek, readCalendarWeek, restrictWe
 import { readManagementDay } from "@/lib/management";
 import { prisma } from "@/lib/prisma";
 import { clampDateToDataStart, readOperationalSettings } from "@/lib/settings";
+import { readRequestClock } from "@/lib/request-clock";
 
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ week?: string; route?: string }> }) {
   const user = await getSessionUser();
   if (!user) redirect("/");
-  const [params, settings] = await Promise.all([searchParams, readOperationalSettings()]);
-  const earliestWeek = parseWeek(settings.dataStartDate);
-  const parsedRequested = parseWeek(params.week ? clampDateToDataStart(params.week, settings.dataStartDate) : undefined);
+  const [params, settings, clock] = await Promise.all([searchParams, readOperationalSettings(), readRequestClock()]);
+  const earliestWeek = parseWeek(settings.dataStartDate, clock.now);
+  const parsedRequested = parseWeek(params.week ? clampDateToDataStart(params.week, settings.dataStartDate) : undefined, clock.now);
   const requested = parsedRequested < earliestWeek ? earliestWeek : parsedRequested;
-  const weekStart = restrictWeekForRole(user.role, requested);
+  const weekStart = restrictWeekForRole(user.role, requested, clock.now);
   const route: FeedingRoute = params.route === "SONDE" && settings.sondeEnabled ? "SONDE" : "NORMAL";
   const memberships = user.role === "NURSE" ? await prisma.departmentMembership.findMany({ where: { userId: user.id }, select: { departmentId: true, department: { select: { name: true } } } }) : [];
 
@@ -23,12 +24,12 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const departmentIds = memberships.map((item) => item.departmentId);
   const [events, details] = await Promise.all([
     readCalendarWeek(weekStart, user.role, departmentIds, route),
-    Promise.all(Array.from({ length: 7 }, (_, index) => readManagementDay(toDateKey(addDays(weekStart, index)), new Date(), user.role === "NURSE" ? departmentIds : undefined, route, settings.serviceCompletionMinutes))),
+    Promise.all(Array.from({ length: 7 }, (_, index) => readManagementDay(toDateKey(addDays(weekStart, index)), clock.now, user.role === "NURSE" ? departmentIds : undefined, route, settings.serviceCompletionMinutes))),
   ]);
   return (
-    <AppShell user={user}>
+    <AppShell user={user} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined}>
       <main className="workspace calendar-page">
-        <WeeklyCalendar events={events} details={details} weekStart={weekStart} dataStartDate={settings.dataStartDate} role={user.role} route={route} sondeEnabled={settings.sondeEnabled} serviceCompletionMinutes={settings.serviceCompletionMinutes} />
+        <WeeklyCalendar events={events} details={details} weekStart={weekStart} dataStartDate={settings.dataStartDate} role={user.role} route={route} sondeEnabled={settings.sondeEnabled} serviceCompletionMinutes={settings.serviceCompletionMinutes} initialNowIso={clock.now.toISOString()} liveClock={!clock.simulated} />
         {user.role === "NURSE" && !memberships.length ? <p className="calendar-scope-warning">Chưa được gán khoa; dữ liệu phạm vi khoa hiển thị —.</p> : null}
       </main>
     </AppShell>
