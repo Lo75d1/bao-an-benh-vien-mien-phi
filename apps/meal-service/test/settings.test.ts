@@ -10,6 +10,9 @@ test("nhận diện bệnh viện giữ giá trị hợp lệ và tự chọn m�
   const branding = parseBrandingSettings({ organizationName: "Bệnh viện An Bình", shortName: "AB", primaryColor: "#F3E8C8" });
   assert.equal(branding.organizationName, "Bệnh viện An Bình");
   assert.equal(branding.primaryColor, "#F3E8C8");
+  assert.equal(branding.publicPrimaryColor, "#153B5B");
+  assert.equal(branding.publicAccentColor, "#2F80B7");
+  assert.equal(branding.publicHeroEnabled, true);
   assert.equal(readableForeground(branding.primaryColor), "#17241F");
   assert.equal(readableForeground("#123C36"), "#FFFFFF");
   assert.equal(blendHex("#123C36", "#FFFFFF", .9), "#E7ECEB");
@@ -19,7 +22,13 @@ test("nhận diện bệnh viện giữ giá trị hợp lệ và tự chọn m�
 test("nhận diện mặc định ưu tiên nền sáng", () => {
   const branding = parseBrandingSettings(null);
   assert.equal(branding.primaryColor, "#DDF1EA");
+  assert.equal(branding.publicHeroImageDataUrl, null);
   assert.equal(readableForeground(branding.primaryColor), "#17241F");
+});
+
+test("cấu hình lượt xem mặc định hiển thị và đọc được trạng thái tắt", () => {
+  assert.equal(parseOperationalSettings(null).publicViewCountVisible, true);
+  assert.equal(parseOperationalSettings({ publicViewCountVisible: false }).publicViewCountVisible, false);
 });
 
 test("setting giờ chốt chỉ nhận HH:mm hợp lệ", () => {

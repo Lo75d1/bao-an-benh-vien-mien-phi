@@ -42,6 +42,29 @@ function atVietnamTime(mealDate: Date, value: string): number | null {
 
 export const DEFAULT_SERVICE_COMPLETION_MINUTES = 60;
 
+export type MealTimeMilestones = {
+  cutoffAt: Date;
+  serviceAt: Date;
+  completionAt: Date;
+};
+
+/** Các mốc tuyệt đối của một bữa, dùng chung cho hiển thị và AuditLog hệ thống. */
+export function mealTimeMilestones(
+  mealDate: Date,
+  cutoffTime: string,
+  serviceTime: string,
+  completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES,
+): MealTimeMilestones | null {
+  const cutoffAt = atVietnamTime(mealDate, cutoffTime);
+  const serviceAt = atVietnamTime(mealDate, serviceTime);
+  if (cutoffAt === null || serviceAt === null || serviceAt < cutoffAt) return null;
+  return {
+    cutoffAt: new Date(cutoffAt),
+    serviceAt: new Date(serviceAt),
+    completionAt: new Date(serviceAt + completionMinutes * 60_000),
+  };
+}
+
 /**
  * Mốc giờ của một bữa — NGUỒN SỰ THẬT DUY NHẤT về thời gian trong toàn hệ thống.
  * Thuần thời gian, không xét trạng thái lưu. Mọi màn (điều dưỡng / bếp / dinh dưỡng /
@@ -52,13 +75,14 @@ export type MealTimePhase = "BEFORE_CUTOFF" | "PREPARING" | "SERVING" | "PASSED"
 export const MEAL_PHASE_LABEL: Record<MealTimePhase, string> = { BEFORE_CUTOFF: "Báo suất ăn", PREPARING: "Bếp đang chuẩn bị", SERVING: "Đang phục vụ", PASSED: "Đã kết thúc" };
 
 export function mealTimePhase(mealDate: Date, cutoffTime: string, serviceTime: string, now = new Date(), completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES): MealTimePhase | null {
-  const cutoffAt = atVietnamTime(mealDate, cutoffTime);
-  const serviceAt = atVietnamTime(mealDate, serviceTime);
-  if (cutoffAt === null || serviceAt === null) return null;
+  const milestones = mealTimeMilestones(mealDate, cutoffTime, serviceTime, completionMinutes);
+  if (milestones === null) return null;
+  const cutoffAt = milestones.cutoffAt.getTime();
+  const serviceAt = milestones.serviceAt.getTime();
   const nowMs = now.getTime();
   if (nowMs < cutoffAt) return "BEFORE_CUTOFF";
   if (nowMs < serviceAt) return "PREPARING";
-  if (nowMs < serviceAt + completionMinutes * 60_000) return "SERVING";
+  if (nowMs < milestones.completionAt.getTime()) return "SERVING";
   return "PASSED";
 }
 
@@ -89,16 +113,15 @@ export type LifecycleMeal = { cutoffTime: string; serviceTime: string; mealDate:
 
 export type ReportingMeal = { cutoffTime: string; serviceTime: string; mealDate: Date };
 
-/** Điều dưỡng ưu tiên bữa còn nhận báo; hết giờ chốt thì giữ bữa đang vận hành để báo bổ sung. */
+/** Trong giờ phục vụ, điều dưỡng giữ bữa hiện tại ở trạng thái khóa. Hết thời lượng phục vụ mới chuyển sang bữa còn nhận báo tiếp theo. */
 export function pickReportingMeal<T extends ReportingMeal>(meals: T[], now = new Date(), completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES): T | null {
   if (meals.length === 0) return null;
+  const serving = meals.find((meal) => mealTimePhase(meal.mealDate, meal.cutoffTime, meal.serviceTime, now, completionMinutes) === "SERVING");
+  if (serving) return serving;
   const receiving = meals.find((meal) => mealTimePhase(meal.mealDate, meal.cutoffTime, meal.serviceTime, now, completionMinutes) === "BEFORE_CUTOFF");
   if (receiving) return receiving;
-  const operating = meals.find((meal) => {
-    const phase = mealTimePhase(meal.mealDate, meal.cutoffTime, meal.serviceTime, now, completionMinutes);
-    return phase === "PREPARING" || phase === "SERVING";
-  });
-  return operating ?? meals.at(-1) ?? null;
+  const preparing = meals.find((meal) => mealTimePhase(meal.mealDate, meal.cutoffTime, meal.serviceTime, now, completionMinutes) === "PREPARING");
+  return preparing ?? meals.at(-1) ?? null;
 }
 
 export function nextReportingCutoff<T extends ReportingMeal>(meals: T[], now = new Date()): { meal: T; at: Date } | null {
@@ -205,13 +228,14 @@ export async function ensureEmptyMealEvents(
     prisma.dietType.findMany({ where: { status: "ACTIVE" }, orderBy: { sortOrder: "asc" } }),
     readOperationalSettings(),
   ]);
+  const visibleMealTypes = mealTypes.filter((item) => settings.sondeEnabled || item.feedingRoute === "NORMAL");
   const dietTypes = allDietTypes.filter((item) => settings.sondeEnabled || item.feedingRoute === "NORMAL");
   if (mealTypes.length === 0 || dietTypes.length === 0) return;
 
   await prisma.$transaction(async (tx) => {
     for (let day = 0; day < 7; day += 1) {
       const mealDate = addDays(weekStart, day);
-      for (const mealType of mealTypes) {
+      for (const mealType of visibleMealTypes) {
         let mealEvent = await tx.mealEvent.findUnique({
           where: { mealDate_mealTypeId: { mealDate, mealTypeId: mealType.id } },
         });
@@ -229,7 +253,7 @@ export async function ensureEmptyMealEvents(
             },
           });
         }
-        for (const dietType of dietTypes) {
+        for (const dietType of dietTypes.filter((item) => item.feedingRoute === mealType.feedingRoute)) {
           const existing = await tx.dietMeal.findUnique({
             where: { mealEventId_dietTypeId: { mealEventId: mealEvent.id, dietTypeId: dietType.id } },
             select: { id: true },
@@ -267,7 +291,7 @@ export async function readCalendarWeek(
 ) {
   const scope = buildCalendarScope(role, departmentIds);
   return prisma.mealEvent.findMany({
-    where: { mealDate: { gte: weekStart, lt: addDays(weekStart, 7) } },
+    where: { mealDate: { gte: weekStart, lt: addDays(weekStart, 7) }, ...(feedingRoute ? { mealType: { feedingRoute } } : {}) },
     orderBy: [{ mealDate: "asc" }, { mealType: { sortOrder: "asc" } }],
     include: {
       mealType: true,

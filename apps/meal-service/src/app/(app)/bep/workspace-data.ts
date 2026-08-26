@@ -27,30 +27,31 @@ const eventInclude = {
   },
 } as const;
 
-export async function readKitchenWorkspace(requestedMealId?: string, now = new Date()) {
+export async function readKitchenWorkspace(requestedMealId?: string, feedingRoute: "NORMAL" | "SONDE" = "NORMAL", now = new Date()) {
   const settings = await readOperationalSettings();
   const today = new Date(`${hospitalDayKey(now)}T00:00:00.000Z`);
   let events = await prisma.mealEvent.findMany({
-    where: { mealDate: today },
+    where: { mealDate: today, mealType: { feedingRoute } },
     orderBy: { mealType: { sortOrder: "asc" } },
     include: eventInclude,
   });
 
   if (events.length === 0) {
     const next = await prisma.mealEvent.findFirst({
-      where: { mealDate: { gt: today } },
+      where: { mealDate: { gt: today }, mealType: { feedingRoute } },
       orderBy: [{ mealDate: "asc" }, { mealType: { sortOrder: "asc" } }],
       select: { mealDate: true },
     });
     if (next) {
       events = await prisma.mealEvent.findMany({
-        where: { mealDate: next.mealDate },
+        where: { mealDate: next.mealDate, mealType: { feedingRoute } },
         orderBy: { mealType: { sortOrder: "asc" } },
         include: eventInclude,
       });
     }
   }
 
+  events = events.map((event) => ({ ...event, dietMeals: event.dietMeals.filter((meal) => meal.feedingRoute === feedingRoute), additions: event.additions.filter((addition) => addition.dietType.feedingRoute === feedingRoute) }));
   const summaries = events.map((event) => ({
     id: event.id,
     name: event.mealType.name,

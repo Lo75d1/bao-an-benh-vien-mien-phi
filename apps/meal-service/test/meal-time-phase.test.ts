@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isKitchenPreparationOpen, mealTimePhase, nextMealTimelineEvent, nextReportingCutoff, pickReportingMeal } from "../src/lib/meal-events";
+import { isKitchenPreparationOpen, mealTimeMilestones, mealTimePhase, nextMealTimelineEvent, nextReportingCutoff, pickReportingMeal } from "../src/lib/meal-events";
 
 // Chuyển từ test/nurse-workflow.test.ts cũ: sau khi gộp, mốc giờ của điều dưỡng
 // dùng chung `mealTimePhase` với bếp / lịch / admin.
@@ -23,11 +23,13 @@ test("bữa đã qua thì bữa kế mới là bữa đang xử lý", () => {
   assert.equal(meals.findIndex((meal) => phase(meal, now) !== "PASSED"), 1);
 });
 
-test("điều dưỡng chuyển sang bữa còn nhận báo dù bữa trước vẫn đang phục vụ", () => {
+test("điều dưỡng giữ bữa đang phục vụ, hết giờ mới chuyển sang bữa báo tiếp theo", () => {
   const meals = [{ id: "trua", mealDate: day, ...trua }, { id: "chieu", mealDate: day, ...chieu }];
-  const now = new Date("2026-08-23T06:00:00Z"); // 13:00 VN
-  assert.equal(pickReportingMeal(meals, now)?.id, "chieu");
-  const next = nextReportingCutoff(meals, now);
+  const serving = new Date("2026-08-23T04:30:00Z"); // 11:30 VN
+  assert.equal(pickReportingMeal(meals, serving)?.id, "trua");
+  const afterServing = new Date("2026-08-23T05:01:00Z"); // 12:01 VN
+  assert.equal(pickReportingMeal(meals, afterServing)?.id, "chieu");
+  const next = nextReportingCutoff(meals, afterServing);
   assert.equal(next?.meal.id, "chieu");
   assert.equal(next?.at.toISOString(), "2026-08-23T07:00:00.000Z");
 });
@@ -51,6 +53,14 @@ test("cửa sổ phục vụ theo cấu hình serviceCompletionMinutes, không c
 test("giờ sai định dạng trả null để nơi gọi hiển thị —", () => {
   assert.equal(mealTimePhase(day, "9:00", "11:00", new Date("2026-08-23T01:30:00Z")), null);
   assert.equal(mealTimePhase(day, "25:00", "11:00", new Date("2026-08-23T01:30:00Z")), null);
+});
+
+test("hiển thị và AuditLog dùng chung đúng một bộ mốc giờ", () => {
+  const milestones = mealTimeMilestones(day, trua.cutoffTime, trua.serviceTime, 15);
+  assert.equal(milestones?.cutoffAt.toISOString(), "2026-08-23T02:00:00.000Z");
+  assert.equal(milestones?.serviceAt.toISOString(), "2026-08-23T04:00:00.000Z");
+  assert.equal(milestones?.completionAt.toISOString(), "2026-08-23T04:15:00.000Z");
+  assert.equal(mealTimeMilestones(day, "14:00", "11:00"), null);
 });
 
 test("bếp chỉ được thao tác từ đúng giờ bắt đầu chuẩn bị", () => {
