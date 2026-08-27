@@ -43,7 +43,7 @@ export async function updateAccount(id: string, input: AccountInput, actor: { id
     const existing = await tx.user.findUnique({ where: { id }, include: { memberships: true } });
     if (!existing) throw new Error("Không tìm thấy tài khoản.");
     await tx.departmentMembership.deleteMany({ where: { userId: id } });
-    const updated = await tx.user.update({ where: { id }, data: { email: data.email, displayName: data.displayName, role: data.role, kitchenRoute: data.kitchenRoute, ...(data.password ? { passwordHash: hashPassword(data.password) } : {}), memberships: data.departmentId ? { create: { departmentId: data.departmentId } } : undefined } });
+    const updated = await tx.user.update({ where: { id }, data: { email: data.email, displayName: data.displayName, role: data.role, kitchenRoute: data.kitchenRoute, ...(data.password ? { passwordHash: hashPassword(data.password), mustChangePassword: true } : {}), memberships: data.departmentId ? { create: { departmentId: data.departmentId } } : undefined } });
     await tx.auditLog.create({ data: { entityType: "User", entityId: id, action: "UPDATE", actorId: actor.id, actorName: actor.displayName, beforeJson: snapshot(existing, existing.memberships[0]?.departmentId ?? null) as Prisma.InputJsonValue, afterJson: snapshot(updated, data.departmentId) as Prisma.InputJsonValue, reason: "Cập nhật nhân sự và tài khoản" } });
     return updated;
   });

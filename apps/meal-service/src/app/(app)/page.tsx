@@ -15,8 +15,8 @@ const dateLabel = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh
 
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ diet?: string; date?: string; patient?: string }> }) {
   const query = await searchParams;
-  const [user, branding, menu, views] = await Promise.all([getSessionUser(), readBrandingSettings(), readPublicDietMenu(query.diet, query.date), readPublicViewStats()]);
-  if (user) redirect({ ADMIN: "/quan-ly", DIETITIAN: "/quan-ly", NURSE: "/bao-suat", KITCHEN: "/bep" }[user.role]);
+  const [user, branding, menu, views] = await Promise.all([getSessionUser({ allowPasswordChange: true }), readBrandingSettings(), readPublicDietMenu(query.diet, query.date), readPublicViewStats()]);
+  if (user) redirect(user.mustChangePassword ? "/ho-so?first=1" : { ADMIN: "/quan-ly", DIETITIAN: "/quan-ly", NURSE: "/bao-suat", KITCHEN: "/bep" }[user.role]);
 
   const publicForeground = readableForeground(branding.publicPrimaryColor);
   const publicStyle = { "--public-primary": branding.publicPrimaryColor, "--public-accent": branding.publicAccentColor, "--public-primary-foreground": publicForeground, "--primary": branding.publicPrimaryColor, "--primary-foreground": publicForeground, "--accent": branding.publicAccentColor, "--accent-foreground": readableForeground(branding.publicAccentColor), "--ring": branding.publicAccentColor, "--brand-surface": branding.publicPrimaryColor, "--brand-foreground": publicForeground, "--secondary": blendHex(branding.publicPrimaryColor, "#FFFFFF", .9) } as CSSProperties;

@@ -20,9 +20,10 @@ function ProfileField({ icon: Icon, label, value }: { icon: typeof UserRound; la
   );
 }
 
-export default async function ProfilePage() {
-  const sessionUser = await getSessionUser();
+export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ first?: string }> }) {
+  const sessionUser = await getSessionUser({ allowPasswordChange: true });
   if (!sessionUser) redirect("/");
+  const firstLogin = sessionUser.mustChangePassword || (await searchParams).first === "1";
 
   const profile = await prisma.user.findUnique({
     where: { id: sessionUser.id },
@@ -37,6 +38,7 @@ export default async function ProfilePage() {
   return (
     <AppShell user={sessionUser}>
       <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+        {firstLogin ? <div role="alert" className="mb-6 rounded-2xl border border-blue-900/15 bg-blue-50 px-5 py-4 text-blue-950"><strong>Hãy đổi mật khẩu trước khi bắt đầu làm việc.</strong><p className="mt-1 text-sm leading-6">Đây là mật khẩu tạm do quản trị viên cấp. Sau khi đổi thành công, hệ thống sẽ mở các màn nghiệp vụ.</p></div> : null}
         <header className="mb-7">
           <p className="text-sm font-semibold text-[#0f6e56]">Tài khoản cá nhân</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-[-0.035em] text-[#123c36]">Hồ sơ của tôi</h1>
@@ -65,7 +67,7 @@ export default async function ProfilePage() {
               <CardTitle className="text-xl text-[#123c36]">Đổi mật khẩu</CardTitle>
               <CardDescription>Sau khi đổi, phiên hiện tại được giữ lại và các phiên đăng nhập khác sẽ bị đăng xuất.</CardDescription>
             </CardHeader>
-            <CardContent><PasswordForm /></CardContent>
+            <CardContent><PasswordForm required={firstLogin} /></CardContent>
           </Card>
         </div>
       </main>

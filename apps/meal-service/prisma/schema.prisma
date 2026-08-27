@@ -93,6 +93,7 @@ model User {
   email                 String                 @unique
   displayName           String
   passwordHash          String
+  mustChangePassword    Boolean                @default(true)
   role                  Role
   kitchenRoute          FeedingRoute?
   status                ActiveStatus           @default(ACTIVE)
@@ -111,6 +112,16 @@ model User {
   inventoryTransactions InventoryTransaction[]
   menuTemplates         MenuTemplate[]
   auditLogs             AuditLog[]
+}
+
+model LoginRateLimit {
+  keyHash         String   @id
+  attempts        Int      @default(0)
+  windowStartedAt DateTime
+  blockedUntil    DateTime?
+  updatedAt       DateTime @updatedAt
+
+  @@index([updatedAt])
 }
 
 model Session {

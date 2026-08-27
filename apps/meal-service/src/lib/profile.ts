@@ -5,7 +5,7 @@ import { PasswordChangeError, validatePasswordChange, type PasswordChangeInput }
 import { prisma } from "./prisma";
 
 export async function changeOwnPassword(input: PasswordChangeInput) {
-  const actor = await getSessionUser();
+  const actor = await getSessionUser({ allowPasswordChange: true });
   if (!actor) throw new PasswordChangeError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
 
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
@@ -17,7 +17,7 @@ export async function changeOwnPassword(input: PasswordChangeInput) {
     if (!user) throw new PasswordChangeError("Không tìm thấy tài khoản đang đăng nhập.");
 
     const newPassword = validatePasswordChange(input, user.passwordHash);
-    await tx.user.update({ where: { id: actor.id }, data: { passwordHash: hashPassword(newPassword) } });
+    await tx.user.update({ where: { id: actor.id }, data: { passwordHash: hashPassword(newPassword), mustChangePassword: false } });
     const revokedSessions = await tx.session.deleteMany({ where: { userId: actor.id, tokenHash: { not: currentTokenHash } } });
     await tx.auditLog.create({
       data: {
