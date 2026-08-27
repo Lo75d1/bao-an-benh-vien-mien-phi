@@ -93,7 +93,6 @@ export async function transitionMealAction(formData: FormData) {
 }
 const EVIDENCE_KINDS = new Set<EvidenceKind>([
   "MEAL_PHOTO",
-  "FOOD_SAMPLE",
   "STOCK_IN",
   "INVOICE",
 ]);
@@ -154,6 +153,8 @@ export async function completeKitchenEventAction(formData: FormData) {
   }));
   if (files.some((item) => !(item.file instanceof File)))
     throw new Error("Cần chọn ảnh cho tất cả mã chế độ ăn.");
+  const retentionFile = formData.get("retentionFile");
+  const retention = retentionFile instanceof File && retentionFile.size > 0 ? { file: retentionFile, note: String(formData.get("retentionNote") ?? "").trim().slice(0, 500) || null } : null;
   const result = await completeKitchenEvent(
     {
       eventId,
@@ -163,6 +164,7 @@ export async function completeKitchenEventAction(formData: FormData) {
         file: File;
         note: string | null;
       }>,
+      retention,
     },
     user,
   );

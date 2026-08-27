@@ -212,6 +212,14 @@
   .detail-notes { grid-template-columns: 1fr 1fr; }
 }
 
+.kitchen-retention-proof{display:grid;gap:10px;margin:12px 0;padding:14px;border:1px solid var(--accent);border-radius:8px;background:color-mix(in srgb,var(--secondary) 72%,white)}
+.kitchen-retention-proof legend{display:flex;align-items:center;gap:9px;padding:0 6px;color:var(--primary)}
+.kitchen-retention-proof legend span{font-size:12px;font-weight:500;color:var(--muted-foreground)}
+.kitchen-retention-proof p{margin:0;color:var(--muted-foreground);font-size:13px}
+.kitchen-retention-proof label{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;border:1px dashed var(--accent);border-radius:6px;color:var(--accent);font-weight:700;cursor:pointer}
+.kitchen-retention-proof label input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.kitchen-retention-proof>input{min-height:40px;padding:7px 10px;border:1px solid var(--input);border-radius:6px;background:var(--card)}
+
 @media (max-width: 760px) {
   .meal-timeline { grid-template-columns: 1fr 1fr; }
   .meal-timeline-item { min-height: 68px; padding: 9px; }

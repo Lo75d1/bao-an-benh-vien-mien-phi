@@ -68,6 +68,11 @@ test("admin kiểm soát thời gian chuyển sang bữa kế", () => {
   assert.throws(() => validateOperationalSettings({ ...settings, serviceCompletionMinutes: 10 }));
 });
 
+test("mẫu lưu 24 giờ là tùy chọn do admin bật", () => {
+  assert.equal(parseOperationalSettings(null).foodRetention24hRequired, false);
+  assert.equal(parseOperationalSettings({ foodRetention24hRequired: true }).foodRetention24hRequired, true);
+});
+
 test("account validation bắt buộc khoa cho điều dưỡng", () => {
   assert.throws(() => validateAccountInput({ email: "nurse@example.org", displayName: "Điều dưỡng A", role: "NURSE", password: "mat-khau-123" }, true));
   const account = validateAccountInput({ email: "NURSE@example.org", displayName: "Điều dưỡng A", role: "NURSE", password: "mat-khau-123", departmentId: "dept-1" }, true);

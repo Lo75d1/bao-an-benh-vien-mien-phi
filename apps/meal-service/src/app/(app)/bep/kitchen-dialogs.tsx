@@ -13,9 +13,15 @@ import { acknowledgeAdditionAction, acknowledgeKitchenNoteAction, uploadEvidence
 
 const EVIDENCE_LABEL = {
   MEAL_PHOTO: "Ảnh bữa ăn",
-  FOOD_SAMPLE: "Ảnh lưu mẫu",
+  FOOD_SAMPLE: "Mẫu lưu thực phẩm 24 giờ",
   STOCK_IN: "Ảnh nhập kho",
   INVOICE: "Hóa đơn / bill",
+} as const;
+
+const UPLOAD_EVIDENCE_LABEL = {
+  MEAL_PHOTO: EVIDENCE_LABEL.MEAL_PHOTO,
+  STOCK_IN: EVIDENCE_LABEL.STOCK_IN,
+  INVOICE: EVIDENCE_LABEL.INVOICE,
 } as const;
 
 type Addition = {
@@ -80,7 +86,7 @@ export function KitchenDialogs({
         {!canOperate ? <p className="kitchen-operation-locked">Chưa tới giờ chuẩn bị. Bếp chỉ được xem bằng chứng đã có.</p> : null}
         <form className="evidence-dialog-form" action={uploadEvidenceAction} encType="multipart/form-data">
           <label>Chế độ ăn<select name="dietMealId" required>{dietMeals.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          <label>Loại bằng chứng<select name="kind" required>{Object.entries(EVIDENCE_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label>Loại bằng chứng<select name="kind" required>{Object.entries(UPLOAD_EVIDENCE_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label>Ảnh<input name="file" type="file" accept="image/*" required/></label>
           <label>Ghi chú<input name="note" maxLength={500} autoComplete="off" placeholder="Nhập ghi chú nếu cần…"/></label>
           <button className="primary-action" disabled={!canOperate}>Đính kèm ảnh</button>

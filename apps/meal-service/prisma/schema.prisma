@@ -188,6 +188,7 @@ model MealEvent {
   reports    ServingReport[]
   deliveryReceipts MealDeliveryReceipt[]
   additions  LateMealAddition[]
+  evidence   MealEvidence[]
 
   @@unique([mealDate, mealTypeId])
 }
@@ -293,14 +294,18 @@ model LateMealAddition {
 
 model MealEvidence {
   id           String       @id @default(cuid())
-  dietMealId   String
+  dietMealId   String?
+  mealEventId  String?
   kind         EvidenceKind
   storagePath  String
   uploadedById String
   uploadedAt   DateTime     @default(now())
   note         String?
-  dietMeal     DietMeal     @relation(fields: [dietMealId], references: [id])
+  dietMeal     DietMeal?    @relation(fields: [dietMealId], references: [id])
+  mealEvent    MealEvent?   @relation(fields: [mealEventId], references: [id])
   uploadedBy   User         @relation(fields: [uploadedById], references: [id])
+
+  @@index([mealEventId, kind, uploadedAt])
 }
 
 model PatientNote {

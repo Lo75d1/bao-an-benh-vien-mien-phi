@@ -11,18 +11,21 @@ const number = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
 const dateTime = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", hour12: false });
 const STATUS_LABEL = { PLANNED: "Dự kiến", LOCKED: "Đã nhận", PREPARING: "Đang chuẩn bị", PREPARED: "Đã chuẩn bị", SERVED: "Đã hoàn thành" } as const;
 const ACK_LABEL = { PENDING: "Chờ bếp xác nhận", RECEIVED: "Bếp đã nhận", INSUFFICIENT: "Bếp báo không đủ", SUBSTITUTE: "Cần thay thế" } as const;
-const EVIDENCE_LABEL = { MEAL_PHOTO: "Ảnh bữa ăn", FOOD_SAMPLE: "Ảnh lưu mẫu" } as const;
+const EVIDENCE_LABEL = { MEAL_PHOTO: "Ảnh món thực tế", FOOD_SAMPLE: "Mẫu lưu thực phẩm 24 giờ" } as const;
 const CRITERION_LABEL = { OK: "Đạt", LOW: "Thiếu", HIGH: "Vượt", MISSING: "—" } as const;
 
 export function MealDetailDialog({ meal, date, stateLabel, trigger, canPlanMenu = false }: { meal: ManagementMeal; date: string; stateLabel: string; trigger: ReactNode; canPlanMenu?: boolean }) {
   const menuNames = [...new Set(meal.diets.flatMap((diet) => diet.menuItems.map((item) => item.dishName)))];
-  const evidence = meal.diets.flatMap((diet) => diet.evidence.map((item) => ({ ...item, dietCode: diet.code })));
+  const evidence = [
+    ...meal.diets.flatMap((diet) => diet.evidence.map((item) => ({ ...item, dietCode: diet.code }))),
+    ...meal.eventEvidence.map((item) => ({ ...item, dietCode: "Toàn bữa" })),
+  ];
   const missingDepartments = meal.departments.filter((department) => !department.reportId);
   const missingMenus = meal.diets.filter((diet) => !diet.approved || diet.menuItems.length === 0);
   const pendingAdditions = meal.additions.filter((item) => item.ackStatus === "PENDING");
   const hasMealPhoto = evidence.some((item) => item.kind === "MEAL_PHOTO");
   const hasFoodSample = evidence.some((item) => item.kind === "FOOD_SAMPLE");
-  const hasWarnings = missingDepartments.length > 0 || missingMenus.length > 0 || pendingAdditions.length > 0 || !hasMealPhoto || !hasFoodSample;
+  const hasWarnings = missingDepartments.length > 0 || missingMenus.length > 0 || pendingAdditions.length > 0 || !hasMealPhoto || (meal.foodRetention24hRequired && !hasFoodSample);
   const editableDiet = missingMenus[0] ?? meal.diets[0];
   const reportedDepartments = meal.departments.filter((department) => department.reportId);
   const departmentServingTotal = reportedDepartments.length > 0 && reportedDepartments.every((department) => department.totalServings !== null)
@@ -31,7 +34,7 @@ export function MealDetailDialog({ meal, date, stateLabel, trigger, canPlanMenu 
 
   return <Dialog><DialogTrigger asChild>{trigger}</DialogTrigger><DialogContent className="calendar-detail-dialog calendar-meal-detail-dialog overflow-y-auto"><DialogHeader><DialogTitle>{meal.name} · {date} · {stateLabel}</DialogTitle><DialogDescription>Chốt lúc {meal.cutoffTime} · Ăn lúc {meal.serviceTime}. Chỗ chưa có dữ liệu được giữ là “—”.</DialogDescription></DialogHeader>
     <section className={hasWarnings ? "calendar-missing-summary warning" : "calendar-missing-summary ok"}>
-      <div><h3>{hasWarnings ? "Nội dung chưa xác nhận" : "Đã đủ thông tin xác nhận"}</h3>{hasWarnings ? <ul>{missingDepartments.length ? <li>Khoa chưa báo: {missingDepartments.map((item) => item.name).join(", ")}</li> : null}{missingMenus.length ? <li>Thực đơn chưa duyệt hoặc còn trống: {missingMenus.map((item) => item.code).join(", ")}</li> : null}{pendingAdditions.length ? <li>{pendingAdditions.length} phát sinh đang chờ bếp xác nhận.</li> : null}{!hasMealPhoto ? <li>Chưa có ảnh bữa ăn.</li> : null}{!hasFoodSample ? <li>Chưa có ảnh lưu mẫu.</li> : null}</ul> : <p>Không có cảnh báo tại bữa này.</p>}</div>
+      <div><h3>{hasWarnings ? "Nội dung chưa xác nhận" : "Đã đủ thông tin xác nhận"}</h3>{hasWarnings ? <ul>{missingDepartments.length ? <li>Khoa chưa báo: {missingDepartments.map((item) => item.name).join(", ")}</li> : null}{missingMenus.length ? <li>Thực đơn chưa duyệt hoặc còn trống: {missingMenus.map((item) => item.code).join(", ")}</li> : null}{pendingAdditions.length ? <li>{pendingAdditions.length} phát sinh đang chờ bếp xác nhận.</li> : null}{!hasMealPhoto ? <li>Chưa có ảnh bữa ăn.</li> : null}{meal.foodRetention24hRequired && !hasFoodSample ? <li>Chưa có mẫu lưu thực phẩm 24 giờ chung cho toàn bữa.</li> : null}</ul> : <p>Không có cảnh báo tại bữa này.</p>}</div>
       {canPlanMenu && stateLabel === "Chưa đến" && editableDiet ? <Link className="button calendar-menu-action" href={`/thuc-don?meal=${encodeURIComponent(editableDiet.id)}`}>{missingMenus.length ? "Lên thực đơn" : "Sửa thực đơn"}</Link> : null}
     </section>
     <div className="calendar-detail-grid">

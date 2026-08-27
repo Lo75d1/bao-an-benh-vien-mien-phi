@@ -189,7 +189,7 @@ export async function seedDemo(prisma: PrismaClient, now = new Date(), options: 
           update: { entityId: meal.id, actorId: routeKitchen.id, actorName: routeKitchen.displayName, afterJson: json({ status, feedingRoute: mealType.feedingRoute }), reason: `Dữ liệu demo theo khung giờ ${mealType.feedingRoute}`, createdAt: milestoneAt },
         });
         if (status === "SERVED") {
-          for (const kind of ["MEAL_PHOTO", "FOOD_SAMPLE"] as const) await prisma.mealEvidence.upsert({
+          for (const kind of ["MEAL_PHOTO"] as const) await prisma.mealEvidence.upsert({
             where: { id: `demo-evidence-${kind.toLowerCase()}-${id}` },
             create: { id: `demo-evidence-${kind.toLowerCase()}-${id}`, dietMealId: meal.id, kind, storagePath: `demo/bua-an/${id}-${kind.toLowerCase()}.jpg`, uploadedById: routeKitchen.id, uploadedAt: milestoneAt, note: kind === "MEAL_PHOTO" ? `Ảnh ${mealType.feedingRoute === "SONDE" ? "cữ Sonde" : "bữa ăn"} demo.` : `Mẫu lưu ${mealType.feedingRoute === "SONDE" ? "Sonde" : "bữa ăn"} demo.` },
             update: { dietMealId: meal.id, kind, uploadedById: routeKitchen.id, uploadedAt: milestoneAt },
