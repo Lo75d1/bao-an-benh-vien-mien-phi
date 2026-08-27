@@ -7,6 +7,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 export type DemoEntryAccount = { key: string; label: string; description: string; email?: string; password?: string; href?: string };
 
 const FULL_DEMO = { email: "nurse@demo.local", password: "Demo-Nurse-2026!" };
+const ROLE_DESTINATIONS: Record<string, string> = {
+  nurse: "/bao-suat",
+  dietitian: "/thuc-don",
+  kitchen: "/bep",
+  sonde: "/bep",
+  admin: "/quan-ly",
+};
+export const demoDestination = (key: string, mode: "single" | "full") => mode === "full" ? "/bao-suat" : ROLE_DESTINATIONS[key] ?? "/";
 
 async function enterDemo(account: DemoEntryAccount, mode: "single" | "full") {
   sessionStorage.setItem("demo-tour-mode", mode);
@@ -20,7 +28,7 @@ async function enterDemo(account: DemoEntryAccount, mode: "single" | "full") {
   const credentials = mode === "full" ? FULL_DEMO : account;
   const response = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(credentials) });
   if (!response.ok) throw new Error("Không thể mở phiên Demo. Vui lòng thử lại.");
-  window.location.assign(mode === "full" ? "/bao-suat" : "/");
+  window.location.replace(demoDestination(account.key, mode));
 }
 
 export function DemoEntry({ accounts, compactAccount, triggerLabel = "Sử dụng Demo", triggerClassName = "demo-primary-link" }: { accounts: DemoEntryAccount[]; compactAccount?: DemoEntryAccount; triggerLabel?: string; triggerClassName?: string }) {
