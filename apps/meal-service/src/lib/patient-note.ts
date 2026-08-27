@@ -71,13 +71,13 @@ export async function readPendingPatientNotes(userId: string) {
 }
 
 export async function reviewPatientNote(input: { id: string; status: "APPROVED" | "REJECTED"; reviewNote: unknown }, actor: { id: string; displayName: string; role: Role }, now = new Date()) {
-  if (actor.role !== "NURSE") throw new Error("Chỉ điều dưỡng được duyệt ghi chú bệnh nhân.");
+  if (actor.role !== "NURSE") throw new Error("Chỉ điều dưỡng được xác nhận ghi chú bệnh nhân.");
   const reviewNote = normalizeContactName(input.reviewNote);
   return prisma.$transaction(async (tx) => {
     const existing = await tx.patientNote.findFirst({ where: { id: input.id, status: "RECEIVED", department: { memberships: { some: { userId: actor.id } } } }, select: { id: true, status: true, departmentId: true } });
-    if (!existing) throw new Error("Ghi chú không còn chờ duyệt hoặc không thuộc khoa của bạn.");
+    if (!existing) throw new Error("Ghi chú không còn chờ xác nhận hoặc không thuộc khoa của bạn.");
     const updated = await tx.patientNote.update({ where: { id: existing.id }, data: { status: input.status, reviewedById: actor.id, reviewedAt: now, reviewNote } });
-    await tx.auditLog.create({ data: { entityType: "PatientNote", entityId: existing.id, action: input.status === "APPROVED" ? "APPROVE" : "REJECT", actorId: actor.id, actorName: actor.displayName, beforeJson: { status: existing.status }, afterJson: { status: input.status } as Prisma.InputJsonValue, reason: reviewNote ?? (input.status === "APPROVED" ? "Điều dưỡng duyệt ghi chú" : "Điều dưỡng từ chối ghi chú") } });
+    await tx.auditLog.create({ data: { entityType: "PatientNote", entityId: existing.id, action: input.status === "APPROVED" ? "APPROVE" : "REJECT", actorId: actor.id, actorName: actor.displayName, beforeJson: { status: existing.status }, afterJson: { status: input.status } as Prisma.InputJsonValue, reason: reviewNote ?? (input.status === "APPROVED" ? "Điều dưỡng xác nhận chuyển ghi chú tới bếp" : "Điều dưỡng từ chối ghi chú") } });
     return updated;
   });
 }

@@ -90,11 +90,11 @@ export function KitchenDialogs({
     </Dialog>
 
     <Dialog>
-      <DialogTrigger asChild><button type="button" className="tool-button"><span>Ghi chú đã duyệt</span><strong className="tabular">{patientNotes.length || "—"}</strong></button></DialogTrigger>
+      <DialogTrigger asChild><button type="button" className="tool-button"><span>Ghi chú đã xác nhận</span><strong className="tabular">{patientNotes.length || "—"}</strong></button></DialogTrigger>
       <DialogContent className="kitchen-dialog max-h-[88vh] max-w-3xl overflow-y-auto overscroll-contain p-4">
-        <DialogHeader className="pr-8"><DialogTitle>Ghi chú bệnh nhân đã duyệt</DialogTitle><DialogDescription>Chỉ hiển thị nội dung đã qua điều dưỡng duyệt.</DialogDescription></DialogHeader>
+        <DialogHeader className="pr-8"><DialogTitle>Ghi chú bệnh nhân đã xác nhận</DialogTitle><DialogDescription>Chỉ hiển thị nội dung đã qua điều dưỡng xác nhận.</DialogDescription></DialogHeader>
         {!canOperate ? <p className="kitchen-operation-locked">Chưa tới giờ chuẩn bị. Bếp có thể đọc nhưng chưa xác nhận.</p> : null}
-        {patientNotes.length === 0 ? <p className="dialog-empty">— · Không có ghi chú đã duyệt.</p> : <div className="patient-note-dialog-list">{patientNotes.map((note) => <article key={note.id}><strong>{note.note}</strong><span>{note.departmentName} · {note.mealDateLabel}</span>{note.acknowledged ? <button type="button" disabled>Đã đọc</button> : <form action={acknowledgeKitchenNoteAction}><input type="hidden" name="eventId" value={eventId}/><input type="hidden" name="noteId" value={note.id}/><button disabled={!canOperate}>Xác nhận đã đọc</button></form>}</article>)}</div>}
+        {patientNotes.length === 0 ? <p className="dialog-empty">— · Không có ghi chú đã xác nhận.</p> : <div className="patient-note-dialog-list">{patientNotes.map((note) => <article key={note.id}><strong>{note.note}</strong><span>{note.departmentName} · {note.mealDateLabel}</span>{note.acknowledged ? <button type="button" disabled>Đã đọc</button> : <form action={acknowledgeKitchenNoteAction}><input type="hidden" name="eventId" value={eventId}/><input type="hidden" name="noteId" value={note.id}/><button disabled={!canOperate}>Xác nhận đã đọc</button></form>}</article>)}</div>}
       </DialogContent>
     </Dialog>
   </div>;

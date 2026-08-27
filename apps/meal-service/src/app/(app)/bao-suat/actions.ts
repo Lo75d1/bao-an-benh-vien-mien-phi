@@ -54,7 +54,7 @@ export async function reviewPatientNoteAction(formData: FormData) {
   const user = await getSessionUser();
   if (!user) redirect("/");
   const status = String(formData.get("status") ?? "");
-  if (status !== "APPROVED" && status !== "REJECTED") throw new Error("Trạng thái duyệt không hợp lệ.");
+  if (status !== "APPROVED" && status !== "REJECTED") throw new Error("Trạng thái xác nhận không hợp lệ.");
   await reviewPatientNote({ id: String(formData.get("noteId") ?? ""), status, reviewNote: formData.get("reviewNote") }, user);
   revalidatePath("/bao-suat");
   revalidatePath("/bep");

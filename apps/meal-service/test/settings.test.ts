@@ -49,7 +49,7 @@ test("sonde toggle ẩn đường nuôi sonde nhưng giữ ăn thường", () =>
   assert.equal(routeVisible("SONDE", true), true);
 });
 
-test("Mode kho và role duyệt được parse và có hiệu lực", () => {
+test("Mode kho và vai trò xác nhận được parse và có hiệu lực", () => {
   const settings = parseOperationalSettings({ advanceEntryDays: 14, sondeEnabled: false, warehouseMode: "B", warehouseApprovalRole: "KITCHEN" });
   assert.equal(settings.warehouseMode, "B");
   assert.equal(canApproveWarehouse("KITCHEN", settings.warehouseApprovalRole), true);

@@ -191,7 +191,7 @@ export async function acknowledgeKitchenNoteAction(formData: FormData) {
     where: { id: noteId, status: "APPROVED" },
     select: { id: true },
   });
-  if (!note) throw new Error("Không tìm thấy ghi chú đã duyệt.");
+  if (!note) throw new Error("Không tìm thấy ghi chú đã xác nhận.");
   await prisma.auditLog.create({
     data: {
       entityType: "PatientNote",

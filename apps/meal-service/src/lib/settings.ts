@@ -49,7 +49,7 @@ export function parseOperationalSettings(value: unknown): OperationalSettings {
 export function validateOperationalSettings(input: OperationalSettings): OperationalSettings {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dataStartDate) || Number.isNaN(new Date(`${input.dataStartDate}T00:00:00.000Z`).getTime())) throw new Error("Ngày bắt đầu dữ liệu không hợp lệ.");
   if (!Number.isInteger(input.advanceEntryDays) || input.advanceEntryDays < 1 || input.advanceEntryDays > 60) throw new Error("Số ngày nhập trước phải từ 1 đến 60.");
-  if (!APPROVAL_ROLES.has(input.warehouseApprovalRole)) throw new Error("Role duyệt kho không hợp lệ.");
+  if (!APPROVAL_ROLES.has(input.warehouseApprovalRole)) throw new Error("Vai trò xác nhận kho không hợp lệ.");
   if (!Number.isInteger(input.serviceCompletionMinutes) || input.serviceCompletionMinutes < 15 || input.serviceCompletionMinutes > 240) throw new Error("Thời gian kết thúc phục vụ phải từ 15 đến 240 phút.");
   return { ...input };
 }

@@ -39,7 +39,7 @@ export default async function KitchenPage({ searchParams }: { searchParams: Prom
   const phase = meal ? mealTimePhase(meal.mealDate, meal.mealType.cutoffTime, meal.mealType.serviceTime, clock.now) : null;
   const pendingAdditions = meal?.additions.filter((item) => item.ackStatus === "PENDING").length ?? 0;
   const unreadNotes = notes.filter((note) => !note.acknowledged).length;
-  const notifications = [...(pendingAdditions ? [{ id: "pending-additions", label: `${pendingAdditions} suất bổ sung chờ xác nhận`, detail: "Xác nhận khả năng chuẩn bị trước khi tính vào bữa" }] : []), ...(unreadNotes ? [{ id: "unread-notes", label: `${unreadNotes} ghi chú chưa đọc`, detail: "Ghi chú đã được điều dưỡng duyệt" }] : [])];
+  const notifications = [...(pendingAdditions ? [{ id: "pending-additions", label: `${pendingAdditions} suất bổ sung chờ xác nhận`, detail: "Xác nhận khả năng chuẩn bị trước khi tính vào bữa" }] : []), ...(unreadNotes ? [{ id: "unread-notes", label: `${unreadNotes} ghi chú chưa đọc`, detail: "Ghi chú đã được điều dưỡng xác nhận" }] : [])];
 
   return <AppShell user={user} adminNotifications={notifications} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined} workflowStatus={serviceAt ? <KitchenHeaderStatus serviceAt={serviceAt} initialNowIso={clock.now.toISOString()} liveClock={!clock.simulated}/> : undefined}><main className="kitchen-page kitchen-v2">
     <LivePhaseRefresh enabled={!clock.simulated}/>

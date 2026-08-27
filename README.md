@@ -7,7 +7,7 @@
 🚧 **Đang thiết kế → chuẩn bị triển khai (M0).** Bộ tài liệu thiết kế đầy đủ ở [`docs/bao-an-redesign/`](docs/bao-an-redesign/00-PROJECT-HOME.md).
 
 ## Là gì
-Quy trình một ngày: **NVDD lên & duyệt thực đơn → điều dưỡng báo số suất theo khoa → hệ thống cộng theo mã chế độ → bếp nấu + chụp ảnh bằng chứng → bệnh nhân quét QR khoa để xem**. 4 vai: Admin/Trưởng khoa, NVDD (dinh dưỡng), Điều dưỡng, Bếp.
+Quy trình một ngày: **NVDD lên và lưu thực đơn → hệ thống tự khóa theo giờ → điều dưỡng báo số suất theo khoa → hệ thống cộng theo mã chế độ → bếp nấu + chụp ảnh bằng chứng → bệnh nhân quét QR khoa để xem**. 4 vai: Admin/Trưởng khoa, NVDD (dinh dưỡng), Điều dưỡng, Bếp.
 
 ## Cấu trúc (dự kiến sau M0)
 ```

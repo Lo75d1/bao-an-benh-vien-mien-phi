@@ -30,7 +30,7 @@ export default async function PatientPage({ params, searchParams }: { params: Pr
       </article>)}</div></section>)}</div>}
     </section>
 
-    <section className="patient-note-form" id="gui-ghi-chu" aria-labelledby="note-heading"><p className="eyebrow">Gửi cho khoa</p><h2 id="note-heading">Góp ý về bữa ăn</h2><p>Ghi chú sẽ chờ điều dưỡng duyệt trước khi chuyển tới bếp. Không gửi thông tin bệnh án hoặc dữ liệu nhạy cảm.</p>
+    <section className="patient-note-form" id="gui-ghi-chu" aria-labelledby="note-heading"><p className="eyebrow">Gửi cho khoa</p><h2 id="note-heading">Góp ý về bữa ăn</h2><p>Ghi chú sẽ chờ điều dưỡng xác nhận trước khi chuyển tới bếp. Không gửi thông tin bệnh án hoặc dữ liệu nhạy cảm.</p>
       {query.note === "sent" && <p className="patient-form-success" role="status" aria-live="polite">Đã gửi ghi chú. Điều dưỡng sẽ xem xét trước khi chuyển tới bếp.</p>}
       {query.note && query.note !== "sent" && <p className="patient-form-error" role="alert">{query.note === "limited" ? "Bạn đã gửi quá nhiều ghi chú. Vui lòng thử lại sau." : query.note === "invalid" ? "Ghi chú cần từ 3 đến 500 ký tự." : "Chưa thể gửi ghi chú lúc này. Vui lòng thử lại sau."}</p>}
       <form action={action}><label htmlFor="patient-note">Ghi chú <span>bắt buộc</span></label><textarea id="patient-note" name="note" minLength={3} maxLength={500} required placeholder="Ví dụ: Món canh hôm nay hơi mặn…"/><label htmlFor="contact-name">Tên để khoa tiện trao đổi <span>không bắt buộc</span></label><input id="contact-name" name="contactName" maxLength={100} autoComplete="off"/><button type="submit">Gửi ghi chú</button></form>

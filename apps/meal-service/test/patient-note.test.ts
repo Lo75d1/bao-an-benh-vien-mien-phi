@@ -6,10 +6,10 @@ import { approvedNotesOnly, clientIpFromHeaders, hashClientIp, isPatientNoteRate
 test("chỉ ghi chú APPROVED được chuyển tới bếp", () => {
   const visible = approvedNotesOnly([
     { status: "RECEIVED" as const, note: "đang chờ" },
-    { status: "APPROVED" as const, note: "đã duyệt" },
+    { status: "APPROVED" as const, note: "đã xác nhận" },
     { status: "REJECTED" as const, note: "đã từ chối" },
   ]);
-  assert.deepEqual(visible, [{ note: "đã duyệt" }]);
+  assert.deepEqual(visible, [{ note: "đã xác nhận" }]);
 });
 
 test("projection công khai không chứa internalNote", () => {
