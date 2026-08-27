@@ -10,22 +10,57 @@ const SOURCE_LABEL: Record<DataSyncSource, string> = {
 
 const VDD_HEADERS = { Accept: "application/json, text/plain, */*", "User-Agent": "Mozilla/5.0", Referer: "https://viendinhduong.vn/vi/cong-cu-va-tien-ich/gia-tri-dinh-duong-mon-an" };
 const RNI_HEADERS = { Accept: "application/json, text/plain, */*", "Content-Type": "application/json", "User-Agent": "Mozilla/5.0", Referer: "https://app.thucdongiadinh.vn/app/xay-dung-khau-phan/nbt-xay-dung-thuc-don" };
+const DEFAULT_RETRY_DELAYS_MS = [1_000, 2_000] as const;
+export const RNI_RETRY_DELAYS_MS = [5_000, 15_000, 30_000, 60_000] as const;
+export const RNI_SYNC_PAGE_SIZE = 1;
+export const RNI_ITEM_DELAY_MIN_MS = 700;
+export const RNI_ITEM_DELAY_MAX_MS = 1_200;
 
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const stableId = (prefix: string, code: string) => `${prefix}_${createHash("sha256").update(code).digest("hex").slice(0, 24)}`;
 const numberOrNull = (value: unknown) => { const parsed = typeof value === "number" ? value : Number(String(value ?? "").replace(",", ".")); return Number.isFinite(parsed) ? parsed : null; };
 const json = (value: unknown) => value as Prisma.InputJsonValue;
 
-async function fetchJson(url: string, init?: RequestInit, attempts = 3): Promise<Record<string, unknown>> {
+class HttpResponseError extends Error {
+  constructor(public readonly status: number, public readonly retryAfterMs: number | null) {
+    super(`HTTP ${status}`);
+  }
+}
+
+export function rniItemDelayMs(random = Math.random()) {
+  const bounded = Math.min(1, Math.max(0, random));
+  return Math.floor(RNI_ITEM_DELAY_MIN_MS + bounded * (RNI_ITEM_DELAY_MAX_MS - RNI_ITEM_DELAY_MIN_MS));
+}
+
+export function retryDelayMs(configuredDelayMs: number, retryAfterMs?: number | null) {
+  return Math.max(configuredDelayMs, retryAfterMs ?? 0);
+}
+
+function retryAfterMs(response: Response) {
+  const value = response.headers.get("retry-after");
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1_000);
+  const date = Date.parse(value);
+  return Number.isFinite(date) ? Math.max(0, date - Date.now()) : null;
+}
+
+function shouldRetry(error: unknown) {
+  return !(error instanceof HttpResponseError) || error.status === 403 || error.status === 429 || error.status >= 500;
+}
+
+async function fetchJson(url: string, init?: RequestInit, retryDelaysMs: readonly number[] = DEFAULT_RETRY_DELAYS_MS): Promise<Record<string, unknown>> {
   let last: unknown;
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+  for (let attempt = 0; attempt <= retryDelaysMs.length; attempt += 1) {
     try {
       const response = await fetch(url, { ...init, signal: AbortSignal.timeout(30_000), cache: "no-store" });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) throw new HttpResponseError(response.status, retryAfterMs(response));
       return await response.json() as Record<string, unknown>;
     } catch (error) {
       last = error;
-      if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, attempt * 1_000));
+      if (attempt >= retryDelaysMs.length || !shouldRetry(error)) break;
+      const delay = retryDelayMs(retryDelaysMs[attempt], error instanceof HttpResponseError ? error.retryAfterMs : null);
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
   throw last instanceof Error ? last : new Error("Nguồn dữ liệu không phản hồi.");
@@ -46,8 +81,8 @@ async function vddPage(source: "VDD_FOOD" | "VDD_DISH", page: number, pageSize =
   return fetchJson(url.toString(), { headers: VDD_HEADERS });
 }
 
-async function rniPage(skipCount: number, maxResultCount = 100) {
-  const response = await fetchJson("https://app.thucdongiadinh.vn/api/services/app/MonAn/GetAllServerPaging", { method: "POST", headers: RNI_HEADERS, body: JSON.stringify({ keyword: "", isActive: true, arrNhomMonAnId: [], sorting: "", skipCount, maxResultCount }) });
+async function rniPage(skipCount: number, maxResultCount = RNI_SYNC_PAGE_SIZE) {
+  const response = await fetchJson("https://app.thucdongiadinh.vn/api/services/app/MonAn/GetAllServerPaging", { method: "POST", headers: RNI_HEADERS, body: JSON.stringify({ keyword: "", isActive: true, arrNhomMonAnId: [], sorting: "", skipCount, maxResultCount }) }, RNI_RETRY_DELAYS_MS);
   return (response.result && typeof response.result === "object" ? response.result : {}) as Record<string, unknown>;
 }
 
@@ -69,20 +104,28 @@ export async function queueSyncJob(id: string, reason: string, actor: { id: stri
   return prisma.$transaction(async (tx) => {
     const job = await tx.dataSyncJob.findFirst({ where: { id, requestedById: actor.id, status: "PREVIEW" } });
     if (!job) throw new Error("Bản xem trước không còn hợp lệ.");
+    if (job.source === "RNI_DISH") {
+      const active = await tx.dataSyncJob.findFirst({ where: { id: { not: id }, source: "RNI_DISH", status: { in: ["QUEUED", "RUNNING"] } }, select: { id: true } });
+      if (active) throw new Error("Đang có một tác vụ RNI khác chạy. Vui lòng chờ hoàn tất rồi thử lại.");
+    }
     const queued = await tx.dataSyncJob.update({ where: { id }, data: { status: "QUEUED", reason: cleanReason } });
     await tx.auditLog.create({ data: { entityType: "DataSyncJob", entityId: id, action: "OFFICIAL_DATA_SYNC_QUEUED", actorId: actor.id, actorName: actor.displayName, afterJson: { source: job.source, status: "QUEUED" }, reason: cleanReason } });
     return queued;
-  });
+  }, { isolationLevel: "Serializable" });
 }
 
 export async function retrySyncJob(id: string, actor: { id: string; displayName: string }) {
   return prisma.$transaction(async (tx) => {
     const job = await tx.dataSyncJob.findFirst({ where: { id, status: "FAILED" } });
     if (!job) throw new Error("Tác vụ không ở trạng thái có thể chạy lại.");
+    if (job.source === "RNI_DISH") {
+      const active = await tx.dataSyncJob.findFirst({ where: { id: { not: id }, source: "RNI_DISH", status: { in: ["QUEUED", "RUNNING"] } }, select: { id: true } });
+      if (active) throw new Error("Đang có một tác vụ RNI khác chạy. Vui lòng chờ hoàn tất rồi thử lại.");
+    }
     const queued = await tx.dataSyncJob.update({ where: { id }, data: { status: "QUEUED", errorMessage: null, completedAt: null } });
     await tx.auditLog.create({ data: { entityType: "DataSyncJob", entityId: id, action: "OFFICIAL_DATA_SYNC_RETRY", actorId: actor.id, actorName: actor.displayName, beforeJson: { status: "FAILED" }, afterJson: { status: "QUEUED", checkpoint: job.checkpointJson ?? undefined }, reason: "Chạy lại từ điểm dừng gần nhất" } });
     return queued;
-  });
+  }, { isolationLevel: "Serializable" });
 }
 
 async function upsertVddFood(item: Record<string, unknown>) {
@@ -104,7 +147,7 @@ async function upsertDish(source: "VDD" | "RNI", item: Record<string, unknown>) 
 
 async function syncRniIngredients(dishId: string, sourceCode: string) {
   const url = new URL("https://app.thucdongiadinh.vn/api/services/app/MonAn/GetAllTpFromMa"); url.searchParams.set("MonAnId", sourceCode);
-  const response = await fetchJson(url.toString(), { headers: RNI_HEADERS }); const rows = array(response.result);
+  const response = await fetchJson(url.toString(), { headers: RNI_HEADERS }, RNI_RETRY_DELAYS_MS); const rows = array(response.result);
   for (const [index, row] of rows.entries()) {
     const food = row.thucPham && typeof row.thucPham === "object" ? row.thucPham as Record<string, unknown> : {};
     const rawFoodId = text(row.thucPhamId); const foodName = text(food.tenThucPhamVi); const quantityG = numberOrNull(row.khoiLuongGam ?? row.khoiLuong);
@@ -133,8 +176,15 @@ export async function processSyncJob(jobId: string) {
       let skip = Number((job.checkpointJson as { skip?: number } | null)?.skip ?? 0); let total = skip + 1;
       while (skip < total) {
         const page = await rniPage(skip); const items = array(page.items); total = Number(page.totalCount) || items.length;
-        for (const item of items) { const saved = await upsertDish("RNI", item); processed += 1; if (saved.result === "created") created += 1; if (saved.result === "updated") updated += 1; if (saved.dishId) await syncRniIngredients(saved.dishId, text(item.id)); await new Promise((resolve) => setTimeout(resolve, 100)); }
-        skip += items.length || 100; await prisma.dataSyncJob.update({ where: { id: job.id }, data: { processedCount: processed, createdCount: created, updatedCount: updated, checkpointJson: { skip, total } } });
+        if (!items.length) break;
+        for (const [index, item] of items.entries()) {
+          const saved = await upsertDish("RNI", item); processed += 1; if (saved.result === "created") created += 1; if (saved.result === "updated") updated += 1;
+          if (saved.dishId) await syncRniIngredients(saved.dishId, text(item.id));
+          const nextSkip = skip + index + 1;
+          await prisma.dataSyncJob.update({ where: { id: job.id }, data: { processedCount: processed, createdCount: created, updatedCount: updated, checkpointJson: { skip: nextSkip, total } } });
+          await new Promise((resolve) => setTimeout(resolve, rniItemDelayMs()));
+        }
+        skip += items.length;
       }
     }
     await prisma.$transaction([prisma.dataSyncJob.update({ where: { id: job.id }, data: { status: "COMPLETED", completedAt: new Date(), processedCount: processed, createdCount: created, updatedCount: updated } }), prisma.auditLog.create({ data: { entityType: "DataSyncJob", entityId: job.id, action: "OFFICIAL_DATA_SYNC_COMPLETED", actorId: job.requestedById, actorName: job.requestedBy.displayName, afterJson: { source: job.source, processed, created, updated }, reason: job.reason ?? "Đồng bộ dữ liệu chính thức" } })]);
