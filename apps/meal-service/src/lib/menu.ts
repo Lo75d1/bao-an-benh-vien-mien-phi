@@ -5,6 +5,14 @@ import { createMenuSnapshot, evaluateMenu, type MenuItemInput } from "./menu-log
 import { prisma } from "./prisma";
 export * from "./menu-logic";
 
+export function normalizeMenuPatientNote(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const note = value.trim().replace(/\s+/g, " ");
+  if (!note) return null;
+  if (note.length > 500) throw new Error("Ghi chú dành cho bệnh nhân tối đa 500 ký tự.");
+  return note;
+}
+
 export async function normalizeMenuItems(items: MenuItemInput[]): Promise<MenuItemInput[]> {
   const foodIds = [...new Set(items.flatMap((item) => item.foodId ? [item.foodId] : []))];
   const foods = await prisma.food.findMany({ where: { id: { in: foodIds } }, select: { id: true, name: true, wastePercent: true, energyKcal: true, proteinG: true, lipidG: true, glucidG: true, sodiumMg: true, potassiumMg: true, waterG: true } });
@@ -12,7 +20,7 @@ export async function normalizeMenuItems(items: MenuItemInput[]): Promise<MenuIt
   return items.map((item) => { const food = item.foodId ? byId.get(item.foodId) : null; if (item.foodId && !food) throw new Error("Có thực phẩm không còn tồn tại trong dữ liệu nền."); return { foodId: food?.id ?? null, itemName: food?.name ?? item.itemName.trim(), dishName: item.dishName?.trim().slice(0, 120) || "Món 1", grams: item.grams, wastePercent: food?.wastePercent ?? null, nutrients: food ? { energyKcal: food.energyKcal, proteinG: food.proteinG, lipidG: food.lipidG, glucidG: food.glucidG, sodiumMg: food.sodiumMg, potassiumMg: food.potassiumMg, waterG: food.waterG } : { energyKcal: null, proteinG: null, lipidG: null, glucidG: null, sodiumMg: null, potassiumMg: null, waterG: null } }; });
 }
 
-export async function saveDietMeal(input: { dietMealId: string; items: MenuItemInput[]; sourceTemplateId?: string | null }, actor: { id: string; displayName: string }, now = new Date()) {
+export async function saveDietMeal(input: { dietMealId: string; items: MenuItemInput[]; sourceTemplateId?: string | null; patientVisibleNote?: unknown }, actor: { id: string; displayName: string }, now = new Date()) {
   const meal = await prisma.dietMeal.findUnique({ where: { id: input.dietMealId }, include: { dietType: { include: { dietCodeRef: true } }, mealEvent: { include: { mealType: true } } } });
   if (!meal || meal.voidedAt) throw new Error("Không tìm thấy thực đơn đang hoạt động.");
   if (mealTimePhase(meal.mealEvent.mealDate, meal.mealEvent.mealType.cutoffTime, meal.mealEvent.mealType.serviceTime, now) !== "BEFORE_CUTOFF") throw new Error("Đã tới giờ khóa thực đơn. Bếp đang dùng bản đã lưu gần nhất.");
@@ -23,11 +31,12 @@ export async function saveDietMeal(input: { dietMealId: string; items: MenuItemI
   const thresholds = meal.dietType.dietCodeRef as DietCodeThresholds | null;
   const evaluation = evaluateMenu(normalizedItems, thresholds);
   const snapshot = createMenuSnapshot(normalizedItems);
+  const patientVisibleNote = normalizeMenuPatientNote(input.patientVisibleNote);
   return prisma.$transaction(async (tx) => {
     const current = await tx.dietMeal.findUniqueOrThrow({ where: { id: meal.id }, include: { mealEvent: { include: { mealType: true } } } });
     if (mealTimePhase(current.mealEvent.mealDate, current.mealEvent.mealType.cutoffTime, current.mealEvent.mealType.serviceTime, now) !== "BEFORE_CUTOFF") throw new Error("Đã tới giờ khóa thực đơn. Bếp đang dùng bản đã lưu gần nhất.");
-    const updated = await tx.dietMeal.update({ where: { id: meal.id }, data: { menuSnapshotJson: snapshot as unknown as Prisma.InputJsonValue, evaluationJson: evaluation as unknown as Prisma.InputJsonValue, approvedAt: null, approvedById: actor.id, status: "PLANNED", sourceTemplateId: input.sourceTemplateId ?? null } });
-    await tx.auditLog.create({ data: { entityType: "DietMeal", entityId: meal.id, action: "SAVE_MENU", actorId: actor.id, actorName: actor.displayName, beforeJson: current.menuSnapshotJson ?? undefined, afterJson: { menuSnapshotJson: snapshot, evaluationJson: evaluation, status: "PLANNED" } as unknown as Prisma.InputJsonValue, reason: "Lưu thực đơn trước giờ tự động khóa" } });
+    const updated = await tx.dietMeal.update({ where: { id: meal.id }, data: { menuSnapshotJson: snapshot as unknown as Prisma.InputJsonValue, evaluationJson: evaluation as unknown as Prisma.InputJsonValue, patientVisibleNote, approvedAt: null, approvedById: actor.id, status: "PLANNED", sourceTemplateId: input.sourceTemplateId ?? null } });
+    await tx.auditLog.create({ data: { entityType: "DietMeal", entityId: meal.id, action: "SAVE_MENU", actorId: actor.id, actorName: actor.displayName, beforeJson: { menuSnapshotJson: current.menuSnapshotJson, patientVisibleNote: current.patientVisibleNote } as unknown as Prisma.InputJsonValue, afterJson: { menuSnapshotJson: snapshot, evaluationJson: evaluation, patientVisibleNote, status: "PLANNED" } as unknown as Prisma.InputJsonValue, reason: "Lưu thực đơn và ghi chú công khai trước giờ tự động khóa" } });
     return updated;
   });
 }

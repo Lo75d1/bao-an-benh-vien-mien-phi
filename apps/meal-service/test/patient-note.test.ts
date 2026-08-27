@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { publicMealEvidenceUrl } from "../src/lib/evidence-storage";
-import { approvedNotesOnly, clientIpFromHeaders, hashClientIp, isPatientNoteRateLimited, publicDietMeal } from "../src/lib/patient-note";
+import { approvedNotesOnly, clientIpFromHeaders, hashClientIp, isPatientNoteRateLimited, publicDietMeal, publicPatientNotes } from "../src/lib/patient-note";
 
 test("chỉ ghi chú APPROVED được chuyển tới bếp", () => {
   const visible = approvedNotesOnly([
@@ -16,6 +16,16 @@ test("projection công khai không chứa internalNote", () => {
   const projected = publicDietMeal({ patientVisibleNote: "Bệnh nhân được xem", internalNote: "Chỉ nội bộ" });
   assert.deepEqual(projected, { patientVisibleNote: "Bệnh nhân được xem" });
   assert.equal("internalNote" in projected, false);
+});
+
+test("ghi chú công khai giữ đúng nguồn và loại bỏ nội dung trùng", () => {
+  assert.deepEqual(publicPatientNotes("Dùng khi còn ấm", "Ăn chậm"), [
+    { source: "DIETITIAN", text: "Dùng khi còn ấm" },
+    { source: "DEPARTMENT", text: "Ăn chậm" },
+  ]);
+  assert.deepEqual(publicPatientNotes("Dùng khi còn ấm", "Dùng khi còn ấm"), [
+    { source: "DIETITIAN", text: "Dùng khi còn ấm" },
+  ]);
 });
 
 test("ipHash không lưu IP thô và rate-limit theo cửa sổ một giờ", () => {

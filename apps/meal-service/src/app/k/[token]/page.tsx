@@ -25,7 +25,7 @@ export default async function PatientPage({ params, searchParams }: { params: Pr
         <div className="public-diet-body"><div className="public-diet-title"><h3><DietName name={meal.dietType.name} code={meal.dietType.code}/></h3><StatusBadge status={meal.status}/></div>
           <div className="patient-menu"><span>Thực đơn</span><strong>{meal.menuItems.length ? meal.menuItems.join(" · ") : "—"}</strong>{meal.menuItems.length === 0 && <small>Chưa có dữ liệu thực đơn.</small>}</div>
           <details className="patient-evaluation"><summary><span>Mức chỉ tiêu</span><EvaluationBadge status={overallStatus[meal.evaluation.overall]}/></summary>{meal.evaluation.criteria.length ? <ul>{meal.evaluation.criteria.map((criterion) => <li key={criterion.key}><span>{criterion.label}</span><EvaluationBadge status={criterion.status as "OK" | "LOW" | "HIGH" | "MISSING"}/></li>)}</ul> : <p>— · Chưa đủ dữ liệu đánh giá.</p>}</details>
-          {meal.patientVisibleNotes.length > 0 && <div className="patient-visible-note"><span>Thông tin từ khoa</span>{meal.patientVisibleNotes.map((note, index) => <p key={index}>{note}</p>)}</div>}
+          {meal.patientVisibleNotes.length > 0 && <div className="patient-visible-note">{meal.patientVisibleNotes.map((note, index) => <section key={`${note.source}-${index}`}><span>{note.source === "DIETITIAN" ? "Ghi chú từ dinh dưỡng" : "Thông tin từ khoa"}</span><p>{note.text}</p></section>)}</div>}
         </div>
       </article>)}</div></section>)}</div>}
     </section>
