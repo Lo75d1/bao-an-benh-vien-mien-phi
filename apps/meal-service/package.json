@@ -12,7 +12,8 @@
     "test": "tsx --test test/**/*.test.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:seed": "tsx scripts/seed.ts"
+    "db:seed": "tsx scripts/seed.ts",
+    "data-sync:worker": "tsx scripts/data-sync-worker.ts"
   },
   "dependencies": {
     "@fontsource/be-vietnam-pro": "^5.2.7",

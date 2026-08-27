@@ -1,6 +1,6 @@
 "use server";
 
-import type { ActiveStatus, FeedingRoute, Role } from "@prisma/client";
+import type { ActiveStatus, DataSyncSource, FeedingRoute, Role } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAccount, setAccountStatus, updateAccount } from "@/lib/accounts";
@@ -10,9 +10,34 @@ import { saveDepartment, setDepartmentStatus } from "@/lib/departments";
 import { saveMealType, setMealTypeStatus } from "@/lib/meal-types";
 import { updateOperationalSettings } from "@/lib/settings";
 import { readBrandingSettings, updateBrandingSettings } from "@/lib/branding";
+import { createSyncPreview, queueSyncJob, retrySyncJob } from "@/lib/official-data-sync";
 
 async function admin() { const user = await getSessionUser(); if (!user || user.role !== "ADMIN") throw new Error("Chỉ quản trị viên được thực hiện thao tác này."); return user; }
 const enabled = (data: FormData, key: string) => ["on", "true", "1"].includes(String(data.get(key) ?? "").toLowerCase());
+
+const DATA_SYNC_SOURCES = new Set<DataSyncSource>(["VDD_FOOD", "VDD_DISH", "RNI_DISH"]);
+
+export async function previewOfficialDataAction(formData: FormData) {
+  const actor = await admin();
+  const source = String(formData.get("source") ?? "") as DataSyncSource;
+  if (!DATA_SYNC_SOURCES.has(source)) throw new Error("Nguồn dữ liệu không hợp lệ.");
+  const job = await createSyncPreview(source, actor);
+  redirect(`/quan-tri?sync=${encodeURIComponent(job.id)}#official-data`);
+}
+
+export async function queueOfficialDataAction(formData: FormData) {
+  const actor = await admin();
+  await queueSyncJob(String(formData.get("jobId") ?? ""), String(formData.get("reason") ?? ""), actor);
+  revalidatePath("/quan-tri");
+  redirect("/quan-tri?updated=data-sync#official-data");
+}
+
+export async function retryOfficialDataAction(formData: FormData) {
+  const actor = await admin();
+  await retrySyncJob(String(formData.get("jobId") ?? ""), actor);
+  revalidatePath("/quan-tri");
+  redirect("/quan-tri?updated=data-sync#official-data");
+}
 
 export async function saveBrandingAction(formData: FormData) {
   const actor = await admin();

@@ -25,6 +25,11 @@ services:
       BOOTSTRAP_ADMIN_NAME: "${BOOTSTRAP_ADMIN_NAME:-Quản trị hệ thống}"
     depends_on: { migrate: { condition: service_completed_successfully } }
     restart: "no"
+  data_sync_worker:
+    build: { context: ., target: data_sync_worker }
+    environment: { DATABASE_URL: "${DATABASE_URL:?Hay dat DATABASE_URL noi bo Docker trong file .env}" }
+    depends_on: { migrate: { condition: service_completed_successfully } }
+    restart: unless-stopped
   app:
     build: { context: ., target: app }
     environment:

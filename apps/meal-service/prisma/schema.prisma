@@ -88,6 +88,20 @@ enum DocumentKind {
   OTHER
 }
 
+enum DataSyncSource {
+  VDD_FOOD
+  VDD_DISH
+  RNI_DISH
+}
+
+enum DataSyncStatus {
+  PREVIEW
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
 model User {
   id                    String                 @id @default(cuid())
   email                 String                 @unique
@@ -112,6 +126,7 @@ model User {
   inventoryTransactions InventoryTransaction[]
   menuTemplates         MenuTemplate[]
   auditLogs             AuditLog[]
+  dataSyncJobs          DataSyncJob[]
 }
 
 model LoginRateLimit {
@@ -437,6 +452,27 @@ model AuditLog {
   actor      User     @relation(fields: [actorId], references: [id])
 
   @@index([entityType, entityId])
+}
+
+model DataSyncJob {
+  id             String         @id @default(cuid())
+  source         DataSyncSource
+  status         DataSyncStatus @default(PREVIEW)
+  requestedById  String
+  reason         String?
+  previewJson    Json?
+  checkpointJson Json?
+  processedCount Int            @default(0)
+  createdCount   Int            @default(0)
+  updatedCount   Int            @default(0)
+  errorMessage   String?
+  createdAt      DateTime       @default(now())
+  startedAt      DateTime?
+  completedAt    DateTime?
+  requestedBy    User           @relation(fields: [requestedById], references: [id])
+
+  @@index([status, createdAt])
+  @@index([source, createdAt])
 }
 
 model Food {
