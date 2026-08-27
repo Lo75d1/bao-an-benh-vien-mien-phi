@@ -976,3 +976,8 @@ body:has(.nutrition-menu-page) .top-shell,body:has(.nutrition-menu-page) [role="
 
   .invoice-toolbar{align-items:stretch;flex-direction:column}.invoice-toolbar .primary-action{min-height:44px;justify-content:center}.invoice-list article{grid-template-columns:26px minmax(0,1fr)}.invoice-list article>a{grid-column:2;min-height:42px;text-align:center}
 }
+
+/* GitHub là hành động chính của trang Demo và luôn nhìn thấy trên mobile. */
+.demo-github-action{min-height:40px;display:inline-flex!important;align-items:center;gap:7px;padding:0 13px;border:1px solid #153b5b;border-radius:9px;background:#153b5b;color:#fff!important}.demo-github-action:hover{background:#0f2f49;color:#fff!important}.demo-github-action svg{width:17px;height:17px}
+@media(max-width:820px){.demo-product-header nav>a.demo-github-action{display:inline-flex!important}.demo-product-header nav{gap:8px}}
+@media(max-width:520px){.demo-github-action{width:40px;justify-content:center;padding:0}.demo-github-action span{display:none}}

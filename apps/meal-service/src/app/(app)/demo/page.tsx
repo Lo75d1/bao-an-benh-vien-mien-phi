@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, ChefHat, ClipboardCheck, FileSpreadsheet, HeartPulse, Home, MessageCircle, Settings2, ShieldCheck, Soup, Utensils } from "lucide-react";
+import { ArrowRight, ChefHat, ClipboardCheck, FileSpreadsheet, GitFork, HeartPulse, Home, MessageCircle, Settings2, ShieldCheck, Soup, Utensils } from "lucide-react";
 import { DemoEntry, type DemoEntryAccount } from "@/components/demo-entry";
 
 const roles = [
@@ -23,7 +23,7 @@ function RoleDialog({ role }: { role: (typeof roles)[number] }) {
 
 export default function DemoLandingPage() {
   return <main className="demo-product-home">
-    <header className="demo-product-header"><Link href="/demo" className="demo-product-brand"><span>SA</span><strong>Suất ăn bệnh viện miễn phí</strong></Link><nav aria-label="Điều hướng trang Demo"><a href="#huong-dan">Hướng dẫn Demo</a><a href="#ho-tro">Hỗ trợ</a><DemoEntry accounts={demoEntries} triggerLabel="Vào Demo" triggerClassName="demo-header-action"/></nav></header>
+    <header className="demo-product-header"><Link href="/demo" className="demo-product-brand"><span>SA</span><strong>Suất ăn bệnh viện miễn phí</strong></Link><nav aria-label="Điều hướng trang Demo"><a href="#huong-dan">Hướng dẫn Demo</a><a href="#ho-tro">Hỗ trợ</a><a className="demo-github-action" href="https://github.com/Lo75d1/bao-an-benh-vien-mien-phi" target="_blank" rel="noreferrer" aria-label="Tải mã nguồn từ GitHub"><GitFork aria-hidden="true"/><span>GitHub</span></a><DemoEntry accounts={demoEntries} triggerLabel="Vào Demo" triggerClassName="demo-header-action"/></nav></header>
 
     <section className="demo-product-intro" aria-labelledby="demo-title"><div><p className="demo-kicker"><ShieldCheck aria-hidden="true"/>Dự án mã nguồn mở cho bệnh viện</p><h1 id="demo-title">Một quy trình rõ ràng cho mỗi suất ăn.</h1><p>Kết nối khoa điều trị, dinh dưỡng và nhà bếp trong cùng một luồng vận hành theo thời gian thực.</p><DemoEntry accounts={demoEntries}/></div><aside aria-label="Quy trình sản phẩm"><span>Luồng vận hành</span><ol><li><ClipboardCheck/><strong>Khoa báo suất</strong></li><li><HeartPulse/><strong>Dinh dưỡng lên thực đơn</strong></li><li><ChefHat/><strong>Bếp chuẩn bị</strong></li><li><Utensils/><strong>Khoa xác nhận giao nhận</strong></li></ol></aside></section>
 
