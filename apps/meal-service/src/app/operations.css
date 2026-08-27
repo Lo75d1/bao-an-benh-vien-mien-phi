@@ -915,10 +915,11 @@ body:has(.nutrition-menu-page) .top-shell,body:has(.nutrition-menu-page) [role="
 
 /* Mobile workspaces: one primary task per viewport, with natural page scrolling. */
 @media(max-width:720px){
-  html,body{overflow-x:hidden}
+  html{min-height:100%;overflow-x:hidden;overflow-y:auto}
+  body:not([data-scroll-locked]){min-height:100%;height:auto!important;overflow-x:hidden;overflow-y:auto!important}
   .app-frame{min-height:100dvh;height:auto!important;overflow:visible!important}
-  .app-main{min-height:calc(100dvh - 106px);overflow:visible}
-  .app-main>main{height:auto;min-height:calc(100dvh - 106px);overflow:visible;scrollbar-gutter:auto}
+  .app-main{height:auto!important;min-height:calc(100dvh - 106px);overflow:visible!important}
+  .app-main>main{height:auto!important;min-height:calc(100dvh - 106px);overflow:visible!important;overscroll-behavior:auto;scrollbar-gutter:auto}
   .top-shell{position:sticky;top:0;height:auto;min-height:0;grid-template-columns:minmax(0,1fr) auto;gap:6px 8px;padding:7px 10px 0}
   .top-brand{min-width:0}.top-brand strong{max-width:48vw;overflow:hidden;text-overflow:ellipsis}
   .top-shell-actions{min-width:0;height:38px}.top-workflow-status,.top-project-link,.top-account>span{display:none}
@@ -932,6 +933,7 @@ body:has(.nutrition-menu-page) .top-shell,body:has(.nutrition-menu-page) [role="
   .demo-guide-card{right:8px;bottom:8px;width:calc(100vw - 16px);max-height:min(55dvh,430px);overflow-y:auto;padding:12px}
   .demo-guide-reopen{right:10px;bottom:10px}
 
+  .nurse-report-page{display:flex!important;flex-direction:column;height:auto!important;min-height:calc(100dvh - 106px);overflow:visible!important}
   .nurse-progress-card,.shared-lifecycle.nurse-progress-card{grid-template-columns:1fr;gap:8px;min-height:0!important;max-height:none!important;padding:10px}
   .nurse-progress-context{grid-template-columns:minmax(0,1fr) auto;gap:6px}.nurse-progress-card header strong{font-size:16px}.nurse-progress-card header small{font-size:11px}
   .nurse-route-switch [role="tab"]{min-width:74px;min-height:36px;padding-inline:6px;font-size:11px}
@@ -945,7 +947,7 @@ body:has(.nutrition-menu-page) .top-shell,body:has(.nutrition-menu-page) [role="
   .nurse-locked-actions{width:100%}.nurse-locked-actions button{min-height:44px;justify-content:center}
   .delivery-short-form{grid-template-columns:1fr}
 
-  .kitchen-v2{height:auto;overflow:visible}.kitchen-v2>.shared-lifecycle{flex:none;min-height:0;max-height:none}
+  .kitchen-v2{height:auto!important;min-height:calc(100dvh - 106px);overflow:visible!important}.kitchen-v2>.shared-lifecycle{flex:none;min-height:0;max-height:none}
   .kitchen-quick-bar{align-items:flex-start;flex-direction:column;padding:10px}.kitchen-board-tools,.kitchen-board-tools .kitchen-tools{width:100%}.kitchen-board-tools .kitchen-tools{display:grid;grid-template-columns:repeat(3,1fr)}
   .kitchen-board-tools .tool-button{min-height:48px;justify-content:center;padding:6px 4px}.kitchen-board-tools .tool-button svg{width:18px}.kitchen-board-tools .tool-button span{font-size:10px}
   .kitchen-operation-grid{display:flex;overflow:visible;flex-direction:column}.kitchen-operation-main,.kitchen-operation-side{overflow:visible}
@@ -956,7 +958,7 @@ body:has(.nutrition-menu-page) .top-shell,body:has(.nutrition-menu-page) [role="
   .addition-dialog-list article{grid-template-columns:1fr}.ack-actions{flex-wrap:wrap}.ack-actions button{min-height:44px;flex:1}
   .kitchen-proof-list fieldset{grid-template-columns:1fr}.kitchen-proof-preview,.kitchen-proof-list>fieldset>input{grid-column:1}.kitchen-finish-actions{flex-direction:column-reverse}.kitchen-finish-actions button{min-height:46px;justify-content:center}
 
-  .admin-serving-board{height:auto;overflow:visible}.admin-serving-top{display:flex!important;min-height:0!important;flex-direction:column}.admin-serving-top .shared-lifecycle{border-right:0;border-bottom:1px solid var(--border)}
+  .admin-serving-board{height:auto!important;min-height:calc(100dvh - 106px);overflow:visible!important}.admin-serving-top{display:flex!important;min-height:0!important;flex-direction:column}.admin-serving-top .shared-lifecycle{border-right:0;border-bottom:1px solid var(--border)}
   .admin-review-trigger{min-height:48px;margin:8px}.admin-serving-grid{display:flex;overflow:visible;flex-direction:column}.admin-serving-master,.admin-serving-detail{height:auto;overflow:visible}
   .admin-serving-master{border-right:0;border-bottom:1px solid var(--border)}.admin-serving-master>header{grid-template-columns:1fr;align-items:stretch}.admin-view-switch{width:100%}.admin-view-switch button{flex:1;justify-content:center;min-height:42px}.admin-add-incident{justify-content:center;min-height:44px}
   .admin-serving-table{max-width:100%;overflow-x:auto}.admin-serving-table table{min-width:620px}.admin-serving-table th,.admin-serving-table td{height:42px}.admin-serving-detail{min-height:280px}.admin-detail-scroll{overflow:visible}

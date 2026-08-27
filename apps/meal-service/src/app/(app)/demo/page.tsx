@@ -1,8 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, ChefHat, ClipboardCheck, FileSpreadsheet, HeartPulse, Home, MessageCircle, Settings2, ShieldCheck, Soup, Utensils } from "lucide-react";
 import { DemoEntry, type DemoEntryAccount } from "@/components/demo-entry";
-import { getSessionUser } from "@/lib/auth";
-import { redirect } from "next/navigation";
 
 const roles = [
   { key: "nurse", icon: ClipboardCheck, title: "Điều dưỡng của khoa", description: "Báo suất đúng chế độ, gửi bổ sung sau chốt và xác nhận khoa đã nhận đủ hay còn thiếu.", action: "Vào màn báo suất", badge: undefined, account: { label: "Điều dưỡng", email: "nurse@demo.local", password: "Demo-Nurse-2026!" } },
@@ -23,9 +21,7 @@ function RoleDialog({ role }: { role: (typeof roles)[number] }) {
   return <article className={`demo-journey-item ${role.key}`}><div className="demo-journey-icon"><Icon aria-hidden="true"/></div><div className="demo-journey-copy"><span>{role.badge ?? `Vai trò ${role.title}`}</span><h3>{role.title}</h3><p>{role.description}</p><DemoEntry accounts={demoEntries} compactAccount={{ ...entry, label: role.action }}/></div></article>;
 }
 
-export default async function DemoLandingPage() {
-  const user = await getSessionUser();
-  if (user) redirect({ ADMIN: "/quan-ly", DIETITIAN: "/quan-ly", NURSE: "/bao-suat", KITCHEN: "/bep" }[user.role]);
+export default function DemoLandingPage() {
   return <main className="demo-product-home">
     <header className="demo-product-header"><Link href="/demo" className="demo-product-brand"><span>SA</span><strong>Suất ăn bệnh viện miễn phí</strong></Link><nav aria-label="Điều hướng trang Demo"><a href="#huong-dan">Hướng dẫn Demo</a><a href="#ho-tro">Hỗ trợ</a><DemoEntry accounts={demoEntries} triggerLabel="Vào Demo" triggerClassName="demo-header-action"/></nav></header>
 
