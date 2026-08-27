@@ -3,6 +3,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { DEMO_CLOCK_COOKIE, readRequestClock } from "@/lib/request-clock";
+import { prisma } from "@/lib/prisma";
+import { seedDemo } from "../../../scripts/seed-demo";
 
 function safeReturnTo(value: FormDataEntryValue | null) {
   const path = String(value ?? "/");
@@ -29,6 +31,7 @@ export async function updateDemoClockAction(formData: FormData) {
     target = new Date(`${value}:00+07:00`);
   }
   if (Number.isNaN(target.getTime())) throw new Error("Thời gian demo không hợp lệ.");
+  await seedDemo(prisma, target, { resetScenario: true });
   store.set(DEMO_CLOCK_COOKIE, target.toISOString(), { httpOnly: true, sameSite: "lax", path: "/" });
   redirect(returnTo);
 }

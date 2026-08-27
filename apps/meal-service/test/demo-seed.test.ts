@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { demoMealStatus, dietTypesForRoute } from "../scripts/seed-demo";
+import { assertDemoDatasetEnabled, demoMealStatus, dietTypesForRoute } from "../scripts/seed-demo";
+
+test("chặn ghi dữ liệu Demo nếu database không có cờ kép", () => {
+  assert.throws(() => assertDemoDatasetEnabled({ DEMO_MODE: "1" }), /DEMO_DATASET/);
+  assert.doesNotThrow(() => assertDemoDatasetEnabled({ DEMO_MODE: "1", DEMO_DATASET: "1" }));
+});
 
 test("bot chỉ ghép mã chế độ với bữa cùng đường nuôi", () => {
   const dietTypes = [

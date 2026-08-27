@@ -47,7 +47,16 @@ function demoVariation(...parts: number[]): number {
   return hash % 21 - 10;
 }
 
-export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<void> {
+export type DemoSeedOptions = { resetScenario?: boolean };
+
+export function assertDemoDatasetEnabled(env: Record<string, string | undefined> = process.env): void {
+  if (env.DEMO_MODE !== "1" || env.DEMO_DATASET !== "1") {
+    throw new Error("Từ chối ghi dữ liệu Demo: cần đồng thời DEMO_MODE=1 và DEMO_DATASET=1 trên database Demo riêng.");
+  }
+}
+
+export async function seedDemo(prisma: PrismaClient, now = new Date(), options: DemoSeedOptions = {}): Promise<void> {
+  assertDemoDatasetEnabled();
   const [departments, mealTypes, dietTypes, users, warehouse, foods] = await Promise.all([
     prisma.department.findMany({ where: { code: { in: ["NOI", "NGOAI"] } } }),
     prisma.mealType.findMany({ where: { status: "ACTIVE" }, orderBy: { sortOrder: "asc" } }),
@@ -80,6 +89,18 @@ export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<
   const hasSondeData = mealTypes.some((item) => item.feedingRoute === "SONDE") && dietTypes.some((item) => item.feedingRoute === "SONDE");
   if (!noi || !ngoai || !dietitian || !nurse || !kitchen || !sondeKitchen || !warehouse || !hasNormalData || !hasSondeData || foods.length < 3) {
     throw new Error("Seed nền chưa đầy đủ; hãy chạy seed.ts trước seed demo.");
+  }
+
+  if (options.resetScenario) {
+    const demoEvents = await prisma.mealEvent.findMany({ where: { id: { startsWith: "demo-event-" } }, select: { id: true, dietMeals: { select: { id: true } } } });
+    const eventIds = demoEvents.map((event) => event.id);
+    const mealIds = demoEvents.flatMap((event) => event.dietMeals.map((meal) => meal.id));
+    await prisma.$transaction([
+      prisma.mealDeliveryReceipt.deleteMany({ where: { mealEventId: { in: eventIds } } }),
+      prisma.lateMealAddition.deleteMany({ where: { mealEventId: { in: eventIds } } }),
+      prisma.mealEvidence.deleteMany({ where: { dietMealId: { in: mealIds } } }),
+      prisma.auditLog.deleteMany({ where: { OR: [{ entityId: { in: eventIds } }, { entityId: { in: mealIds } }, { entityId: { startsWith: "demo-" } }] } }),
+    ]);
   }
 
   await prisma.department.update({ where: { id: noi.id }, data: { publicToken: "khoa-noi" } });
@@ -133,7 +154,7 @@ export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<
         const menuInHorizon = mealDate.getTime() <= menuHorizon.getTime();
         const menuApproved = menuInHorizon && cutoffAt.getTime() <= now.getTime();
         const approvedAt = menuApproved ? new Date(cutoffAt.getTime() - 30 * 60 * 1000) : null;
-        const botShouldFillMenu = menuInHorizon && !existingMeal?.menuSnapshotJson;
+        const botShouldFillMenu = menuInHorizon && (options.resetScenario || !existingMeal?.menuSnapshotJson);
         const botShouldClearMenu = !menuInHorizon && existingMeal?.id.startsWith("demo-meal-");
         const id = `demo-meal-${dateKey(mealDate)}-${mealType.code.toLowerCase()}-${dietType.code.toLowerCase()}`;
         const meal = await prisma.dietMeal.upsert({
@@ -154,6 +175,7 @@ export async function seedDemo(prisma: PrismaClient, now = new Date()): Promise<
           update: {
             feedingRoute: dietType.feedingRoute,
             ...(botShouldFillMenu ? { menuSnapshotJson: json({ version: 1, items }), evaluationJson: json(evaluation), approvedAt, approvedById: dietitian.id } : {}),
+            ...(options.resetScenario && !menuInHorizon ? { menuSnapshotJson: Prisma.DbNull, evaluationJson: Prisma.DbNull, approvedAt: null, approvedById: null, sourceTemplateId: null } : {}),
             ...(botShouldClearMenu ? { menuSnapshotJson: Prisma.DbNull, evaluationJson: Prisma.DbNull, approvedAt: null, approvedById: null } : {}),
             status,
             internalNote: dietIndex === 1 ? "Bếp lưu ý độ mềm và nhiệt độ khi chia suất." : null,

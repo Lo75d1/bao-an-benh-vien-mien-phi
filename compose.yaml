@@ -18,18 +18,18 @@ services:
     restart: "no"
   seed:
     build: { context: ., target: seed }
-    environment: { DATABASE_URL: "postgresql://meal_service:local-compose-only@db:5432/meal_service?schema=public", DEMO_SEED: "1" }
+    environment: { DATABASE_URL: "postgresql://meal_service:local-compose-only@db:5432/meal_service?schema=public", DEMO_SEED: "1", DEMO_MODE: "1", DEMO_DATASET: "1" }
     depends_on: { migrate: { condition: service_completed_successfully } }
     restart: "no"
   demo_bot:
     build: { context: ., target: seed }
     command: ["sh", "-c", "while true; do npm run db:seed:demo -w @suat-an/meal-service; sleep 21600; done"]
-    environment: { DATABASE_URL: "postgresql://meal_service:local-compose-only@db:5432/meal_service?schema=public" }
+    environment: { DATABASE_URL: "postgresql://meal_service:local-compose-only@db:5432/meal_service?schema=public", DEMO_MODE: "1", DEMO_DATASET: "1" }
     depends_on: { seed: { condition: service_completed_successfully } }
     restart: unless-stopped
   app:
     build: { context: ., target: app }
-    environment: { DATABASE_URL: "postgresql://meal_service:local-compose-only@db:5432/meal_service?schema=public", DEMO_LOGIN_BUTTONS: "1", DEMO_MODE: "1", INSECURE_COOKIES: "1", EVIDENCE_STORAGE_DIR: "/app/uploads" }
+    environment: { DATABASE_URL: "postgresql://meal_service:local-compose-only@db:5432/meal_service?schema=public", DEMO_LOGIN_BUTTONS: "1", DEMO_MODE: "1", DEMO_DATASET: "1", INSECURE_COOKIES: "1", EVIDENCE_STORAGE_DIR: "/app/uploads" }
     depends_on: { seed: { condition: service_completed_successfully } }
     ports: ["3000:3000"]
     volumes: ["meal_service_uploads:/app/uploads"]
