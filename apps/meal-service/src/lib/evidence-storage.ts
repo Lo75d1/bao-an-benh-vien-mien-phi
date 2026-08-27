@@ -33,3 +33,8 @@ export async function readStoredEvidence(storagePath: string) {
 }
 
 export const evidenceStorage: EvidenceStorage = new LocalEvidenceStorage();
+
+/** URL nội bộ cùng origin, chỉ endpoint công khai mới quyết định tệp nào được phép đọc. */
+export function publicMealEvidenceUrl(id: string): string {
+  return `/api/public/evidence/${encodeURIComponent(id)}`;
+}
