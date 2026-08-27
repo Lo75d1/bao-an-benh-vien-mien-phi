@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { readOperationalSettings } from "@/lib/settings";
 import { readBrandingSettings } from "@/lib/branding";
 import { readPublicViewStats } from "@/lib/public-page-views";
-import { accountStatusAction, departmentStatusAction, dietTypeStatusAction, mealTypeStatusAction, saveAccountAction, saveBrandingAction, saveDepartmentAction, saveDietTypeAction, saveMealTypeAction, saveSettingsAction } from "./actions";
+import { accountStatusAction, departmentStatusAction, dietTypeStatusAction, mealTypeStatusAction, previewOfficialDataAction, queueOfficialDataAction, retryOfficialDataAction, saveAccountAction, saveBrandingAction, saveDepartmentAction, saveDietTypeAction, saveMealTypeAction, saveSettingsAction } from "./actions";
 import { AccountCreateForm, SettingsForm } from "./admin-forms";
 import { BrandingForm } from "./branding-form";
 import { AccountTable } from "./account-table";
@@ -16,13 +16,13 @@ import { MealTypeTable } from "./meal-type-table";
 import { DepartmentTable } from "./department-table";
 
 const roleLabel = { ADMIN: "Quản trị", DIETITIAN: "Dinh dưỡng", NURSE: "Điều dưỡng", KITCHEN: "Nhà bếp" } as const;
-const messages: Record<string, string> = { branding: "Đã cập nhật nhận diện bệnh viện trên toàn hệ thống.", settings: "Đã áp dụng cấu hình và ghi nhật ký.", created: "Đã tạo tài khoản với mật khẩu được băm scrypt.", account: "Đã cập nhật tài khoản.", status: "Đã đổi trạng thái tài khoản, không xóa lịch sử.", department: "Đã lưu khoa điều trị.", "department-status": "Đã đổi trạng thái khoa, không xóa lịch sử.", diet: "Đã lưu mã chế độ ăn.", "diet-status": "Đã đổi trạng thái mã chế độ ăn, không xóa lịch sử.", meal: "Đã lưu bữa ăn.", "meal-status": "Đã đổi trạng thái bữa ăn, lịch sử cũ được giữ nguyên." };
+const messages: Record<string, string> = { branding: "Đã cập nhật nhận diện bệnh viện trên toàn hệ thống.", settings: "Đã áp dụng cấu hình và ghi nhật ký.", "data-sync": "Đã đưa tác vụ cập nhật dữ liệu chính thức vào hàng đợi.", created: "Đã tạo tài khoản với mật khẩu được băm scrypt.", account: "Đã cập nhật tài khoản.", status: "Đã đổi trạng thái tài khoản, không xóa lịch sử.", department: "Đã lưu khoa điều trị.", "department-status": "Đã đổi trạng thái khoa, không xóa lịch sử.", diet: "Đã lưu mã chế độ ăn.", "diet-status": "Đã đổi trạng thái mã chế độ ăn, không xóa lịch sử.", meal: "Đã lưu bữa ăn.", "meal-status": "Đã đổi trạng thái bữa ăn, lịch sử cũ được giữ nguyên." };
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ updated?: string }> }) {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ updated?: string; sync?: string }> }) {
   const user = await getSessionUser();
   if (!user) redirect("/");
   if (user.role !== "ADMIN") redirect("/");
-  const [{ updated }, branding, settings, viewStats, mealTypes, users, departments, dietTypes, dietCodes] = await Promise.all([
+  const [{ updated, sync }, branding, settings, viewStats, mealTypes, users, departments, dietTypes, dietCodes] = await Promise.all([
     searchParams,
     readBrandingSettings(),
     readOperationalSettings(),
@@ -33,6 +33,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     prisma.dietType.findMany({ orderBy: [{ status: "asc" }, { sortOrder: "asc" }], include: { dietCodeRef: true } }),
     prisma.dietCode.findMany({ orderBy: { code: "asc" }, select: { id: true, code: true, name: true } }),
   ]);
+  const [syncPreview, syncJobs] = await Promise.all([
+    sync ? prisma.dataSyncJob.findFirst({ where: { id: sync, requestedById: user.id, status: "PREVIEW" } }) : null,
+    prisma.dataSyncJob.findMany({ orderBy: { createdAt: "desc" }, take: 8, include: { requestedBy: { select: { displayName: true } } } }),
+  ]);
   const activeUsers = users.filter((account) => account.status === "ACTIVE").length;
   const activeDiets = dietTypes.filter((diet) => diet.status === "ACTIVE").length;
   const activeDepartments = departments.filter((department) => department.status === "ACTIVE");
@@ -41,10 +45,16 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     {updated && messages[updated] && <p className="success-banner" role="status">{messages[updated]}</p>}
     <section className="admin-status-strip" aria-label="Trạng thái cấu hình"><div><span>Tài khoản hoạt động</span><strong className="tabular">{activeUsers}<small> / {users.length}</small></strong></div><div><span>Khoa đang dùng</span><strong className="tabular">{activeDepartments.length}<small> / {departments.length}</small></strong></div><div><span>Mã chế độ hoạt động</span><strong className="tabular">{activeDiets}<small> / {dietTypes.length}</small></strong></div><div><span>Lượt xem hôm nay</span><strong className="tabular">{viewStats.today}</strong></div><div><span>Tổng lượt xem</span><strong className="tabular">{viewStats.total}</strong></div><div><span>Cửa sổ nhập liệu</span><strong className="tabular">{settings.advanceEntryDays}<small> ngày</small></strong></div><div><span>Đường nuôi Sonde</span><strong className={settings.sondeEnabled ? "status-on" : "status-off"}>{settings.sondeEnabled ? "Đang bật" : "Đang tắt"}</strong></div><div><span>Mô hình kho</span><strong>Mode {settings.warehouseMode}</strong></div></section>
 
-    <div className="admin-command-layout"><aside className="admin-context-rail"><p>Đi tới</p><nav className="admin-section-nav" aria-label="Mục quản trị"><a href="#branding"><strong>Nhận diện bệnh viện</strong><span>Tên, logo, màu chủ đạo</span></a><a href="#settings"><strong>Cài đặt vận hành</strong><span>Giờ chốt, Sonde, kho</span></a><a href="#departments"><strong>Khoa điều trị</strong><span>{activeDepartments.length} khoa đang dùng</span></a><a href="#accounts"><strong>Nhân sự</strong><span>{activeUsers} tài khoản hoạt động</span></a><a href="#diet-types"><strong>Mã chế độ</strong><span>{activeDiets} mã đang dùng</span></a></nav><div className="admin-rail-links"><a href="/quan-ly">Mở bàn điều phối</a><a href="/quan-tri/audit">Xem nhật ký thay đổi</a></div></aside><div className="admin-command-content">
+    <div className="admin-command-layout"><aside className="admin-context-rail"><p>Đi tới</p><nav className="admin-section-nav" aria-label="Mục quản trị"><a href="#branding"><strong>Nhận diện bệnh viện</strong><span>Tên, logo, màu chủ đạo</span></a><a href="#settings"><strong>Cài đặt vận hành</strong><span>Giờ chốt, Sonde, kho</span></a><a href="#official-data"><strong>Dữ liệu dinh dưỡng</strong><span>VDD · RNI chính thức</span></a><a href="#departments"><strong>Khoa điều trị</strong><span>{activeDepartments.length} khoa đang dùng</span></a><a href="#accounts"><strong>Nhân sự</strong><span>{activeUsers} tài khoản hoạt động</span></a><a href="#diet-types"><strong>Mã chế độ</strong><span>{activeDiets} mã đang dùng</span></a></nav><div className="admin-rail-links"><a href="/quan-ly">Mở bàn điều phối</a><a href="/quan-tri/audit">Xem nhật ký thay đổi</a></div></aside><div className="admin-command-content">
 
     <section id="branding" className="admin-panel branding-panel"><div className="section-heading"><div><p className="eyebrow">Nhận diện bệnh viện</p><h2>Thương hiệu và trang chủ công khai</h2></div><span>Tên · logo · màu · ảnh nền bệnh nhân</span></div>
       <BrandingForm branding={branding} action={saveBrandingAction}/>
+    </section>
+
+    <section id="official-data" className="admin-panel official-data-panel"><div className="section-heading"><div><p className="eyebrow">Dữ liệu dinh dưỡng chính thức</p><h2>Cập nhật trực tiếp từ nguồn công bố</h2></div><span>Xem trước · xác nhận · tác vụ nền · AuditLog</span></div>
+      <div className="official-source-actions">{([['VDD_FOOD','Thực phẩm VDD'],['VDD_DISH','Món ăn VDD'],['RNI_DISH','Món dùng sẵn / RNI']] as const).map(([source, label]) => <form action={previewOfficialDataAction} key={source}><input type="hidden" name="source" value={source}/><strong>{label}</strong><small>Không đi qua dữ liệu Dinh dưỡng 2598</small><button className="secondary-button">Kiểm tra nguồn & xem trước</button></form>)}</div>
+      {syncPreview ? <div className="official-sync-preview"><div><strong>Bản xem trước từ nguồn</strong><p>Tổng số phía nguồn: {typeof syncPreview.previewJson === "object" && syncPreview.previewJson && "total" in syncPreview.previewJson ? String(syncPreview.previewJson.total) : "—"}</p><small>Chưa có dữ liệu nào được ghi vào hệ thống.</small></div><form action={queueOfficialDataAction}><input type="hidden" name="jobId" value={syncPreview.id}/><label>Lý do cập nhật<input name="reason" minLength={5} maxLength={500} required placeholder="Ví dụ: Cập nhật dữ liệu VDD định kỳ tháng 8"/></label><button className="primary-action">Xác nhận đưa vào hàng đợi</button></form></div> : null}
+      <div className="official-sync-jobs"><h3>Tác vụ gần đây</h3>{syncJobs.length ? <table><thead><tr><th>Nguồn</th><th>Trạng thái</th><th>Đã xử lý</th><th>Tạo mới / cập nhật</th><th>Người yêu cầu</th><th>Thao tác</th></tr></thead><tbody>{syncJobs.map((job) => <tr key={job.id}><td>{job.source}</td><td>{job.status}</td><td>{job.processedCount || "—"}</td><td>{job.createdCount || "—"} / {job.updatedCount || "—"}</td><td>{job.requestedBy.displayName}</td><td>{job.status === "FAILED" ? <form action={retryOfficialDataAction}><input type="hidden" name="jobId" value={job.id}/><button className="secondary-button">Chạy lại</button></form> : "—"}</td></tr>)}</tbody></table> : <p>— · Chưa có tác vụ đồng bộ.</p>}</div>
     </section>
 
     <section id="settings" className="admin-panel"><div className="section-heading"><div><p className="eyebrow">Cài đặt vận hành</p><h2>Áp dụng cho các luồng nghiệp vụ</h2></div><span>Giờ chốt · Sonde · Kho</span></div>

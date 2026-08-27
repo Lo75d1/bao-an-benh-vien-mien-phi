@@ -27,6 +27,11 @@ services:
     environment: { DATABASE_URL: "postgresql://meal_service:local-compose-only@db:5432/meal_service?schema=public", DEMO_MODE: "1", DEMO_DATASET: "1" }
     depends_on: { seed: { condition: service_completed_successfully } }
     restart: unless-stopped
+  data_sync_worker:
+    build: { context: ., target: data_sync_worker }
+    environment: { DATABASE_URL: "postgresql://meal_service:local-compose-only@db:5432/meal_service?schema=public" }
+    depends_on: { migrate: { condition: service_completed_successfully } }
+    restart: unless-stopped
   app:
     build: { context: ., target: app }
     environment: { DATABASE_URL: "postgresql://meal_service:local-compose-only@db:5432/meal_service?schema=public", DEMO_LOGIN_BUTTONS: "1", DEMO_MODE: "1", DEMO_DATASET: "1", INSECURE_COOKIES: "1", EVIDENCE_STORAGE_DIR: "/app/uploads" }
