@@ -27,16 +27,16 @@ export async function previewOfficialDataAction(formData: FormData) {
 
 export async function queueOfficialDataAction(formData: FormData) {
   const actor = await admin();
-  await queueSyncJob(String(formData.get("jobId") ?? ""), String(formData.get("reason") ?? ""), actor);
+  const job = await queueSyncJob(String(formData.get("jobId") ?? ""), String(formData.get("reason") ?? ""), actor);
   revalidatePath("/quan-tri");
-  redirect("/quan-tri?updated=data-sync#official-data");
+  redirect(`/quan-tri?updated=data-sync&syncJob=${encodeURIComponent(job.id)}#official-data`);
 }
 
 export async function retryOfficialDataAction(formData: FormData) {
   const actor = await admin();
-  await retrySyncJob(String(formData.get("jobId") ?? ""), actor);
+  const job = await retrySyncJob(String(formData.get("jobId") ?? ""), actor);
   revalidatePath("/quan-tri");
-  redirect("/quan-tri?updated=data-sync#official-data");
+  redirect(`/quan-tri?updated=data-sync&syncJob=${encodeURIComponent(job.id)}#official-data`);
 }
 
 export async function saveBrandingAction(formData: FormData) {

@@ -14,15 +14,16 @@ import { AccountTable } from "./account-table";
 import { DietTypeTable } from "./diet-type-table";
 import { MealTypeTable } from "./meal-type-table";
 import { DepartmentTable } from "./department-table";
+import { OfficialSyncStatus } from "./official-sync-status";
 
 const roleLabel = { ADMIN: "Quản trị", DIETITIAN: "Dinh dưỡng", NURSE: "Điều dưỡng", KITCHEN: "Nhà bếp" } as const;
 const messages: Record<string, string> = { branding: "Đã cập nhật nhận diện bệnh viện trên toàn hệ thống.", settings: "Đã áp dụng cấu hình và ghi nhật ký.", "data-sync": "Đã đưa tác vụ cập nhật dữ liệu chính thức vào hàng đợi.", created: "Đã tạo tài khoản với mật khẩu được băm scrypt.", account: "Đã cập nhật tài khoản.", status: "Đã đổi trạng thái tài khoản, không xóa lịch sử.", department: "Đã lưu khoa điều trị.", "department-status": "Đã đổi trạng thái khoa, không xóa lịch sử.", diet: "Đã lưu mã chế độ ăn.", "diet-status": "Đã đổi trạng thái mã chế độ ăn, không xóa lịch sử.", meal: "Đã lưu bữa ăn.", "meal-status": "Đã đổi trạng thái bữa ăn, lịch sử cũ được giữ nguyên." };
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ updated?: string; sync?: string }> }) {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ updated?: string; sync?: string; syncJob?: string }> }) {
   const user = await getSessionUser();
   if (!user) redirect("/");
   if (user.role !== "ADMIN") redirect("/");
-  const [{ updated, sync }, branding, settings, viewStats, mealTypes, users, departments, dietTypes, dietCodes] = await Promise.all([
+  const [{ updated, sync, syncJob }, branding, settings, viewStats, mealTypes, users, departments, dietTypes, dietCodes] = await Promise.all([
     searchParams,
     readBrandingSettings(),
     readOperationalSettings(),
@@ -33,9 +34,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     prisma.dietType.findMany({ orderBy: [{ status: "asc" }, { sortOrder: "asc" }], include: { dietCodeRef: true } }),
     prisma.dietCode.findMany({ orderBy: { code: "asc" }, select: { id: true, code: true, name: true } }),
   ]);
-  const [syncPreview, syncJobs] = await Promise.all([
+  const [syncPreview, syncJobs, activeSyncJob] = await Promise.all([
     sync ? prisma.dataSyncJob.findFirst({ where: { id: sync, requestedById: user.id, status: "PREVIEW" } }) : null,
     prisma.dataSyncJob.findMany({ orderBy: { createdAt: "desc" }, take: 8, include: { requestedBy: { select: { displayName: true } } } }),
+    syncJob ? prisma.dataSyncJob.findFirst({ where: { id: syncJob, requestedById: user.id } }) : prisma.dataSyncJob.findFirst({ where: { requestedById: user.id, status: { in: ["QUEUED", "RUNNING"] } }, orderBy: { createdAt: "desc" } }),
   ]);
   const activeUsers = users.filter((account) => account.status === "ACTIVE").length;
   const activeDiets = dietTypes.filter((diet) => diet.status === "ACTIVE").length;
@@ -52,9 +54,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     </section>
 
     <section id="official-data" className="admin-panel official-data-panel"><div className="section-heading"><div><p className="eyebrow">Dữ liệu dinh dưỡng chính thức</p><h2>Cập nhật trực tiếp từ nguồn công bố</h2></div><span>Xem trước · xác nhận · tác vụ nền · AuditLog</span></div>
-      <div className="official-source-actions">{([['VDD_FOOD','Thực phẩm VDD'],['VDD_DISH','Món ăn VDD'],['RNI_DISH','Món dùng sẵn / RNI']] as const).map(([source, label]) => <form action={previewOfficialDataAction} key={source}><input type="hidden" name="source" value={source}/><strong>{label}</strong><small>Không đi qua dữ liệu Dinh dưỡng 2598</small><button className="secondary-button">Kiểm tra nguồn & xem trước</button></form>)}</div>
+      <div className="official-source-actions">{([['VDD_FOOD','Thực phẩm VDD'],['VDD_DISH','Món ăn VDD'],['RNI_DISH','Món dùng sẵn / RNI']] as const).map(([source, label]) => <form action={previewOfficialDataAction} key={source}><input type="hidden" name="source" value={source}/><strong>{label}</strong><small>Nguồn công bố chính thức</small><button className="secondary-button">Kiểm tra nguồn & xem trước</button></form>)}</div>
       {syncPreview ? <div className="official-sync-preview"><div><strong>Bản xem trước từ nguồn</strong><p>Tổng số phía nguồn: {typeof syncPreview.previewJson === "object" && syncPreview.previewJson && "total" in syncPreview.previewJson ? String(syncPreview.previewJson.total) : "—"}</p><small>Chưa có dữ liệu nào được ghi vào hệ thống.</small></div><form action={queueOfficialDataAction}><input type="hidden" name="jobId" value={syncPreview.id}/><label>Lý do cập nhật<input name="reason" minLength={5} maxLength={500} required placeholder="Ví dụ: Cập nhật dữ liệu VDD định kỳ tháng 8"/></label><button className="primary-action">Xác nhận đưa vào hàng đợi</button></form></div> : null}
-      <div className="official-sync-jobs"><h3>Tác vụ gần đây</h3>{syncJobs.length ? <table><thead><tr><th>Nguồn</th><th>Trạng thái</th><th>Đã xử lý</th><th>Tạo mới / cập nhật</th><th>Người yêu cầu</th><th>Thao tác</th></tr></thead><tbody>{syncJobs.map((job) => <tr key={job.id}><td>{job.source}</td><td>{job.status}</td><td>{job.processedCount || "—"}</td><td>{job.createdCount || "—"} / {job.updatedCount || "—"}</td><td>{job.requestedBy.displayName}</td><td>{job.status === "FAILED" ? <form action={retryOfficialDataAction}><input type="hidden" name="jobId" value={job.id}/><button className="secondary-button">Chạy lại</button></form> : "—"}</td></tr>)}</tbody></table> : <p>— · Chưa có tác vụ đồng bộ.</p>}</div>
+      <OfficialSyncStatus job={activeSyncJob ? (() => { const preview = activeSyncJob.previewJson && typeof activeSyncJob.previewJson === "object" && !Array.isArray(activeSyncJob.previewJson) ? activeSyncJob.previewJson as { total?: unknown; samples?: unknown } : {}; return { id: activeSyncJob.id, source: activeSyncJob.source, status: activeSyncJob.status, processedCount: activeSyncJob.processedCount, createdCount: activeSyncJob.createdCount, updatedCount: activeSyncJob.updatedCount, errorMessage: activeSyncJob.errorMessage, total: typeof preview.total === "number" ? preview.total : null, samples: Array.isArray(preview.samples) ? preview.samples.filter((item): item is { code?: string; name?: string; energyKcal?: number | null } => Boolean(item) && typeof item === "object") : [] }; })() : null}/>
+      <details className="official-sync-jobs"><summary>Tác vụ gần đây</summary>{syncJobs.length ? <table><thead><tr><th>Nguồn</th><th>Trạng thái</th><th>Đã xử lý</th><th>Tạo mới / cập nhật</th><th>Người yêu cầu</th><th>Thao tác</th></tr></thead><tbody>{syncJobs.map((job) => <tr key={job.id}><td>{job.source}</td><td>{job.status}</td><td>{job.processedCount || "—"}</td><td>{job.createdCount || "—"} / {job.updatedCount || "—"}</td><td>{job.requestedBy.displayName}</td><td>{job.status === "FAILED" ? <form action={retryOfficialDataAction}><input type="hidden" name="jobId" value={job.id}/><button className="secondary-button">Chạy lại</button></form> : "—"}</td></tr>)}</tbody></table> : <p>— · Chưa có tác vụ đồng bộ.</p>}</details>
     </section>
 
     <section id="settings" className="admin-panel"><div className="section-heading"><div><p className="eyebrow">Cài đặt vận hành</p><h2>Áp dụng cho các luồng nghiệp vụ</h2></div><span>Giờ chốt · Sonde · Kho</span></div>
