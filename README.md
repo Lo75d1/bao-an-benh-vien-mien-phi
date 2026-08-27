@@ -1,30 +1,63 @@
-# Suất Ăn Bệnh Viện (`suat-an-benh-vien`)
+# Suất ăn bệnh viện
 
-> Hệ thống số hóa quy trình cấp suất ăn bệnh viện — **mã nguồn mở**, để mọi người tham khảo cách làm.
-> Monorepo: engine dinh dưỡng dùng chung + ứng dụng vận hành suất ăn. DB riêng, có bản demo công khai.
+Hệ thống mã nguồn mở hỗ trợ bệnh viện quản lý một luồng thống nhất: dinh dưỡng lên thực đơn, khoa báo suất, bếp chuẩn bị và lưu bằng chứng, giao nhận, kho và báo cáo.
 
-## Trạng thái
-🚧 **Đang thiết kế → chuẩn bị triển khai (M0).** Bộ tài liệu thiết kế đầy đủ ở [`docs/bao-an-redesign/`](docs/bao-an-redesign/00-PROJECT-HOME.md).
+## Chức năng chính
 
-## Là gì
-Quy trình một ngày: **NVDD lên và lưu thực đơn → hệ thống tự khóa theo giờ → điều dưỡng báo số suất theo khoa → hệ thống cộng theo mã chế độ → bếp nấu + chụp ảnh bằng chứng → bệnh nhân quét QR khoa để xem**. 4 vai: Admin/Trưởng khoa, NVDD (dinh dưỡng), Điều dưỡng, Bếp.
+- Thực đơn nhiều mã chế độ ăn, nhập Excel, phân tích dinh dưỡng và tự khóa theo giờ.
+- Báo suất theo khoa, báo bổ sung độc lập cho ăn thường và Sonde.
+- Màn bếp theo thời gian thực, bảng đi chợ, ghi chú và ảnh bằng chứng.
+- Điều hành, lịch tuần, kho hóa đơn, báo cáo PDF/Excel và AuditLog.
+- Trang công khai để người bệnh xem thực đơn theo mã chế độ ăn.
+- Bốn vai trò: Quản trị, Dinh dưỡng, Điều dưỡng và Bếp.
 
-## Cấu trúc (dự kiến sau M0)
+## Công nghệ và cấu trúc
+
+- Next.js, TypeScript, Prisma và PostgreSQL.
+- `apps/meal-service/`: ứng dụng web và schema nghiệp vụ.
+- `packages/nutrition-engine/`: bộ tính dinh dưỡng dùng chung.
+- `data/reference/`: dữ liệu tham chiếu; nguồn được ghi tại [data/reference/SOURCES.md](data/reference/SOURCES.md).
+- `docs/bao-an-redesign/`: đặc tả giao diện và nghiệp vụ đã dùng khi xây dựng.
+
+## Chạy bằng Docker Compose
+
+```bash
+cp .env.example .env
+docker compose up -d --build
 ```
-packages/nutrition-engine/   # thư viện tính dinh dưỡng + đánh giá mã chế độ (TS thuần)
-apps/meal-service/           # ứng dụng Next.js (lịch, thực đơn, báo suất, bếp, kho, QR)
-data/reference/              # data nền công khai (foods/dishes/…) — xem SOURCES.md
-docs/bao-an-redesign/        # tài liệu thiết kế (nguồn sự thật)
+
+Trước khi chạy, thay toàn bộ giá trị mẫu trong `.env`, đặc biệt là mật khẩu PostgreSQL, mật khẩu quản trị đầu tiên và hai salt. `DATABASE_URL` dùng hostname `db` khi chạy trong Compose.
+
+Kiểm tra sau khi khởi động:
+
+```bash
+curl http://localhost:3000/api/health
 ```
 
-## Bắt đầu đọc
-👉 [docs/bao-an-redesign/00-PROJECT-HOME.md](docs/bao-an-redesign/00-PROJECT-HOME.md)
+Tài khoản quản trị đầu tiên lấy từ `BOOTSTRAP_ADMIN_*` và bắt buộc đổi mật khẩu khi đăng nhập lần đầu. Hướng dẫn vận hành chi tiết ở [docs/DEPLOY.md](docs/DEPLOY.md).
 
-## Dữ liệu & nguồn
-Data thực phẩm/món ăn từ **Viện Dinh dưỡng Việt Nam (VDD) + RNI**. Xem ghi nguồn ở [data/reference/SOURCES.md](data/reference/SOURCES.md).
+## Phát triển và kiểm tra
 
-## Giấy phép
-⚠️ **TODO — chủ dự án chọn** (đề xuất: MIT hoặc Apache-2.0). Chưa chọn thì mặc định *bản quyền giữ toàn bộ* cho tới khi thêm `LICENSE`.
+```bash
+npm ci
+npm run db:generate -w @suat-an/meal-service
+npm run typecheck -w @suat-an/meal-service
+npm run lint -w @suat-an/meal-service
+npm test -w @suat-an/meal-service
+npm run build -w @suat-an/meal-service
+```
 
-## Đóng góp / phát triển
-Dự án dùng quy trình agent (Codex implement → review → merge). Xem [AGENTS.md](AGENTS.md).
+Không dùng `prisma migrate reset` hoặc `prisma db push --accept-data-loss` trên dữ liệu thật. Không commit `.env`, database dump, khóa riêng hay thông tin người bệnh.
+
+## Bảo mật
+
+- Phiên đăng nhập dùng cookie `HttpOnly`; tài khoản mới/reset mật khẩu phải đổi mật khẩu lần đầu.
+- Thử đăng nhập sai bị giới hạn bằng bộ đếm PostgreSQL đã băm HMAC.
+- Ghi chú công khai được giới hạn tần suất; ảnh công khai chỉ phục vụ ảnh bữa ăn hợp lệ.
+- Secret scan chạy trong CI. Khi phát hiện secret, phải thu hồi/đổi khóa trước khi xóa khỏi lịch sử Git.
+
+## Giấy phép và liên hệ
+
+Phát hành theo giấy phép [MIT](LICENSE). Bản quyền © 2026 Lê Công Bảo Long.
+
+Hỗ trợ dự án: Zalo `0986703396`.

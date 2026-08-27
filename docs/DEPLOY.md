@@ -1,19 +1,47 @@
-# Chạy M0 bằng Docker Compose
+# Triển khai production bằng Docker Compose
 
-Yêu cầu Docker Engine có Compose v2. Từ thư mục gốc repo:
+## 1. Chuẩn bị cấu hình
 
 ```bash
-docker compose up --build
+cp .env.example .env
 ```
 
-Compose khởi động Postgres riêng, chạy migration `init`, seed dữ liệu nền rồi mới chạy app. Kiểm tra:
+Đổi toàn bộ giá trị mẫu. `POSTGRES_PASSWORD` và mật khẩu nằm trong `DATABASE_URL` phải khớp; nếu mật khẩu có ký tự đặc biệt thì phải URL-encode trong `DATABASE_URL`. Không commit `.env`.
+
+Tạo hai salt độc lập, tối thiểu 32 ký tự:
 
 ```bash
+openssl rand -base64 32
+```
+
+Gán lần lượt cho `PATIENT_NOTE_IP_SALT` và `AUTH_RATE_LIMIT_SALT`.
+
+## 2. Build và khởi động
+
+```bash
+docker compose up -d --build
+```
+
+Compose chờ PostgreSQL khỏe, chạy migration, tạo tài khoản quản trị đầu tiên nếu chưa có rồi mới chạy ứng dụng. Seed có tính lặp lại an toàn và không in mật khẩu ra log.
+
+## 3. Kiểm tra
+
+```bash
+docker compose ps
 curl http://localhost:3000/api/health
+docker compose logs --tail=100 app migrate seed
 ```
 
-Kết quả mong đợi: `{"status":"ok"}`. Seed có thể chạy lại an toàn bằng `docker compose run --rm seed`; các dòng đã có không bị nhân đôi. Tài khoản và mật khẩu demo được in trong log seed.
+Kết quả health mong đợi: `{"status":"ok"}`. Đăng nhập bằng `BOOTSTRAP_ADMIN_EMAIL`, đổi mật khẩu tạm ngay lần đầu, rồi cấu hình bệnh viện trong phần Quản trị.
 
-Không đưa URL/mật khẩu production vào repo. File `.env.example` chỉ là mẫu và mật khẩu Compose chỉ dùng cho mạng Docker cục bộ. Không dùng `prisma db push --accept-data-loss`.
+## 4. Cập nhật
 
-Prisma CLI và engine được ghim cùng phiên bản trong lockfile và được cài trong image ở bước `npm ci`; quá trình build không gọi tải engine động ngoài bước cài dependency. Nếu môi trường build có lỗi mạng do MTU, cấu hình MTU Docker daemon/network thành `1400`, khởi động lại Docker rồi build lại; không vá tay image đang chạy.
+```bash
+git fetch origin && git checkout main && git pull --ff-only origin main && docker compose up -d --build --force-recreate
+```
+
+Không dùng `git reset --hard` hoặc reset database. Migration chỉ chạy tiến; sao lưu PostgreSQL và volume ảnh trước lần cập nhật quan trọng.
+
+## 5. Reverse proxy
+
+Proxy HTTPS phải ghi đè `X-Real-IP` bằng IP kết nối thật và không giữ giá trị do client tự gửi. Ứng dụng dùng header này cho giới hạn ghi chú và đăng nhập. Không công khai trực tiếp cổng PostgreSQL.

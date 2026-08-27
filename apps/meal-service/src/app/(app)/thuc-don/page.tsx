@@ -50,9 +50,9 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   const nutrientsByFood = new Map(foods.map((food) => [food.id, { energyKcal: food.energyKcal === null ? null : Number(food.energyKcal), proteinG: food.proteinG === null ? null : Number(food.proteinG), lipidG: food.lipidG === null ? null : Number(food.lipidG), glucidG: food.glucidG === null ? null : Number(food.glucidG), sodiumMg: food.sodiumMg === null ? null : Number(food.sodiumMg), potassiumMg: food.potassiumMg === null ? null : Number(food.potassiumMg), waterG: food.waterG === null ? null : Number(food.waterG) } ]));
   const fallbackNutrients = { energyKcal: null, proteinG: null, lipidG: null, glucidG: null, sodiumMg: null, potassiumMg: null, waterG: null };
   const message = params.saved === "menus" || params.saved === "menu" ? "Đã lưu thực đơn. Hệ thống sẽ tự khóa khi tới giờ chốt." : params.saved === "template" ? "Đã lưu mẫu cá nhân." : null;
-  return <AppShell user={user} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined}><main className="nutrition-menu-page">
+  return <AppShell user={user}><main className="nutrition-menu-page">
     {message ? <p className="success-banner" role="status">{message}</p> : null}
-    <section className="nutrition-meal-picker" aria-label="Chọn bữa để lên thực đơn" data-demo-guide="nutrition-picker">
+    <section className="nutrition-meal-picker" aria-label="Chọn bữa để lên thực đơn">
       <header><div><CalendarDays aria-hidden="true"/><span><strong>Chọn bữa cần lên thực đơn</strong><small>Hai lịch ăn thường và Sonde vận hành độc lập.</small></span></div><nav aria-label="Chọn đường nuôi"><Link href="/thuc-don?route=NORMAL" aria-current={selected.feedingRoute === "NORMAL" ? "page" : undefined}>Bếp ăn thường</Link>{settings.sondeEnabled ? <Link href="/thuc-don?route=SONDE" aria-current={selected.feedingRoute === "SONDE" ? "page" : undefined}>Bếp Sonde</Link> : null}</nav></header>
       <div className="nutrition-meal-options">{eventGroups.filter((group) => group[0].feedingRoute === selected.feedingRoute).map((group) => {
         const first = group[0];
