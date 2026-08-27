@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { createAccount, setAccountStatus, updateAccount } from "@/lib/accounts";
 import { getSessionUser } from "@/lib/auth";
 import { saveDietType, setDietTypeStatus } from "@/lib/diet-types";
+import { saveDepartment, setDepartmentStatus } from "@/lib/departments";
 import { saveMealType, setMealTypeStatus } from "@/lib/meal-types";
 import { updateOperationalSettings } from "@/lib/settings";
 import { readBrandingSettings, updateBrandingSettings } from "@/lib/branding";
@@ -59,6 +60,21 @@ export async function accountStatusAction(formData: FormData) {
   await setAccountStatus(String(formData.get("userId")), String(formData.get("status")) as ActiveStatus, String(formData.get("reason") ?? ""), actor);
   revalidatePath("/quan-tri");
   redirect("/quan-tri?updated=status");
+}
+
+export async function saveDepartmentAction(formData: FormData) {
+  const actor = await admin();
+  const id = String(formData.get("departmentId") ?? "") || null;
+  await saveDepartment(id, { code: formData.get("code"), name: formData.get("name") }, actor);
+  for (const path of ["/quan-tri", "/quan-ly", "/bao-suat", "/lich"]) revalidatePath(path);
+  redirect("/quan-tri?updated=department#departments");
+}
+
+export async function departmentStatusAction(formData: FormData) {
+  const actor = await admin();
+  await setDepartmentStatus(String(formData.get("departmentId")), formData.get("active") === "true", String(formData.get("reason") ?? ""), actor);
+  for (const path of ["/quan-tri", "/quan-ly", "/bao-suat", "/lich"]) revalidatePath(path);
+  redirect("/quan-tri?updated=department-status#departments");
 }
 
 export async function saveDietTypeAction(formData: FormData) {
