@@ -11,6 +11,7 @@ import { updateOperationalSettings } from "@/lib/settings";
 import { readBrandingSettings, updateBrandingSettings } from "@/lib/branding";
 
 async function admin() { const user = await getSessionUser(); if (!user || user.role !== "ADMIN") throw new Error("Chỉ quản trị viên được thực hiện thao tác này."); return user; }
+const enabled = (data: FormData, key: string) => ["on", "true", "1"].includes(String(data.get(key) ?? "").toLowerCase());
 
 export async function saveBrandingAction(formData: FormData) {
   const actor = await admin();
@@ -39,8 +40,8 @@ export async function saveSettingsAction(formData: FormData) {
   const ids = formData.getAll("mealTypeId").map(String);
   const cutoffs = formData.getAll("cutoffTime").map(String);
   const services = formData.getAll("serviceTime").map(String);
-  await updateOperationalSettings({ dataStartDate: String(formData.get("dataStartDate") ?? ""), advanceEntryDays: Number(formData.get("advanceEntryDays")), publicMenuImages: formData.get("publicMenuImages") === "on", publicViewCountVisible: formData.get("publicViewCountVisible") === "on", sondeEnabled: formData.get("sondeEnabled") === "on", warehouseMode: formData.get("warehouseMode") === "B" ? "B" : "A", warehouseApprovalRole: String(formData.get("warehouseApprovalRole")) as Role, serviceCompletionMinutes: Number(formData.get("serviceCompletionMinutes")) }, ids.map((id, index) => ({ id, cutoffTime: cutoffs[index], serviceTime: services[index] })), actor, String(formData.get("reason") ?? ""));
-  revalidatePath("/", "layout");
+  await updateOperationalSettings({ dataStartDate: String(formData.get("dataStartDate") ?? ""), advanceEntryDays: Number(formData.get("advanceEntryDays")), publicMenuImages: enabled(formData, "publicMenuImages"), publicViewCountVisible: enabled(formData, "publicViewCountVisible"), sondeEnabled: enabled(formData, "sondeEnabled"), warehouseMode: formData.get("warehouseMode") === "B" ? "B" : "A", warehouseApprovalRole: String(formData.get("warehouseApprovalRole")) as Role, serviceCompletionMinutes: Number(formData.get("serviceCompletionMinutes")) }, ids.map((id, index) => ({ id, cutoffTime: cutoffs[index], serviceTime: services[index] })), actor, String(formData.get("reason") ?? ""));
+  for (const path of ["/", "/quan-tri", "/lich", "/bao-suat", "/thuc-don", "/bep", "/quan-ly"]) revalidatePath(path);
   redirect("/quan-tri?updated=settings");
 }
 
