@@ -17,8 +17,15 @@ export function normalizeDeliveryReceipt(input: { status: unknown; receivedQuant
   return { status, receivedQuantity, note };
 }
 
+export function normalizeReceiptCorrectionReason(value: unknown) {
+  const reason = typeof value === "string" ? value.trim() : "";
+  if (reason.length < 3) throw new Error("Cần ghi lý do khi sửa xác nhận giao nhận.");
+  if (reason.length > 500) throw new Error("Lý do điều chỉnh tối đa 500 ký tự.");
+  return reason;
+}
+
 export async function confirmMealDelivery(
-  input: { mealEventId: string; departmentId: string; status: unknown; receivedQuantity: unknown; note: unknown },
+  input: { mealEventId: string; departmentId: string; status: unknown; receivedQuantity: unknown; note: unknown; correctionReason?: unknown },
   actor: { id: string; displayName: string; role: Role },
   now = new Date(),
 ) {
@@ -37,9 +44,12 @@ export async function confirmMealDelivery(
   const normalized = normalizeDeliveryReceipt({ ...input, expectedQuantity });
   return prisma.$transaction(async (tx) => {
     const existing = await tx.mealDeliveryReceipt.findUnique({ where: { departmentId_mealEventId: { departmentId: input.departmentId, mealEventId: input.mealEventId } } });
+    const unchanged = existing && existing.expectedQuantity === expectedQuantity && existing.receivedQuantity === normalized.receivedQuantity && existing.status === normalized.status && existing.note === normalized.note;
+    if (unchanged) return existing;
+    const correctionReason = existing ? normalizeReceiptCorrectionReason(input.correctionReason) : null;
     const receipt = await tx.mealDeliveryReceipt.upsert({ where: { departmentId_mealEventId: { departmentId: input.departmentId, mealEventId: input.mealEventId } }, create: { departmentId: input.departmentId, mealEventId: input.mealEventId, expectedQuantity, ...normalized, confirmedById: actor.id, confirmedAt: now }, update: { expectedQuantity, ...normalized, confirmedById: actor.id, confirmedAt: now } });
     const beforeJson = existing ? { expectedQuantity: existing.expectedQuantity, receivedQuantity: existing.receivedQuantity, status: existing.status, note: existing.note, confirmedById: existing.confirmedById, confirmedAt: existing.confirmedAt.toISOString() } satisfies Prisma.InputJsonValue : undefined;
-    await tx.auditLog.create({ data: { entityType: "MealDeliveryReceipt", entityId: receipt.id, action: existing ? "UPDATE" : "CREATE", actorId: actor.id, actorName: actor.displayName, beforeJson, afterJson: { departmentId: input.departmentId, mealEventId: input.mealEventId, expectedQuantity, ...normalized, confirmedAt: now.toISOString() }, reason: normalized.status === "FULL" ? "Khoa xác nhận đã nhận đủ suất" : `Khoa xác nhận nhận thiếu: ${normalized.note}` } });
+    await tx.auditLog.create({ data: { entityType: "MealDeliveryReceipt", entityId: receipt.id, action: existing ? "UPDATE" : "CREATE", actorId: actor.id, actorName: actor.displayName, beforeJson, afterJson: { departmentId: input.departmentId, mealEventId: input.mealEventId, expectedQuantity, ...normalized, confirmedById: actor.id, confirmedAt: now.toISOString() }, reason: existing ? `Điều chỉnh xác nhận giao nhận: ${correctionReason}` : normalized.status === "FULL" ? "Khoa xác nhận đã nhận đủ suất" : `Khoa xác nhận nhận thiếu: ${normalized.note}` } });
     return receipt;
   }, { isolationLevel: "Serializable" });
 }

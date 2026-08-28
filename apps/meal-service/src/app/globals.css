@@ -449,3 +449,20 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .kitchen-completed-action { display: flex; align-items: center; justify-content: flex-end; gap: .75rem; flex-wrap: wrap; }
 .kitchen-completed-action > span { display: inline-flex; align-items: center; gap: .4rem; color: #08634f; font-weight: 750; }
 @media (prefers-reduced-motion: reduce) { .action-spinner { animation: none; } }
+.nurse-service-primary { width: min(100%, 760px); margin-top: .75rem; }
+.service-receipt-pending, .service-receipt-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1rem; width: 100%; padding: 1rem; border: 1px solid #b8d2e3; border-radius: .85rem; background: #f6fbff; text-align: left; }
+.service-receipt-pending > div, .service-receipt-result > div:nth-child(2) { display: grid; gap: .2rem; }
+.service-receipt-pending span { color: #1d628e; font-size: .75rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.service-receipt-pending strong, .service-receipt-result strong { color: #123c58; font-size: 1rem; }
+.service-receipt-pending small, .service-receipt-result small { color: #5d6d77; }
+.service-receipt-result { grid-template-columns: auto minmax(0, 1fr) auto; }
+.service-receipt-result.is-full { border-color: #9bcdbf; background: #f2fbf7; }
+.service-receipt-result.is-short { border-color: #e8c276; background: #fff9ec; }
+.service-receipt-result p { margin: .15rem 0; color: #6f4b00; }
+.service-receipt-icon { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 999px; color: #fff; background: #08705a; }
+.service-receipt-result.is-short .service-receipt-icon { background: #b36a00; }
+.service-receipt-icon svg { width: 1rem; height: 1rem; }
+.nurse-late-exception { width: min(100%, 760px); margin-top: .7rem; text-align: left; }
+.nurse-late-exception summary { cursor: pointer; color: #38566a; font-weight: 750; }
+.nurse-late-exception p { margin: .35rem 0 .65rem; color: #65747d; font-size: .85rem; }
+@media (max-width: 640px) { .service-receipt-pending, .service-receipt-result { grid-template-columns: 1fr; } .service-receipt-icon { display: none; } .service-receipt-pending button, .service-receipt-result > button, .receipt-edit { width: 100%; } }
