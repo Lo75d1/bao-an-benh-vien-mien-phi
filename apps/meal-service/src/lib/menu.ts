@@ -1,7 +1,7 @@
 import type { DietCodeThresholds } from "@suat-an/nutrition-engine";
 import type { Prisma } from "@prisma/client";
 import { mealTimePhase } from "./meal-events";
-import { createMenuSnapshot, evaluateMenu, type MenuItemInput } from "./menu-logic";
+import { assessMenuDataQuality, createMenuSnapshot, evaluateMenu, NUTRIENT_KEYS, type MenuItemInput } from "./menu-logic";
 import { prisma } from "./prisma";
 export * from "./menu-logic";
 
@@ -17,7 +17,12 @@ export async function normalizeMenuItems(items: MenuItemInput[]): Promise<MenuIt
   const foodIds = [...new Set(items.flatMap((item) => item.foodId ? [item.foodId] : []))];
   const foods = await prisma.food.findMany({ where: { id: { in: foodIds } }, select: { id: true, name: true, wastePercent: true, energyKcal: true, proteinG: true, lipidG: true, glucidG: true, sodiumMg: true, potassiumMg: true, waterG: true } });
   const byId = new Map(foods.map((food) => [food.id, food]));
-  return items.map((item) => { const food = item.foodId ? byId.get(item.foodId) : null; if (item.foodId && !food) throw new Error("Có thực phẩm không còn tồn tại trong dữ liệu nền."); return { foodId: food?.id ?? null, itemName: food?.name ?? item.itemName.trim(), dishName: item.dishName?.trim().slice(0, 120) || "Món 1", grams: item.grams, wastePercent: food?.wastePercent ?? null, nutrients: food ? { energyKcal: food.energyKcal, proteinG: food.proteinG, lipidG: food.lipidG, glucidG: food.glucidG, sodiumMg: food.sodiumMg, potassiumMg: food.potassiumMg, waterG: food.waterG } : { energyKcal: null, proteinG: null, lipidG: null, glucidG: null, sodiumMg: null, potassiumMg: null, waterG: null } }; });
+  return items.map((item) => {
+    const food = item.foodId ? byId.get(item.foodId) : null;
+    if (item.foodId && !food) throw new Error("Có thực phẩm không còn tồn tại trong dữ liệu nền.");
+    const manualNutrients = Object.fromEntries(NUTRIENT_KEYS.map((key) => { const value = item.nutrients?.[key]; return [key, typeof value === "number" && Number.isFinite(value) ? value : null]; })) as MenuItemInput["nutrients"];
+    return { foodId: food?.id ?? null, itemName: food?.name ?? item.itemName.trim(), dishName: item.dishName?.trim().slice(0, 120) || "Món 1", grams: item.grams, wastePercent: food?.wastePercent ?? item.wastePercent ?? null, nutrients: food ? { energyKcal: food.energyKcal, proteinG: food.proteinG, lipidG: food.lipidG, glucidG: food.glucidG, sodiumMg: food.sodiumMg, potassiumMg: food.potassiumMg, waterG: food.waterG } : manualNutrients };
+  });
 }
 
 export async function saveDietMeal(input: { dietMealId: string; items: MenuItemInput[]; sourceTemplateId?: string | null; patientVisibleNote?: unknown }, actor: { id: string; displayName: string }, now = new Date()) {
@@ -27,6 +32,8 @@ export async function saveDietMeal(input: { dietMealId: string; items: MenuItemI
   if (input.items.length === 0) throw new Error("Cần ít nhất một thực phẩm để lưu.");
   if (input.items.some((item) => !item.itemName.trim() || !Number.isFinite(item.grams) || item.grams <= 0)) throw new Error("Tên thực phẩm và gram phải hợp lệ.");
   const normalizedItems = await normalizeMenuItems(input.items);
+  const quality = assessMenuDataQuality(normalizedItems);
+  if (quality.level === "BLOCKED") throw new Error(quality.reasons.join(" "));
   if (input.sourceTemplateId) { const source = await prisma.menuTemplate.findFirst({ where: { id: input.sourceTemplateId, ownerId: actor.id }, select: { id: true } }); if (!source) throw new Error("Mẫu nguồn không thuộc kho cá nhân của bạn."); }
   const thresholds = meal.dietType.dietCodeRef as DietCodeThresholds | null;
   const evaluation = evaluateMenu(normalizedItems, thresholds);

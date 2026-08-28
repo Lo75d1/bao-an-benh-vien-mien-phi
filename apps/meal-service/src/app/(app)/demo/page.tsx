@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, BookOpen, ChefHat, ClipboardCheck, FileSpreadsheet, GitFork, HeartPulse, Home, MessageCircle, Settings2, ShieldCheck, Soup, Utensils } from "lucide-react";
+import { ArrowRight, BookOpen, ChefHat, ClipboardCheck, Download, FileSpreadsheet, FolderOpen, GitFork, GitFork as Github, HeartPulse, Home, LifeBuoy, MessageCircle, Settings2, ShieldCheck, Soup, Utensils } from "lucide-react";
 import { DemoEntry, type DemoEntryAccount } from "@/components/demo-entry";
 
 const roles = [
@@ -41,6 +41,8 @@ export default function DemoLandingPage() {
       <div className="demo-journey-list">{roles.map((role) => <RoleDialog key={role.key} role={role}/>)}</div>
       <div className="demo-excel-note"><FileSpreadsheet aria-hidden="true"/><div><strong>Dữ liệu thực đơn có thể nhập từ Excel</strong><p>Dinh dưỡng viên có thể phân tích tệp, kiểm tra các trường nhận diện rồi đưa món và thực phẩm vào đúng mã chế độ.</p></div></div>
     </section>
+
+    <section className="demo-resource-section" aria-labelledby="resource-title"><header><p>Tự triển khai và sử dụng</p><h2 id="resource-title">Mọi thứ bệnh viện cần để bắt đầu</h2><span>Tải mã nguồn, đọc tài liệu theo đúng vai trò và liên hệ hỗ trợ khi cần. Không cần tìm trong các menu nghiệp vụ.</span></header><div className="demo-resource-grid"><article><Download aria-hidden="true"/><span>Tải về</span><h3>Mã nguồn mở đầy đủ</h3><p>Tải bản chính thức hoặc mở kho GitHub để IT bệnh viện kiểm tra và triển khai.</p><div><a href="https://github.com/Lo75d1/bao-an-benh-vien-mien-phi/archive/refs/heads/main.zip">Tải tệp ZIP</a><a href="https://github.com/Lo75d1/bao-an-benh-vien-mien-phi" target="_blank" rel="noreferrer"><Github/>Mở GitHub</a></div></article><article><FolderOpen aria-hidden="true"/><span>Tài liệu &amp; hướng dẫn</span><h3>Đi từ cài đặt đến vận hành</h3><p>Tài liệu dành cho IT và đặc tả quy trình để từng bộ phận hiểu đúng phần việc.</p><div><a href="https://github.com/Lo75d1/bao-an-benh-vien-mien-phi/blob/main/docs/DEPLOY.md" target="_blank" rel="noreferrer">Hướng dẫn cài đặt</a><a href="https://github.com/Lo75d1/bao-an-benh-vien-mien-phi/tree/main/docs" target="_blank" rel="noreferrer"><BookOpen/>Thư mục tài liệu</a></div></article><article><LifeBuoy aria-hidden="true"/><span>Nhóm hỗ trợ &amp; liên hệ</span><h3>Trao đổi với người phát triển</h3><p>Báo lỗi trên GitHub hoặc liên hệ trực tiếp để được hướng dẫn đúng phiên bản.</p><div><a href="https://github.com/Lo75d1/bao-an-benh-vien-mien-phi/issues" target="_blank" rel="noreferrer">Báo lỗi / góp ý</a><a href="https://zalo.me/0986703396" target="_blank" rel="noreferrer"><MessageCircle/>Zalo hỗ trợ</a></div></article></div></section>
 
     <section id="ho-tro" className="demo-support"><div><MessageCircle aria-hidden="true"/><span><strong>Cần hỗ trợ triển khai hoặc góp ý dự án?</strong><p>Liên hệ trực tiếp người phát triển để tránh nhầm với đơn vị bệnh viện đang sử dụng bản clone.</p></span></div><a href="https://zalo.me/0986703396" target="_blank" rel="noreferrer"><span>Lê Công Bảo Long</span><strong>Zalo 0986703396</strong><ArrowRight aria-hidden="true"/></a></section>
 
