@@ -7,6 +7,7 @@ import { addDays, mealTimePhase } from "./meal-events";
 import { evidenceStorage } from "./evidence-storage";
 import { readOperationalSettings } from "./settings";
 import { getMealBusinessFacts, getMealPhase, type MealBusinessFacts, type MealPhase } from "./meal-state";
+import { readDemoSession } from "./demo-session";
 
 export const MANAGEMENT_STATUSES = ["PLANNED", "LOCKED", "PREPARING", "PREPARED", "SERVED"] as const;
 export type ManagementStatus = (typeof MANAGEMENT_STATUSES)[number];
@@ -159,13 +160,35 @@ export async function readManagementDay(date?: string, now = new Date(), departm
       select: {
         id: true, mealType: { select: { name: true, cutoffTime: true, serviceTime: true } },
         evidence: { where: { kind: "FOOD_SAMPLE" }, orderBy: { uploadedAt: "desc" }, select: { id: true, kind: true, storagePath: true, note: true, uploadedAt: true, uploadedBy: { select: { displayName: true } } } },
-        dietMeals: { where: { voidedAt: null, status: { not: "CANCELLED" }, ...(feedingRoute ? { feedingRoute } : {}) }, orderBy: { dietType: { sortOrder: "asc" } }, select: { id: true, status: true, servingsPlanned: true, approvedAt: true, menuSnapshotJson: true, evaluationJson: true, approvedBy: { select: { displayName: true } }, dietType: { select: { code: true, name: true } }, evidence: { where: { kind: { in: ["MEAL_PHOTO", "FOOD_SAMPLE"] } }, orderBy: { uploadedAt: "desc" }, select: { id: true, kind: true, storagePath: true, note: true, uploadedAt: true, uploadedBy: { select: { displayName: true } } } } } },
+        dietMeals: { where: { voidedAt: null, status: { not: "CANCELLED" }, ...(feedingRoute ? { feedingRoute } : {}) }, orderBy: { dietType: { sortOrder: "asc" } }, select: { id: true, status: true, servingsPlanned: true, approvedAt: true, menuSnapshotJson: true, evaluationJson: true, approvedBy: { select: { displayName: true } }, dietType: { select: { id: true, code: true, name: true } }, evidence: { where: { kind: { in: ["MEAL_PHOTO", "FOOD_SAMPLE"] } }, orderBy: { uploadedAt: "desc" }, select: { id: true, kind: true, storagePath: true, note: true, uploadedAt: true, uploadedBy: { select: { displayName: true } } } } } },
         reports: { where: { status: "SUBMITTED", ...(departmentIds ? { departmentId: { in: departmentIds } } : {}) }, select: { id: true, departmentId: true, submittedAt: true, submittedBy: { select: { displayName: true } }, lines: { orderBy: { dietType: { sortOrder: "asc" } }, select: { quantity: true, dietType: { select: { code: true, name: true } } } } } },
         deliveryReceipts: { where: departmentIds ? { departmentId: { in: departmentIds } } : undefined, select: { departmentId: true, status: true, expectedQuantity: true, receivedQuantity: true, note: true, confirmedAt: true, confirmedBy: { select: { displayName: true } } } },
         additions: { where: departmentIds ? { departmentId: { in: departmentIds } } : undefined, orderBy: { submittedAt: "desc" }, select: { id: true, departmentId: true, quantity: true, reason: true, ackStatus: true, submittedAt: true, submittedBy: { select: { displayName: true } }, department: { select: { name: true } }, dietType: { select: { code: true, name: true } } } },
       },
     }),
   ]);
+  const demo = await readDemoSession();
+  const demoDepartmentNames = demo ? new Map((await prisma.department.findMany({ where: { id: { in: [...new Set(demo.state.additions.map((item) => item.departmentId))] } }, select: { id: true, name: true } })).map((item) => [item.id, item.name])) : new Map<string, string>();
+  const demoDietTypes = demo ? new Map((await prisma.dietType.findMany({ where: { id: { in: [...new Set(demo.state.additions.map((item) => item.dietTypeId))] } }, select: { id: true, code: true, name: true } })).map((item) => [item.id, item])) : new Map<string, { id: string; code: string; name: string }>();
+  if (demo) for (const event of events) {
+    for (const meal of event.dietMeals) { const status = demo.state.dietStatuses[meal.id]; if (status) meal.status = status as typeof meal.status; }
+    for (const overlay of demo.state.reports.filter((item) => item.mealEventId === event.id)) {
+      const current = event.reports.findIndex((item) => item.departmentId === overlay.departmentId);
+      const report = { id: `demo:${event.id}:${overlay.departmentId}`, departmentId: overlay.departmentId, submittedAt: new Date(overlay.submittedAt), submittedBy: { displayName: overlay.reportedByName }, lines: overlay.lines.flatMap((line) => { const diet = event.dietMeals.find((meal) => meal.dietType.id === line.dietTypeId)?.dietType; return diet ? [{ quantity: line.quantity, dietType: { code: diet.code, name: diet.name } }] : []; }) };
+      if (current >= 0) event.reports.splice(current, 1, report); else event.reports.push(report);
+    }
+    for (const overlay of demo.state.receipts.filter((item) => item.mealEventId === event.id)) {
+      const current = event.deliveryReceipts.findIndex((item) => item.departmentId === overlay.departmentId);
+      const receipt = { departmentId: overlay.departmentId, status: overlay.status, expectedQuantity: overlay.expectedQuantity, receivedQuantity: overlay.receivedQuantity, note: overlay.note, confirmedAt: new Date(overlay.confirmedAt), confirmedBy: { displayName: overlay.confirmedBy } };
+      if (current >= 0) event.deliveryReceipts.splice(current, 1, receipt); else event.deliveryReceipts.push(receipt);
+    }
+    for (const overlay of demo.state.additions.filter((item) => item.mealEventId === event.id && (!departmentIds || departmentIds.includes(item.departmentId)))) {
+      const dietType = demoDietTypes.get(overlay.dietTypeId);
+      const departmentName = demoDepartmentNames.get(overlay.departmentId);
+      if (!dietType || !departmentName) continue;
+      event.additions.push({ id: overlay.id, departmentId: overlay.departmentId, quantity: overlay.quantity, reason: overlay.reason, ackStatus: overlay.ackStatus, submittedAt: new Date(overlay.submittedAt), submittedBy: { displayName: overlay.submittedBy }, department: { name: departmentName }, dietType: { code: dietType.code, name: dietType.name } });
+    }
+  }
   const selectedIsToday = day.getTime() === hospitalDate(now).getTime();
   const dietMealIds = events.flatMap((event) => event.dietMeals.map((meal) => meal.id));
   const [servedLogs, inventoryCounts] = dietMealIds.length === 0 ? [[], []] : await Promise.all([

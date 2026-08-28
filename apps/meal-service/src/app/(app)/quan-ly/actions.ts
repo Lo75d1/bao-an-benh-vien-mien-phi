@@ -11,6 +11,7 @@ const EDITABLE_MILESTONES = new Set<ManagementStatus>(["LOCKED", "PREPARING", "P
 export async function addAdminKitchenMilestoneAction(formData: FormData) {
   const actor = await getSessionUser();
   if (!actor || actor.role !== "ADMIN") throw new Error("Chỉ quản trị viên được bổ sung mốc còn thiếu.");
+  if (actor.demoSessionId) throw new Error("Demo Session không ghi mốc quản trị vào dữ liệu nền.");
 
   const mealEventId = String(formData.get("mealEventId") ?? "");
   const departmentId = String(formData.get("departmentId") ?? "");
@@ -64,6 +65,7 @@ export async function addAdminKitchenMilestoneAction(formData: FormData) {
 export async function createAdminAdditionAction(formData: FormData) {
   const actor = await getSessionUser();
   if (!actor || actor.role !== "ADMIN") throw new Error("Chỉ quản trị viên được nhập phát sinh thay khoa.");
+  if (actor.demoSessionId) throw new Error("Demo Session không ghi phát sinh quản trị vào dữ liệu nền.");
   const mealEventId = String(formData.get("mealEventId") ?? ""); const departmentId = String(formData.get("departmentId") ?? ""); const dietMealId = String(formData.get("dietMealId") ?? ""); const quantity = Number(formData.get("quantity")); const reason = normalizeAdditionReason(formData.get("reason"));
   if (!Number.isInteger(quantity) || quantity <= 0) throw new Error("Số suất bổ sung phải là số nguyên dương.");
   await prisma.$transaction(async (tx) => {

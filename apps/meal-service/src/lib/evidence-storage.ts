@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 export type StoredEvidence = { storagePath: string };
@@ -30,6 +30,12 @@ export async function readStoredEvidence(storagePath: string) {
   const safeName = path.basename(storagePath);
   if (!safeName || safeName !== storagePath) return null;
   try { return await readFile(/*turbopackIgnore: true*/ path.join(storageDirectory(), safeName)); } catch { return null; }
+}
+
+export async function deleteStoredEvidence(storagePath: string) {
+  const safeName = path.basename(storagePath);
+  if (!safeName || safeName !== storagePath) return;
+  try { await unlink(/*turbopackIgnore: true*/ path.join(storageDirectory(), safeName)); } catch { /* Missing demo evidence is already reset. */ }
 }
 
 export const evidenceStorage: EvidenceStorage = new LocalEvidenceStorage();

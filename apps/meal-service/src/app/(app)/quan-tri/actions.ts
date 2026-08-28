@@ -13,7 +13,7 @@ import { readBrandingSettings, updateBrandingSettings } from "@/lib/branding";
 import { createSyncPreview, queueSyncJob, retrySyncJob } from "@/lib/official-data-sync";
 import { actionFailure, actionSuccess, type ActionResult } from "@/lib/action-result";
 
-async function admin() { const user = await getSessionUser(); if (!user || user.role !== "ADMIN") throw new Error("Chỉ quản trị viên được thực hiện thao tác này."); return user; }
+async function admin() { const user = await getSessionUser(); if (!user || user.role !== "ADMIN") throw new Error("Chỉ quản trị viên được thực hiện thao tác này."); if (user.demoSessionId) throw new Error("Cấu hình Demo chỉ để xem; không ghi vào cấu hình nền của máy chủ."); return user; }
 const enabled = (data: FormData, key: string) => ["on", "true", "1"].includes(String(data.get(key) ?? "").toLowerCase());
 
 const DATA_SYNC_SOURCES = new Set<DataSyncSource>(["VDD_FOOD", "VDD_DISH", "RNI_DISH"]);

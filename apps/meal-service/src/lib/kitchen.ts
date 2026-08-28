@@ -5,6 +5,7 @@ import { prisma } from "./prisma";
 import { servingTotal } from "./late-addition";
 import { readApprovedKitchenNotes } from "./patient-note";
 import { readOperationalSettings } from "./settings";
+import { readDemoSession, updateDemoState } from "./demo-session";
 
 export const KITCHEN_STATUS_LABEL: Record<DietMealStatus, string> = { PLANNED: "Đã lên kế hoạch", LOCKED: "Đã chốt suất", PREPARING: "Đang chuẩn bị", PREPARED: "Đã chuẩn bị", SERVED: "Đã phục vụ", CANCELLED: "Đã hủy" };
 const NEXT_STATUS: Partial<Record<DietMealStatus, DietMealStatus>> = { PLANNED: "PREPARING", LOCKED: "PREPARING", PREPARING: "PREPARED", PREPARED: "SERVED" };
@@ -55,10 +56,12 @@ export function missingMealPhotoIds(mealIds: string[], existingIds: string[], up
   return mealIds.filter((id) => !available.has(id));
 }
 
-export async function completeKitchenEvent(input: { eventId: string; feedingRoute: "NORMAL" | "SONDE"; dietMealIds: string[]; files: Array<{ dietMealId: string; file: File; note: string | null }> }, actor: { id: string; displayName: string }) {
+export async function completeKitchenEvent(input: { eventId: string; feedingRoute: "NORMAL" | "SONDE"; dietMealIds: string[]; files: Array<{ dietMealId: string; file: File; note: string | null }> }, actor: { id: string; displayName: string; demoSessionId?: string }) {
   const meals = await prisma.dietMeal.findMany({ where: { mealEventId: input.eventId, feedingRoute: input.feedingRoute, voidedAt: null }, select: { id: true, status: true, evidence: { where: { kind: "MEAL_PHOTO" }, select: { id: true }, take: 1 } } });
   if (!meals.length || meals.length !== input.dietMealIds.length || meals.some((meal) => !input.dietMealIds.includes(meal.id))) throw new Error("Danh sách mã chế độ ăn không hợp lệ.");
-  const missing = missingMealPhotoIds(meals.map((meal) => meal.id), meals.filter((meal) => meal.evidence.length).map((meal) => meal.id), input.files.map((item) => item.dietMealId));
+  const demo = actor.demoSessionId ? await readDemoSession() : null;
+  const demoEvidenceIds = demo?.state.evidence.filter((item) => item.kind === "MEAL_PHOTO" && item.dietMealId).map((item) => item.dietMealId!) ?? [];
+  const missing = missingMealPhotoIds(meals.map((meal) => meal.id), [...meals.filter((meal) => meal.evidence.length).map((meal) => meal.id), ...demoEvidenceIds], input.files.map((item) => item.dietMealId));
   if (missing.length) throw new Error("Cần ảnh món thực tế cho tất cả mã chế độ ăn.");
   if (meals.some((meal) => !["PLANNED", "LOCKED", "PREPARING", "PREPARED"].includes(meal.status))) throw new Error("Bữa ăn không còn ở giai đoạn chuẩn bị.");
   const stored = [] as Array<{ dietMealId: string; storagePath: string; note: string | null }>;
@@ -67,6 +70,10 @@ export async function completeKitchenEvent(input: { eventId: string; feedingRout
     const result = await evidenceStorage.store(item.file);
     if (!result) return { stored: false as const };
     stored.push({ dietMealId: item.dietMealId, storagePath: result.storagePath, note: item.note });
+  }
+  if (actor.demoSessionId) {
+    await updateDemoState((state) => { for (const meal of meals) state.dietStatuses[meal.id] = "PREPARED"; for (const item of stored) { state.evidence = state.evidence.filter((value) => !(value.kind === "MEAL_PHOTO" && value.dietMealId === item.dietMealId)); state.evidence.push({ kind: "MEAL_PHOTO", dietMealId: item.dietMealId, storagePath: item.storagePath, note: item.note, uploadedAt: new Date().toISOString(), uploadedBy: actor.displayName }); } });
+    return { stored: true as const };
   }
   await prisma.$transaction(async (tx) => {
     for (const item of stored) {
@@ -82,13 +89,14 @@ export async function completeKitchenEvent(input: { eventId: string; feedingRout
   return { stored: true as const };
 }
 
-export async function saveFoodRetentionEvidence(input: { eventId: string; feedingRoute: "NORMAL" | "SONDE"; file: File; note: string | null }, actor: { id: string; displayName: string }) {
+export async function saveFoodRetentionEvidence(input: { eventId: string; feedingRoute: "NORMAL" | "SONDE"; file: File; note: string | null }, actor: { id: string; displayName: string; demoSessionId?: string }) {
   const settings = await readOperationalSettings();
   if (!settings.foodRetention24hRequired) throw new Error("Bệnh viện chưa bật yêu cầu lưu mẫu thực phẩm 24 giờ.");
   const event = await prisma.mealEvent.findFirst({ where: { id: input.eventId, mealType: { feedingRoute: input.feedingRoute }, dietMeals: { some: { feedingRoute: input.feedingRoute, voidedAt: null } } }, select: { id: true } });
   if (!event) throw new Error("Không tìm thấy bữa ăn thuộc phạm vi bếp này.");
   if (!input.file.type.startsWith("image/") || input.file.size <= 0 || input.file.size > 10 * 1024 * 1024) throw new Error("Cần một ảnh mẫu lưu hợp lệ, tối đa 10 MB.");
   const stored = await evidenceStorage.store(input.file); if (!stored) return { stored: false as const };
+  if (actor.demoSessionId) { await updateDemoState((state) => { state.evidence = state.evidence.filter((value) => !(value.kind === "FOOD_SAMPLE" && value.mealEventId === event.id)); state.evidence.push({ kind: "FOOD_SAMPLE", mealEventId: event.id, storagePath: stored.storagePath, note: input.note, uploadedAt: new Date().toISOString(), uploadedBy: actor.displayName }); }); return { stored: true as const }; }
   await prisma.$transaction(async (tx) => {
     const evidence = await tx.mealEvidence.create({ data: { mealEventId: event.id, kind: "FOOD_SAMPLE", storagePath: stored.storagePath, uploadedById: actor.id, note: input.note } });
     await tx.auditLog.create({ data: { entityType: "MealEvent", entityId: event.id, action: "FOOD_RETENTION_24H", actorId: actor.id, actorName: actor.displayName, afterJson: { evidenceId: evidence.id, retainedAt: evidence.uploadedAt, retainUntil: new Date(evidence.uploadedAt.getTime() + 24 * 60 * 60 * 1000) }, reason: "Bếp ghi nhận mẫu lưu thực phẩm 24 giờ cho toàn bữa" } });
@@ -96,7 +104,8 @@ export async function saveFoodRetentionEvidence(input: { eventId: string; feedin
   return { stored: true as const };
 }
 
-export async function reopenKitchenEvent(eventId: string, feedingRoute: "NORMAL" | "SONDE", actor: { id: string; displayName: string }) {
+export async function reopenKitchenEvent(eventId: string, feedingRoute: "NORMAL" | "SONDE", actor: { id: string; displayName: string; demoSessionId?: string }) {
+  if (actor.demoSessionId) { const ids = await prisma.dietMeal.findMany({ where: { mealEventId: eventId, feedingRoute, voidedAt: null }, select: { id: true } }); await updateDemoState((state) => { for (const meal of ids) state.dietStatuses[meal.id] = "PREPARING"; }); return; }
   await prisma.$transaction(async (tx) => {
     const meals = await tx.dietMeal.findMany({ where: { mealEventId: eventId, feedingRoute, voidedAt: null, status: "PREPARED" }, select: { id: true } });
     for (const meal of meals) {

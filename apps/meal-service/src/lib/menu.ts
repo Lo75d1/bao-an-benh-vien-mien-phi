@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { mealTimePhase } from "./meal-events";
 import { assessMenuDataQuality, createMenuSnapshot, evaluateMenu, NUTRIENT_KEYS, type MenuItemInput } from "./menu-logic";
 import { prisma } from "./prisma";
+import { updateDemoState } from "./demo-session";
 export * from "./menu-logic";
 
 export function normalizeMenuPatientNote(value: unknown): string | null {
@@ -25,7 +26,7 @@ export async function normalizeMenuItems(items: MenuItemInput[]): Promise<MenuIt
   });
 }
 
-export async function saveDietMeal(input: { dietMealId: string; items: MenuItemInput[]; sourceTemplateId?: string | null; patientVisibleNote?: unknown }, actor: { id: string; displayName: string }, now = new Date()) {
+export async function saveDietMeal(input: { dietMealId: string; items: MenuItemInput[]; sourceTemplateId?: string | null; patientVisibleNote?: unknown }, actor: { id: string; displayName: string; demoSessionId?: string }, now = new Date()) {
   const meal = await prisma.dietMeal.findUnique({ where: { id: input.dietMealId }, include: { dietType: { include: { dietCodeRef: true } }, mealEvent: { include: { mealType: true } } } });
   if (!meal || meal.voidedAt) throw new Error("Không tìm thấy thực đơn đang hoạt động.");
   if (mealTimePhase(meal.mealEvent.mealDate, meal.mealEvent.mealType.cutoffTime, meal.mealEvent.mealType.serviceTime, now) !== "BEFORE_CUTOFF") throw new Error("Đã tới giờ khóa thực đơn. Bếp đang dùng bản đã lưu gần nhất.");
@@ -39,6 +40,7 @@ export async function saveDietMeal(input: { dietMealId: string; items: MenuItemI
   const evaluation = evaluateMenu(normalizedItems, thresholds);
   const snapshot = createMenuSnapshot(normalizedItems);
   const patientVisibleNote = normalizeMenuPatientNote(input.patientVisibleNote);
+  if (actor.demoSessionId) { await updateDemoState((state) => { state.menus[meal.id] = { menuSnapshotJson: snapshot, evaluationJson: evaluation, patientVisibleNote, status: "PLANNED" }; state.dietStatuses[meal.id] = "PLANNED"; }); return { ...meal, menuSnapshotJson: snapshot, evaluationJson: evaluation, patientVisibleNote, status: "PLANNED" as const }; }
   return prisma.$transaction(async (tx) => {
     const current = await tx.dietMeal.findUniqueOrThrow({ where: { id: meal.id }, include: { mealEvent: { include: { mealType: true } } } });
     if (mealTimePhase(current.mealEvent.mealDate, current.mealEvent.mealType.cutoffTime, current.mealEvent.mealType.serviceTime, now) !== "BEFORE_CUTOFF") throw new Error("Đã tới giờ khóa thực đơn. Bếp đang dùng bản đã lưu gần nhất.");

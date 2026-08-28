@@ -16,6 +16,7 @@ import { prisma } from "@/lib/prisma";
 import { readOperationalSettings } from "@/lib/settings";
 import { readActionClock } from "@/lib/request-clock";
 import { actionFailure, actionSuccess, type ActionResult } from "@/lib/action-result";
+import { readDemoSession } from "@/lib/demo-session";
 
 async function requireKitchen() {
   const user = await getSessionUser();
@@ -29,8 +30,14 @@ async function requirePreparationOpen(
   input: { eventId?: string; dietMealId?: string; additionId?: string },
   kitchenRoute: "NORMAL" | "SONDE",
 ) {
+  const demoAddition = input.additionId
+    ? (await readDemoSession())?.state.additions.find((item) => item.id === input.additionId)
+    : null;
+  if (demoAddition && demoAddition.feedingRoute !== kitchenRoute)
+    throw new Error("Suất bổ sung không thuộc phạm vi bếp đang thao tác.");
   const event = await prisma.mealEvent.findFirst({
     where: {
+      ...(demoAddition ? { id: demoAddition.mealEventId } : {}),
       ...(input.eventId
         ? {
             id: input.eventId,
@@ -48,7 +55,7 @@ async function requirePreparationOpen(
             },
           }
         : {}),
-      ...(input.additionId
+      ...(input.additionId && !demoAddition
         ? {
             additions: {
               some: {
@@ -82,6 +89,7 @@ async function requirePreparationOpen(
 }
 export async function transitionMealAction(formData: FormData) {
   const user = await requireKitchen();
+  if (user.demoSessionId) throw new Error("Dùng checklist xác nhận sẵn sàng trong Demo Session.");
   const dietMealId = String(formData.get("dietMealId") ?? "");
   await requirePreparationOpen({ dietMealId }, user.kitchenRoute!);
   await transitionDietMeal(
@@ -100,6 +108,7 @@ const EVIDENCE_KINDS = new Set<EvidenceKind>([
 ]);
 export async function uploadEvidenceAction(formData: FormData) {
   const user = await requireKitchen();
+  if (user.demoSessionId) throw new Error("Dùng luồng ảnh món trong checklist Demo.");
   const kind = String(formData.get("kind") ?? "") as EvidenceKind;
   const file = formData.get("file");
   const dietMealId = String(formData.get("dietMealId") ?? "");
@@ -200,6 +209,7 @@ export async function reopenKitchenEventAction(formData: FormData) {
 }
 export async function acknowledgeKitchenNoteAction(formData: FormData) {
   const user = await requireKitchen();
+  if (user.demoSessionId) throw new Error("Demo Session không ghi xác nhận đọc vào dữ liệu nền.");
   const noteId = String(formData.get("noteId") ?? "");
   await requirePreparationOpen({
     eventId: String(formData.get("eventId") ?? ""),

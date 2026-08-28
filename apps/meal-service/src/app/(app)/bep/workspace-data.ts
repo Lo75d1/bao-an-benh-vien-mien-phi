@@ -5,6 +5,7 @@ import { evidenceStorage } from "@/lib/evidence-storage";
 import { prisma } from "@/lib/prisma";
 import { readOperationalSettings } from "@/lib/settings";
 import { foodRetentionLabel } from "@/lib/food-retention";
+import { readDemoSession } from "@/lib/demo-session";
 
 
 const eventInclude = {
@@ -55,6 +56,34 @@ export async function readKitchenWorkspace(requestedMealId?: string, feedingRout
   }
 
   events = events.map((event) => ({ ...event, dietMeals: event.dietMeals.filter((meal) => meal.feedingRoute === feedingRoute), additions: event.additions.filter((addition) => addition.dietType.feedingRoute === feedingRoute) }));
+  const demo = await readDemoSession();
+  if (demo) {
+    const departmentIds = [...new Set(demo.state.reports.map((item) => item.departmentId))];
+    const departmentNames = new Map((await prisma.department.findMany({ where: { id: { in: departmentIds } }, select: { id: true, name: true } })).map((item) => [item.id, item.name]));
+    const demoAdditions = demo.state.additions.filter((item) => item.feedingRoute === feedingRoute);
+    const [additionDepartments, additionDietTypes] = await Promise.all([
+      prisma.department.findMany({ where: { id: { in: [...new Set(demoAdditions.map((item) => item.departmentId))] } } }),
+      prisma.dietType.findMany({ where: { id: { in: [...new Set(demoAdditions.map((item) => item.dietTypeId))] } } }),
+    ]);
+    const departmentsById = new Map(additionDepartments.map((item) => [item.id, item]));
+    const dietTypesById = new Map(additionDietTypes.map((item) => [item.id, item]));
+    events = events.map((event) => {
+      const reports = [...event.reports];
+      for (const overlay of demo.state.reports.filter((item) => item.mealEventId === event.id)) {
+        const report = { departmentId: overlay.departmentId, department: { name: departmentNames.get(overlay.departmentId) ?? "—" }, lines: overlay.lines.map((line) => ({ dietTypeId: line.dietTypeId, quantity: line.quantity })) };
+        const current = reports.findIndex((item) => item.departmentId === overlay.departmentId);
+        if (current >= 0) reports.splice(current, 1, report); else reports.push(report);
+      }
+      const additions = [...event.additions];
+      for (const item of demoAdditions.filter((addition) => addition.mealEventId === event.id)) {
+        const department = departmentsById.get(item.departmentId);
+        const dietType = dietTypesById.get(item.dietTypeId);
+        if (!department || !dietType) continue;
+        additions.push({ ...item, submittedById: "demo", submittedAt: new Date(item.submittedAt), ackById: null, ackAt: null, department, dietType });
+      }
+      return { ...event, reports, additions, dietMeals: event.dietMeals.map((meal) => ({ ...meal, servingsPlanned: reports.reduce((sum, report) => sum + (report.lines.find((line) => line.dietTypeId === meal.dietTypeId)?.quantity ?? 0), 0), status: (demo.state.dietStatuses[meal.id] ?? meal.status) as typeof meal.status, evidence: [...demo.state.evidence.filter((item) => item.kind === "MEAL_PHOTO" && item.dietMealId === meal.id).map((item) => ({ id: `demo:${meal.id}`, dietMealId: meal.id, mealEventId: null, kind: "MEAL_PHOTO" as const, storagePath: item.storagePath, uploadedById: "demo", uploadedAt: new Date(item.uploadedAt), note: item.note })), ...meal.evidence] })), evidence: [...demo.state.evidence.filter((item) => item.kind === "FOOD_SAMPLE" && item.mealEventId === event.id).map((item) => ({ id: `demo:${event.id}:sample`, dietMealId: null, mealEventId: event.id, kind: "FOOD_SAMPLE" as const, storagePath: item.storagePath, uploadedById: "demo", uploadedAt: new Date(item.uploadedAt), note: item.note })), ...event.evidence] };
+    });
+  }
   const summaries = events.map((event) => ({
     id: event.id,
     name: event.mealType.name,

@@ -1,6 +1,7 @@
 import type { FeedingRoute, Prisma, Role } from "@prisma/client";
 import { prisma } from "./prisma";
 import { readOperationalSettings } from "./settings";
+import { readDemoSession, updateDemoState } from "./demo-session";
 
 export type ServingLineInput = { dietTypeId: string; quantity: number; internalNote: string | null; patientVisibleNote: string | null };
 type ServingSnapshot = { status: "SUBMITTED"; departmentId: string; mealEventId: string; reportedByName: string | null; lines: ServingLineInput[] };
@@ -70,10 +71,23 @@ export async function readNurseServingDay(userId: string, requestedRoute: Feedin
     where: { mealDate: day, mealType: { feedingRoute: route } }, orderBy: { mealType: { sortOrder: "asc" } },
     include: { mealType: true, dietMeals: { where: { voidedAt: null, feedingRoute: route }, orderBy: { dietType: { sortOrder: "asc" } }, include: { dietType: true } }, reports: { where: { departmentId }, include: { lines: true } }, additions: { where: { departmentId, dietType: { feedingRoute: route } }, orderBy: { submittedAt: "desc" }, include: { dietType: true } }, deliveryReceipts: { where: { departmentId }, take: 1, include: { confirmedBy: { select: { displayName: true } } } } },
   });
+  const demo = await readDemoSession();
+  const demoDietTypes = demo ? new Map((await prisma.dietType.findMany({ where: { id: { in: demo.state.additions.map((item) => item.dietTypeId) } } })).map((item) => [item.id, item])) : new Map();
+  if (demo) for (const event of events) {
+    const report = demo.state.reports.find((item) => item.mealEventId === event.id && item.departmentId === departmentId);
+    if (report) {
+      const existing = event.reports.findIndex((item) => item.departmentId === departmentId);
+      const projected = { id: `demo:${event.id}:${departmentId}`, departmentId, mealEventId: event.id, submittedById: userId, submittedAt: new Date(report.submittedAt), reportedByName: report.reportedByName, note: null, status: "SUBMITTED" as const, lines: report.lines.map((line, index) => ({ id: `demo-line:${index}`, servingReportId: `demo:${event.id}:${departmentId}`, ...line })) };
+      if (existing >= 0) event.reports.splice(existing, 1, projected); else event.reports.push(projected);
+    }
+    const receipt = demo.state.receipts.find((item) => item.mealEventId === event.id && item.departmentId === departmentId);
+    if (receipt) event.deliveryReceipts.splice(0, event.deliveryReceipts.length, { id: `demo-receipt:${event.id}:${departmentId}`, mealEventId: event.id, departmentId, status: receipt.status, expectedQuantity: receipt.expectedQuantity, receivedQuantity: receipt.receivedQuantity, note: receipt.note, confirmedAt: new Date(receipt.confirmedAt), updatedAt: new Date(receipt.confirmedAt), confirmedById: userId, confirmedBy: { displayName: receipt.confirmedBy } });
+    for (const addition of demo.state.additions.filter((item) => item.mealEventId === event.id && item.departmentId === departmentId && item.feedingRoute === route)) { const dietType = demoDietTypes.get(addition.dietTypeId); if (dietType) event.additions.push({ id: addition.id, mealEventId: event.id, departmentId, dietTypeId: addition.dietTypeId, quantity: addition.quantity, reason: addition.reason, kind: addition.kind, ackStatus: addition.ackStatus, submittedAt: new Date(addition.submittedAt), submittedById: userId, ackById: null, ackAt: null, kitchenNote: addition.kitchenNote, dietType }); }
+  }
   return { departmentId, departmentName: memberships[0]?.department.name ?? "—", events, route, sondeEnabled: settings.sondeEnabled, serviceCompletionMinutes: settings.serviceCompletionMinutes };
 }
 
-export async function saveServingReport(input: { mealEventId: string; departmentId: string; reportedByName: string; lines: ServingLineInput[] }, actor: { id: string; displayName: string; role: Role }, now = new Date()) {
+export async function saveServingReport(input: { mealEventId: string; departmentId: string; reportedByName: string; lines: ServingLineInput[] }, actor: { id: string; displayName: string; role: Role; demoSessionId?: string }, now = new Date()) {
   requireNurseDepartment(actor.role, [input.departmentId]);
   if (input.lines.length === 0) throw new Error("Bữa ăn chưa có chế độ để báo suất.");
   if (new Set(input.lines.map((line) => line.dietTypeId)).size !== input.lines.length) throw new Error("Có mã chế độ bị lặp.");
@@ -85,6 +99,11 @@ export async function saveServingReport(input: { mealEventId: string; department
   if (!isBeforeCutoff(event.mealDate, event.mealType.cutoffTime, now)) throw new Error("Đã qua giờ chốt. Số suất gốc không thể sửa.");
   const expected = new Set(event.dietMeals.map((meal) => meal.dietTypeId));
   if (input.lines.length !== expected.size || input.lines.some((line) => !expected.has(line.dietTypeId))) throw new Error("Danh sách chế độ không khớp với bữa ăn hiện tại.");
+  if (actor.demoSessionId) {
+    const reportedByName = normalizeReporterName(input.reportedByName);
+    await updateDemoState((state) => { state.reports = state.reports.filter((item) => !(item.mealEventId === input.mealEventId && item.departmentId === input.departmentId)); state.reports.push({ mealEventId: input.mealEventId, departmentId: input.departmentId, reportedByName, submittedAt: now.toISOString(), lines: input.lines }); });
+    return { id: `demo:${input.mealEventId}:${input.departmentId}` };
+  }
   return prisma.$transaction(async (tx) => {
     const existing = await tx.servingReport.findUnique({ where: { departmentId_mealEventId: { departmentId: input.departmentId, mealEventId: input.mealEventId } }, include: { lines: true } });
     const reportedByName = normalizeReporterName(input.reportedByName);

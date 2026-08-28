@@ -12,6 +12,7 @@ import { entryWindowEnd, readOperationalSettings } from "@/lib/settings";
 import { formatVnDay } from "@/lib/presentation";
 import { readRequestClock } from "@/lib/request-clock";
 import { saveMenusAction, saveTemplateAction } from "./actions";
+import { readDemoSession } from "@/lib/demo-session";
 
 function thresholdsOf(code: { energyKcalMin: number | null; energyKcalMax: number | null; proteinGMin: number | null; proteinGMax: number | null; lipidGMin: number | null; lipidGMax: number | null; glucidGMin: number | null; glucidGMax: number | null; sodiumMgMin: number | null; sodiumMgMax: number | null; potassiumMgMin: number | null; potassiumMgMax: number | null; waterGMin: number | null; waterGMax: number | null; mealsMin: number | null; mealsMax: number | null } | null) {
   return code ? { ...code } : null;
@@ -25,10 +26,12 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   if (user.role !== "DIETITIAN") redirect("/");
   const params = await searchParams;
   const [settings, clock] = await Promise.all([readOperationalSettings(), readRequestClock(params.demoNow)]);
-  const [meals, templates] = await Promise.all([
+  let [meals, templates] = await Promise.all([
     prisma.dietMeal.findMany({ where: { voidedAt: null, mealEvent: { mealDate: { lte: entryWindowEnd(clock.now, settings.advanceEntryDays) } }, ...(settings.sondeEnabled ? {} : { feedingRoute: "NORMAL" }) }, orderBy: [{ mealEvent: { mealDate: "asc" } }, { mealEvent: { mealType: { sortOrder: "asc" } } }, { dietType: { sortOrder: "asc" } }], include: { mealEvent: { include: { mealType: true } }, dietType: { include: { dietCodeRef: true } } } }),
     prisma.menuTemplate.findMany({ where: { ownerId: user.id }, orderBy: { updatedAt: "desc" }, include: { items: { orderBy: { id: "asc" } } } }),
   ]);
+  const demo = await readDemoSession();
+  if (demo) meals = meals.map((meal) => { const overlay = demo.state.menus[meal.id] as { menuSnapshotJson?: unknown; evaluationJson?: unknown; patientVisibleNote?: string | null; status?: typeof meal.status } | undefined; return overlay ? { ...meal, menuSnapshotJson: overlay.menuSnapshotJson ?? meal.menuSnapshotJson, evaluationJson: overlay.evaluationJson ?? meal.evaluationJson, patientVisibleNote: overlay.patientVisibleNote ?? null, status: overlay.status ?? meal.status } : meal; });
   if (!params.meal) {
     const today = hospitalDayKey(clock.now);
     const requestedRoute = params.route === "SONDE" ? "SONDE" : "NORMAL";

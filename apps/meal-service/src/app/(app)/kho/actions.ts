@@ -9,6 +9,7 @@ import { attachInventoryDocument, createInventoryTransaction, saveWarehouseInvoi
 async function requireActor() {
   const user = await getSessionUser();
   if (!user || !["ADMIN", "DIETITIAN", "KITCHEN"].includes(user.role)) throw new Error("Bạn không có quyền thao tác kho.");
+  if (user.demoSessionId) throw new Error("Kho chỉ xem trong Demo; thay đổi không được ghi vào dữ liệu nền.");
   return user;
 }
 

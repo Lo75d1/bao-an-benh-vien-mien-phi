@@ -52,6 +52,7 @@ async function addLateMeal(formData: FormData) {
 export async function reviewPatientNoteAction(formData: FormData) {
   const user = await getSessionUser();
   if (!user) redirect("/");
+  if (user.demoSessionId) throw new Error("Demo Session không thay đổi ghi chú bệnh nhân trong dữ liệu nền.");
   const status = String(formData.get("status") ?? "");
   if (status !== "APPROVED" && status !== "REJECTED") throw new Error("Trạng thái duyệt không hợp lệ.");
   await reviewPatientNote({ id: String(formData.get("noteId") ?? ""), status, reviewNote: formData.get("reviewNote") }, user);

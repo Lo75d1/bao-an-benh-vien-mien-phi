@@ -2,6 +2,7 @@
 
 import { changeOwnPassword } from "@/lib/profile";
 import { PasswordChangeError } from "@/lib/profile-rules";
+import { getSessionUser } from "@/lib/auth";
 
 export type ChangePasswordState = { status: "idle" | "success" | "error"; message: string };
 
@@ -10,6 +11,8 @@ export async function changePasswordAction(
   formData: FormData,
 ): Promise<ChangePasswordState> {
   try {
+    const user = await getSessionUser();
+    if (user?.demoSessionId) return { status: "error", message: "Demo Session không thay đổi tài khoản nền." };
     await changeOwnPassword({
       currentPassword: formData.get("currentPassword"),
       newPassword: formData.get("newPassword"),

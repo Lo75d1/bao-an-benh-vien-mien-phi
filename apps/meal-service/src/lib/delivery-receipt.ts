@@ -2,6 +2,7 @@ import type { DeliveryReceiptStatus, Prisma, Role } from "@prisma/client";
 import { mealTimePhase } from "./meal-events";
 import { prisma } from "./prisma";
 import { readOperationalSettings } from "./settings";
+import { readDemoSession, updateDemoState } from "./demo-session";
 
 export function normalizeDeliveryReceipt(input: { status: unknown; receivedQuantity: unknown; expectedQuantity: number; note: unknown }) {
   const status = String(input.status ?? "") as DeliveryReceiptStatus;
@@ -26,7 +27,7 @@ export function normalizeReceiptCorrectionReason(value: unknown) {
 
 export async function confirmMealDelivery(
   input: { mealEventId: string; departmentId: string; status: unknown; receivedQuantity: unknown; note: unknown; correctionReason?: unknown },
-  actor: { id: string; displayName: string; role: Role },
+  actor: { id: string; displayName: string; role: Role; demoSessionId?: string },
   now = new Date(),
 ) {
   if (actor.role !== "NURSE") throw new Error("Chỉ điều dưỡng được xác nhận giao nhận của khoa.");
@@ -39,9 +40,18 @@ export async function confirmMealDelivery(
   if (!event) throw new Error("Không tìm thấy bữa ăn cần xác nhận.");
   const phase = mealTimePhase(event.mealDate, event.mealType.cutoffTime, event.mealType.serviceTime, now, settings.serviceCompletionMinutes);
   if (phase !== "SERVING" && phase !== "PASSED") throw new Error("Chưa tới giờ phục vụ nên chưa thể xác nhận giao nhận.");
-  if (event.reports.length === 0) throw new Error("Khoa chưa có báo suất đã chốt cho bữa này.");
-  const expectedQuantity = event.reports.flatMap((report) => report.lines).reduce((sum, line) => sum + line.quantity, 0) + event.additions.reduce((sum, item) => sum + item.quantity, 0);
+  const demo = actor.demoSessionId ? await readDemoSession() : null;
+  const demoReport = demo?.state.reports.find((item) => item.mealEventId === input.mealEventId && item.departmentId === input.departmentId);
+  if (event.reports.length === 0 && !demoReport) throw new Error("Khoa chưa có báo suất đã chốt cho bữa này.");
+  const expectedQuantity = (demoReport ? demoReport.lines : event.reports.flatMap((report) => report.lines)).reduce((sum, line) => sum + line.quantity, 0) + event.additions.reduce((sum, item) => sum + item.quantity, 0);
   const normalized = normalizeDeliveryReceipt({ ...input, expectedQuantity });
+  if (actor.demoSessionId) {
+    const existing = demo?.state.receipts.find((item) => item.mealEventId === input.mealEventId && item.departmentId === input.departmentId);
+    if (existing) normalizeReceiptCorrectionReason(input.correctionReason);
+    const receipt = { mealEventId: input.mealEventId, departmentId: input.departmentId, expectedQuantity, ...normalized, confirmedAt: now.toISOString(), confirmedBy: actor.displayName };
+    await updateDemoState((state) => { state.receipts = state.receipts.filter((item) => !(item.mealEventId === input.mealEventId && item.departmentId === input.departmentId)); state.receipts.push(receipt); });
+    return { id: `demo-receipt:${input.mealEventId}:${input.departmentId}`, ...receipt };
+  }
   return prisma.$transaction(async (tx) => {
     const existing = await tx.mealDeliveryReceipt.findUnique({ where: { departmentId_mealEventId: { departmentId: input.departmentId, mealEventId: input.mealEventId } } });
     const unchanged = existing && existing.expectedQuantity === expectedQuantity && existing.receivedQuantity === normalized.receivedQuantity && existing.status === normalized.status && existing.note === normalized.note;

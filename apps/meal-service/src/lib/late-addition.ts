@@ -1,6 +1,7 @@
 import type { AckStatus, AdditionKind, DietMealStatus, Prisma, Role } from "@prisma/client";
 import { cutoffAt } from "./serving-report";
 import { prisma } from "./prisma";
+import { readDemoSession, updateDemoState } from "./demo-session";
 
 export const ACK_LABEL: Record<Exclude<AckStatus, "PENDING">, string> = {
   RECEIVED: "Đã nhận",
@@ -37,7 +38,7 @@ export function assertAckStatus(status: AckStatus): asserts status is Exclude<Ac
   if (!(status in ACK_LABEL)) throw new Error("Trạng thái xác nhận của bếp không hợp lệ.");
 }
 
-type Actor = { id: string; displayName: string; role: Role };
+type Actor = { id: string; displayName: string; role: Role; demoSessionId?: string };
 
 export function assertAdditionRoute(requestedRoute: "NORMAL" | "SONDE", eventRoute: "NORMAL" | "SONDE", mealRoute: "NORMAL" | "SONDE") {
   if (eventRoute !== requestedRoute || mealRoute !== requestedRoute) throw new Error("Bữa ăn không thuộc đúng đường nuôi đang báo bổ sung.");
@@ -68,6 +69,13 @@ export async function createLateMealAddition(input: { mealEventId: string; depar
   if (actor.role !== "NURSE") throw new Error("Chỉ điều dưỡng được báo suất bổ sung.");
   if (!Number.isInteger(input.quantity) || input.quantity <= 0) throw new Error("Số suất bổ sung phải là số nguyên dương.");
   const reason = normalizeAdditionReason(input.reason);
+  if (actor.demoSessionId) {
+    const [membership, event, meal] = await Promise.all([prisma.departmentMembership.findUnique({ where: { userId_departmentId: { userId: actor.id, departmentId: input.departmentId } }, select: { id: true } }), prisma.mealEvent.findUnique({ where: { id: input.mealEventId }, include: { mealType: true } }), prisma.dietMeal.findUnique({ where: { mealEventId_dietTypeId: { mealEventId: input.mealEventId, dietTypeId: input.dietTypeId } }, select: { id: true, status: true, voidedAt: true, feedingRoute: true } })]);
+    if (!membership) throw new Error("Bạn không có quyền báo bổ sung cho khoa này."); if (!event || !meal || meal.voidedAt) throw new Error("Không tìm thấy chế độ ăn đang hoạt động."); assertAdditionRoute(input.feedingRoute, event.mealType.feedingRoute, meal.feedingRoute);
+    const cutoff = cutoffAt(event.mealDate, event.mealType.cutoffTime); if (meal.status !== "SERVED" && (!cutoff || now < cutoff)) throw new Error("Chỉ báo bổ sung sau giờ chốt. Trước giờ chốt hãy sửa báo suất gốc.");
+    const addition = { id: `demo-addition:${crypto.randomUUID()}`, ...input, reason, kind: additionKindFor(meal.status), ackStatus: "PENDING" as const, submittedAt: now.toISOString(), submittedBy: actor.displayName, kitchenNote: null };
+    await updateDemoState((state) => { state.additions.push(addition); }); return addition;
+  }
   return prisma.$transaction(async (tx) => {
     const [membership, event, meal] = await Promise.all([
       tx.departmentMembership.findUnique({ where: { userId_departmentId: { userId: actor.id, departmentId: input.departmentId } }, select: { id: true } }),
@@ -98,6 +106,7 @@ export async function acknowledgeLateMealAddition(input: { additionId: string; a
   const ackStatus = input.ackStatus;
   const kitchenNote = input.kitchenNote?.trim() || null;
   if (kitchenNote && kitchenNote.length > 500) throw new Error("Ghi chú bếp tối đa 500 ký tự.");
+  if (actor.demoSessionId) { const demo = await readDemoSession(); const existing = demo?.state.additions.find((item) => item.id === input.additionId); if (!existing) throw new Error("Không tìm thấy suất bổ sung trong Demo Session."); await updateDemoState((state) => { const item = state.additions.find((value) => value.id === input.additionId); if (item) { item.ackStatus = ackStatus; item.kitchenNote = kitchenNote; } }); return { ...existing, ackStatus, kitchenNote, ackAt: now }; }
   return prisma.$transaction(async (tx) => {
     const existing = await tx.lateMealAddition.findUnique({ where: { id: input.additionId } });
     if (!existing) throw new Error("Không tìm thấy suất bổ sung.");
