@@ -14,6 +14,7 @@ import { isKitchenPreparationOpen } from "@/lib/meal-events";
 import { prisma } from "@/lib/prisma";
 import { readOperationalSettings } from "@/lib/settings";
 import { readActionClock } from "@/lib/request-clock";
+import { actionFailure, actionSuccess, type ActionResult } from "@/lib/action-result";
 
 async function requireKitchen() {
   const user = await getSessionUser();
@@ -138,7 +139,7 @@ export async function acknowledgeAdditionAction(formData: FormData) {
   redirect("/bep?updated=addition");
 }
 
-export async function completeKitchenEventAction(formData: FormData) {
+async function completeKitchenEventSubmission(formData: FormData) {
   const user = await requireKitchen();
   const eventId = String(formData.get("eventId") ?? "");
   const mealIds = formData.getAll("dietMealId").map(String);
@@ -170,9 +171,15 @@ export async function completeKitchenEventAction(formData: FormData) {
   );
   revalidatePath("/bep");
   revalidatePath("/lich");
-  redirect(
-    result.stored ? "/bep?updated=prepared" : "/bep?storage=unavailable",
-  );
+  return result.stored;
+}
+
+export async function completeKitchenEventAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
+  if (!await getSessionUser()) redirect("/");
+  try {
+    const stored = await completeKitchenEventSubmission(formData);
+    return stored ? actionSuccess("Đã lưu bằng chứng và xác nhận toàn bộ bữa đã chuẩn bị xong.") : actionFailure(new Error("Không thể lưu ảnh vào bộ nhớ. Dữ liệu chưa được xác nhận."));
+  } catch (error) { return actionFailure(error); }
 }
 export async function reopenKitchenEventAction(formData: FormData) {
   const user = await requireKitchen();

@@ -6,6 +6,7 @@ import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createLateMealAddition, normalizeAdditionReason } from "@/lib/late-addition";
 import { confirmMealDelivery } from "@/lib/delivery-receipt";
+import { actionFailure, actionSuccess, type ActionResult } from "@/lib/action-result";
 import { readActionClock } from "@/lib/request-clock";
 import { reviewPatientNote } from "@/lib/patient-note";
 import { normalizeReporterName, normalizeServingNote, requireNurseDepartment, saveServingReport, type ServingLineInput } from "@/lib/serving-report";
@@ -15,7 +16,7 @@ function nurseRedirect(formData: FormData, saved: string) {
   redirect(`/bao-suat?route=${route}&saved=${saved}`);
 }
 
-export async function saveServingReportAction(formData: FormData) {
+async function saveServingReportSubmission(formData: FormData) {
   const user = await getSessionUser();
   if (!user) redirect("/");
   const memberships = await prisma.departmentMembership.findMany({ where: { userId: user.id }, select: { departmentId: true } });
@@ -31,10 +32,9 @@ export async function saveServingReportAction(formData: FormData) {
   await saveServingReport({ mealEventId, departmentId, reportedByName: normalizeReporterName(formData.get("reportedByName")), lines }, user, clock.now);
   revalidatePath("/bao-suat");
   revalidatePath("/lich");
-  nurseRedirect(formData, "1");
 }
 
-export async function addLateMealAction(formData: FormData) {
+async function addLateMeal(formData: FormData) {
   const user = await getSessionUser();
   if (!user) redirect("/");
   const memberships = await prisma.departmentMembership.findMany({ where: { userId: user.id }, select: { departmentId: true } });
@@ -47,7 +47,6 @@ export async function addLateMealAction(formData: FormData) {
   revalidatePath("/bao-suat");
   revalidatePath("/bep");
   revalidatePath("/lich");
-  nurseRedirect(formData, "addition");
 }
 
 export async function reviewPatientNoteAction(formData: FormData) {
@@ -61,7 +60,7 @@ export async function reviewPatientNoteAction(formData: FormData) {
   nurseRedirect(formData, "patient-note");
 }
 
-export async function confirmDeliveryReceiptAction(formData: FormData) {
+async function confirmDeliveryReceipt(formData: FormData) {
   const user = await getSessionUser();
   if (!user) redirect("/");
   const memberships = await prisma.departmentMembership.findMany({ where: { userId: user.id }, select: { departmentId: true } });
@@ -71,5 +70,24 @@ export async function confirmDeliveryReceiptAction(formData: FormData) {
   revalidatePath("/bao-suat");
   revalidatePath("/quan-ly");
   revalidatePath("/lich");
-  nurseRedirect(formData, "receipt");
+}
+
+export async function saveServingReportAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
+  if (!await getSessionUser()) redirect("/");
+  try { await saveServingReportSubmission(formData); return actionSuccess("Đã lưu và gửi báo suất cho bếp."); }
+  catch (error) { return actionFailure(error); }
+}
+
+export async function addLateMealAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
+  if (!await getSessionUser()) redirect("/");
+  try { await addLateMeal(formData); return actionSuccess("Đã gửi báo bổ sung cho bếp."); }
+  catch (error) { return actionFailure(error); }
+}
+
+export async function confirmDeliveryReceiptAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
+  if (!await getSessionUser()) redirect("/");
+  try {
+    await confirmDeliveryReceipt(formData);
+    return actionSuccess(formData.get("status") === "SHORT" ? "Đã ghi nhận số suất nhận thiếu." : "Đã xác nhận khoa nhận đủ suất.");
+  } catch (error) { return actionFailure(error); }
 }
