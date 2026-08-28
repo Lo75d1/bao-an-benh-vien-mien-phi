@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { approvedNotesOnly, clientIpFromHeaders, hashClientIp, isPatientNoteRateLimited, publicDietMeal, publicPatientNotes } from "../src/lib/patient-note";
+import { approvedNotesOnly, clientIpFromHeaders, hashClientIp, isPatientNoteRateLimited, publicDietMeal, publicPatientNotes, selectPublicMealWindow } from "../src/lib/patient-note";
 
 test("chỉ ghi chú APPROVED được chuyển tới bếp", () => {
   const visible = approvedNotesOnly([
@@ -36,4 +36,18 @@ test("ipHash không lưu IP thô và rate-limit theo cửa sổ một giờ", ()
   const now = new Date("2026-08-21T08:00:00.000Z");
   assert.equal(isPatientNoteRateLimited([new Date("2026-08-21T07:10:00Z"), new Date("2026-08-21T07:20:00Z")], now), false);
   assert.equal(isPatientNoteRateLimited([new Date("2026-08-21T07:10:00Z"), new Date("2026-08-21T07:20:00Z"), new Date("2026-08-21T07:30:00Z")], now), true);
+});
+
+test("trang bệnh nhân tách đúng suất hiện tại và suất kế tiếp", () => {
+  const meals = [
+    { id: "sang", at: new Date("2026-08-28T23:30:00.000Z") },
+    { id: "trua", at: new Date("2026-08-29T04:30:00.000Z") },
+    { id: "chieu", at: new Date("2026-08-29T10:00:00.000Z") },
+  ];
+  const beforeBreakfast = selectPublicMealWindow(meals, new Date("2026-08-28T23:00:00.000Z"));
+  assert.equal(beforeBreakfast.current, null);
+  assert.equal(beforeBreakfast.next?.id, "sang");
+  const afterLunch = selectPublicMealWindow(meals, new Date("2026-08-29T05:00:00.000Z"));
+  assert.equal(afterLunch.current?.id, "trua");
+  assert.equal(afterLunch.next?.id, "chieu");
 });
