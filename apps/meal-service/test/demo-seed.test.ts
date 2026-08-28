@@ -16,9 +16,8 @@ test("bot chỉ ghép mã chế độ với bữa cùng đường nuôi", () => 
   assert.deepEqual(dietTypesForRoute("SONDE", dietTypes).map((item) => item.code), ["SONDE_TC"]);
 });
 
-test("trạng thái cữ Sonde dùng giờ riêng của chính cữ", () => {
-  const date = new Date("2026-08-26T00:00:00.000Z");
-  const now = new Date("2026-08-26T07:30:00.000Z"); // 14:30 Việt Nam
-  assert.equal(demoMealStatus(date, "14:00", "17:00", now), "PREPARING");
-  assert.equal(demoMealStatus(date, "17:00", "18:00", now), "PLANNED");
+test("fact bếp demo do kịch bản quyết định, không do giờ trong ngày", () => {
+  assert.equal(demoMealStatus(2, 3), "SERVED");
+  assert.equal(demoMealStatus(2, 3, true), "PREPARED");
+  assert.equal(demoMealStatus(3, 3), "PLANNED");
 });

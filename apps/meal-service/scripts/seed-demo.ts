@@ -23,15 +23,9 @@ function atVietnamTime(date: Date, hour: number, minute = 0): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), hour - 7, minute));
 }
 
-export function demoMealStatus(mealDate: Date, cutoffTime: string, serviceTime: string, now: Date, intentionallyIncomplete = false): DietMealStatus {
-  const [cutoffHour, cutoffMinute] = cutoffTime.split(":").map(Number);
-  const [serviceHour, serviceMinute] = serviceTime.split(":").map(Number);
-  const cutoffAt = atVietnamTime(mealDate, cutoffHour, cutoffMinute).getTime();
-  const serviceAt = atVietnamTime(mealDate, serviceHour, serviceMinute).getTime();
-  if (now.getTime() >= serviceAt + 60 * 60 * 1000) return intentionallyIncomplete ? "PREPARED" : "SERVED";
-  if (now.getTime() >= serviceAt) return "PREPARED";
-  if (now.getTime() >= cutoffAt) return "PREPARING";
-  return "PLANNED";
+export function demoMealStatus(dayIndex: number, todayIndex: number, intentionallyIncomplete = false): DietMealStatus {
+  if (dayIndex >= todayIndex) return "PLANNED";
+  return intentionallyIncomplete ? "PREPARED" : "SERVED";
 }
 
 export function dietTypesForRoute<T extends { feedingRoute: FeedingRoute }>(feedingRoute: FeedingRoute, dietTypes: T[]): T[] {
@@ -148,7 +142,8 @@ export async function seedDemo(prisma: PrismaClient, now = new Date(), options: 
         }));
         const evaluation = evaluateDiet({ ...totals, sodiumMg: null, potassiumMg: null, waterG: null, meals: 1 }, null);
         const intentionallyIncomplete = mealType.feedingRoute === "NORMAL" && dayIndex === 0 && mealIndex === 0 && dietIndex === 0;
-        const status = demoMealStatus(mealDate, mealType.cutoffTime, mealType.serviceTime, now, intentionallyIncomplete);
+        const todayIndex = Math.floor((hospitalDate(now).getTime() - weekStart.getTime()) / DAY_MS);
+        const status = demoMealStatus(dayIndex, todayIndex, intentionallyIncomplete);
         const [cutoffHour, cutoffMinute] = mealType.cutoffTime.split(":").map(Number);
         const cutoffAt = atVietnamTime(mealDate, cutoffHour, cutoffMinute);
         const menuInHorizon = mealDate.getTime() <= menuHorizon.getTime();
@@ -185,8 +180,8 @@ export async function seedDemo(prisma: PrismaClient, now = new Date(), options: 
         const milestoneAt = status === "SERVED" || status === "PREPARED" ? atVietnamTime(mealDate, Number(mealType.serviceTime.slice(0, 2)), Number(mealType.serviceTime.slice(3))) : atVietnamTime(mealDate, Number(mealType.cutoffTime.slice(0, 2)), Number(mealType.cutoffTime.slice(3)));
         await prisma.auditLog.upsert({
           where: { id: `demo-kitchen-status-${id}` },
-          create: { id: `demo-kitchen-status-${id}`, entityType: "DietMeal", entityId: meal.id, action: "KITCHEN_STATUS_CHANGE", actorId: routeKitchen.id, actorName: routeKitchen.displayName, afterJson: json({ status, feedingRoute: mealType.feedingRoute }), reason: `Dữ liệu demo theo khung giờ ${mealType.feedingRoute}`, createdAt: milestoneAt },
-          update: { entityId: meal.id, actorId: routeKitchen.id, actorName: routeKitchen.displayName, afterJson: json({ status, feedingRoute: mealType.feedingRoute }), reason: `Dữ liệu demo theo khung giờ ${mealType.feedingRoute}`, createdAt: milestoneAt },
+          create: { id: `demo-kitchen-status-${id}`, entityType: "DietMeal", entityId: meal.id, action: "KITCHEN_STATUS_CHANGE", actorId: routeKitchen.id, actorName: routeKitchen.displayName, afterJson: json({ status, feedingRoute: mealType.feedingRoute }), reason: `Fact bếp của kịch bản demo ${mealType.feedingRoute}`, createdAt: milestoneAt },
+          update: { entityId: meal.id, actorId: routeKitchen.id, actorName: routeKitchen.displayName, afterJson: json({ status, feedingRoute: mealType.feedingRoute }), reason: `Fact bếp của kịch bản demo ${mealType.feedingRoute}`, createdAt: milestoneAt },
         });
         if (status === "SERVED") {
           for (const kind of ["MEAL_PHOTO"] as const) await prisma.mealEvidence.upsert({

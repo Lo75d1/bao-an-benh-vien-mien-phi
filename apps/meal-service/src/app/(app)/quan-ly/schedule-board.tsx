@@ -6,10 +6,10 @@ import type { ManagementCriterion, ManagementSchedule, ManagementScheduleDiet, M
 
 const numberFormat = new Intl.NumberFormat("vi-VN");
 const dateTimeFormat = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
-const STATUS_LABEL: Record<ManagementStatus, string> = { PLANNED: "Dự kiến", LOCKED: "Đã chốt", PREPARING: "Đang chuẩn bị", PREPARED: "Đã chuẩn bị", SERVED: "Đã phục vụ" };
+const STATUS_LABEL: Record<ManagementStatus, string> = { PLANNED: "Bếp chưa bắt đầu", LOCKED: "Bếp chưa bắt đầu", PREPARING: "Bếp đang làm", PREPARED: "Bếp đã xác nhận chuẩn bị xong", SERVED: "Bếp đã xác nhận giao" };
 const CRITERION_LABEL: Record<ManagementCriterion["status"], string> = { OK: "Đạt", LOW: "Thiếu", HIGH: "Vượt", MISSING: "—" };
 const NOTE_LABEL = { MENU: "Thực đơn", SERVING: "Báo suất", PATIENT: "Người bệnh" } as const;
-const PHASE_LABEL: Record<ManagementSchedulePhase, string> = { SERVED: "Đã phục vụ", PREPARING: "Đang chuẩn bị", SERVING: "Đang phục vụ" };
+const PHASE_LABEL: Record<ManagementSchedulePhase, string> = { REPORTING: "Đang nhận báo", PREPARATION: "Giai đoạn chuẩn bị", SERVICE: "Đang phục vụ", CLOSED: "Đã đóng" };
 const ROUTES: Array<{ id: ManagementScheduleRoute; title: string }> = [{ id: "NORMAL", title: "Ăn đường miệng" }, { id: "SONDE", title: "Ăn qua sonde" }];
 
 function Missing({ children }: { children: React.ReactNode }) { return <p className="schedule-missing">— · {children}</p>; }

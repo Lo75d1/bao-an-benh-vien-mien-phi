@@ -1,18 +1,20 @@
 "use client";
 
+import type { DietMealStatus } from "@prisma/client";
 import { ArrowLeft, BookOpen, ChefHat, ShoppingBasket } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
+import { getMealBusinessFacts } from "@/lib/meal-state";
 import { KitchenCompletionDialog } from "./kitchen-completion-dialog";
 
 type MenuItem = { name: string; dishName: string; grams: number | null };
 type DepartmentServing = { id: string; name: string; original: number | null; additions: number | null; total: number | null };
-type Meal = { id: string; code: string; name: string; planned: number | null; additions: number | null; total: number | null; items: MenuItem[]; status: string; departments: DepartmentServing[] };
+type Meal = { id: string; code: string; name: string; planned: number | null; additions: number | null; total: number | null; items: MenuItem[]; status: DietMealStatus; departments: DepartmentServing[] };
 type Shopping = { foodId: string; foodName: string; edible: string; waste: string; raw: string };
 
 export function KitchenBoard({ eventId, mealName, meals, shopping, tools, canOperate, foodRetention24hRequired }: { eventId: string; mealName: string; meals: Meal[]; shopping: Shopping[]; tools: ReactNode; canOperate: boolean; foodRetention24hRequired: boolean }) {
   const [selected, setSelected] = useState<string | null>(null);
   const active = meals.find((meal) => meal.id === selected) ?? null;
-  const prepared = meals.length > 0 && meals.every((meal) => meal.status === "PREPARED");
+  const prepared = getMealBusinessFacts({ dietStatuses: meals.map((meal) => meal.status) }).kitchen === "PREPARED";
   const total = useMemo(() => meals.some((meal) => meal.total !== null) ? meals.reduce((sum, meal) => sum + (meal.total ?? 0), 0) : null, [meals]);
   return <div className="kitchen-operation-grid">
     <section className="kitchen-operation-main"><header><div><span><ChefHat/> Số suất & tiến độ</span><h2>{mealName}</h2></div><div className="kitchen-board-tools">{tools}</div><b>{total === null ? "—" : `${total} suất`}</b></header>

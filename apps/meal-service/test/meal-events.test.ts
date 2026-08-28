@@ -28,12 +28,12 @@ test("role thường chỉ được xem tuần này hoặc tuần sau", () => {
 
 test("trạng thái lịch kết hợp giờ Việt Nam và trạng thái đã lưu", () => {
   const day = new Date("2026-08-23T00:00:00.000Z");
-  assert.equal(displayMealState(day, "05:00", "06:30", "PLANNED", new Date("2026-08-22T21:30:00.000Z"))?.key, "RECEIVING");
-  assert.equal(displayMealState(day, "05:00", "06:30", "PLANNED", new Date("2026-08-22T22:00:00.000Z"))?.key, "PREPARING");
-  assert.equal(displayMealState(day, "05:00", "06:30", "PLANNED", new Date("2026-08-22T23:45:00.000Z"))?.key, "SERVING");
-  assert.equal(displayMealState(day, "05:00", "06:30", "SERVED", new Date("2026-08-23T01:00:00.000Z"))?.key, "SERVED");
-  assert.equal(displayMealState(day, "05:00", "06:30", "PREPARED", new Date("2026-08-23T01:00:00.000Z"))?.key, "INCOMPLETE");
+  assert.equal(displayMealState(day, "05:00", "06:30", "PLANNED", new Date("2026-08-22T21:30:00.000Z"))?.key, "REPORTING");
+  assert.equal(displayMealState(day, "05:00", "06:30", "PLANNED", new Date("2026-08-22T22:00:00.000Z"))?.key, "PREPARATION");
+  assert.equal(displayMealState(day, "05:00", "06:30", "PLANNED", new Date("2026-08-22T23:45:00.000Z"))?.key, "SERVICE");
+  assert.equal(displayMealState(day, "05:00", "06:30", "SERVED", new Date("2026-08-23T01:00:00.000Z"))?.key, "CLOSED");
+  assert.equal(displayMealState(day, "05:00", "06:30", "PREPARED", new Date("2026-08-23T01:00:00.000Z"))?.key, "CLOSED");
   assert.equal(displayMealState(new Date("2026-08-24T00:00:00.000Z"), "05:00", "06:30", "PLANNED", new Date("2026-08-23T01:00:00.000Z"))?.key, "UPCOMING");
-  assert.equal(displayMealState(day, "05:00", "17:00", "PREPARED", new Date("2026-08-23T01:00:00.000Z"))?.key, "COOKING");
+  assert.equal(displayMealState(day, "05:00", "17:00", "PREPARED", new Date("2026-08-23T01:00:00.000Z"))?.key, "PREPARATION");
   assert.equal(displayMealState(day, "05:00", "17:00", null, new Date("2026-08-23T01:00:00.000Z")), null);
 });
