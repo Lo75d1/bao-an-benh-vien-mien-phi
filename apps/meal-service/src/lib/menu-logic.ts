@@ -4,6 +4,17 @@ export const NUTRIENT_KEYS = ["energyKcal", "proteinG", "lipidG", "glucidG", "so
 export type MenuNutrientKey = (typeof NUTRIENT_KEYS)[number];
 export type MenuItemInput = { foodId: string | null; itemName: string; dishName?: string; category?: string; note?: string; grams: number; wastePercent: number | null; nutrients: Record<MenuNutrientKey, number | null> };
 export type MenuSnapshot = { version: 2; items: Array<{ foodId: string | null; itemName: string; dishName: string; category?: string; note?: string; grams: number; wastePercent: number | null }> };
+export type MenuDataQuality = { level: "READY" | "WARNING" | "BLOCKED"; missing: MenuNutrientKey[]; reasons: string[] };
+const CORE_NUTRIENTS: MenuNutrientKey[] = ["energyKcal", "proteinG", "lipidG", "glucidG"];
+
+export function assessMenuDataQuality(items: MenuItemInput[]): MenuDataQuality {
+  if (!items.length) return { level: "BLOCKED", missing: [...NUTRIENT_KEYS], reasons: ["Chưa có thực phẩm trong mã chế độ ăn."] };
+  if (items.some((item) => !item.itemName.trim() || !Number.isFinite(item.grams) || item.grams <= 0)) return { level: "BLOCKED", missing: [], reasons: ["Tên thực phẩm và gram sạch/suất là dữ liệu thiết yếu."] };
+  const hasEvaluationBasis = items.some((item) => CORE_NUTRIENTS.some((key) => typeof item.nutrients[key] === "number" && Number.isFinite(item.nutrients[key])));
+  if (!hasEvaluationBasis) return { level: "BLOCKED", missing: [...CORE_NUTRIENTS], reasons: ["Không có năng lượng, đạm, béo hoặc bột đường để làm cơ sở đánh giá."] };
+  const missing = NUTRIENT_KEYS.filter((key) => items.some((item) => typeof item.nutrients[key] !== "number" || !Number.isFinite(item.nutrients[key])));
+  return missing.length ? { level: "WARNING", missing, reasons: ["Thiếu một phần dữ liệu dinh dưỡng; hệ thống giữ dấu “—” và vẫn cho phép lưu."] } : { level: "READY", missing: [], reasons: [] };
+}
 
 export function calculateMenuTotals(items: MenuItemInput[]) {
   return Object.fromEntries(NUTRIENT_KEYS.map((key) => {
