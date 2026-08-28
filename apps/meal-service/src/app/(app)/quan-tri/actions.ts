@@ -11,6 +11,7 @@ import { saveMealType, setMealTypeStatus } from "@/lib/meal-types";
 import { updateOperationalSettings } from "@/lib/settings";
 import { readBrandingSettings, updateBrandingSettings } from "@/lib/branding";
 import { createSyncPreview, queueSyncJob, retrySyncJob } from "@/lib/official-data-sync";
+import { actionFailure, actionSuccess, type ActionResult } from "@/lib/action-result";
 
 async function admin() { const user = await getSessionUser(); if (!user || user.role !== "ADMIN") throw new Error("Chỉ quản trị viên được thực hiện thao tác này."); return user; }
 const enabled = (data: FormData, key: string) => ["on", "true", "1"].includes(String(data.get(key) ?? "").toLowerCase());
@@ -61,14 +62,19 @@ export async function saveBrandingAction(formData: FormData) {
   redirect("/quan-tri?updated=branding#branding");
 }
 
-export async function saveSettingsAction(formData: FormData) {
+async function saveSettings(formData: FormData) {
   const actor = await admin();
   const ids = formData.getAll("mealTypeId").map(String);
   const cutoffs = formData.getAll("cutoffTime").map(String);
   const services = formData.getAll("serviceTime").map(String);
   await updateOperationalSettings({ dataStartDate: String(formData.get("dataStartDate") ?? ""), advanceEntryDays: Number(formData.get("advanceEntryDays")), publicMenuImages: enabled(formData, "publicMenuImages"), publicViewCountVisible: enabled(formData, "publicViewCountVisible"), sondeEnabled: enabled(formData, "sondeEnabled"), warehouseMode: formData.get("warehouseMode") === "B" ? "B" : "A", warehouseApprovalRole: String(formData.get("warehouseApprovalRole")) as Role, serviceCompletionMinutes: Number(formData.get("serviceCompletionMinutes")) }, ids.map((id, index) => ({ id, cutoffTime: cutoffs[index], serviceTime: services[index] })), actor, String(formData.get("reason") ?? ""));
   for (const path of ["/", "/quan-tri", "/lich", "/bao-suat", "/thuc-don", "/bep", "/quan-ly"]) revalidatePath(path);
-  redirect("/quan-tri?updated=settings");
+}
+
+export async function saveSettingsAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
+  if (!await getSessionUser()) redirect("/");
+  try { await saveSettings(formData); return actionSuccess("Đã áp dụng cấu hình cho toàn hệ thống."); }
+  catch (error) { return actionFailure(error); }
 }
 
 export async function saveAccountAction(formData: FormData) {
