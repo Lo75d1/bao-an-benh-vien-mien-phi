@@ -9,7 +9,7 @@ import { formatMass } from "@/lib/presentation";
 
 const number = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
 const dateTime = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", hour12: false });
-const STATUS_LABEL = { PLANNED: "Dự kiến", LOCKED: "Đã nhận", PREPARING: "Đang chuẩn bị", PREPARED: "Đã chuẩn bị", SERVED: "Đã hoàn thành" } as const;
+const STATUS_LABEL = { PLANNED: "Bếp chưa bắt đầu", LOCKED: "Bếp chưa bắt đầu", PREPARING: "Bếp đang làm", PREPARED: "Bếp đã xác nhận chuẩn bị xong", SERVED: "Bếp đã xác nhận giao" } as const;
 const ACK_LABEL = { PENDING: "Chờ bếp xác nhận", RECEIVED: "Bếp đã nhận", INSUFFICIENT: "Bếp báo không đủ", SUBSTITUTE: "Cần thay thế" } as const;
 const EVIDENCE_LABEL = { MEAL_PHOTO: "Ảnh bữa ăn", FOOD_SAMPLE: "Ảnh lưu mẫu" } as const;
 const CRITERION_LABEL = { OK: "Đạt", LOW: "Thiếu", HIGH: "Vượt", MISSING: "—" } as const;

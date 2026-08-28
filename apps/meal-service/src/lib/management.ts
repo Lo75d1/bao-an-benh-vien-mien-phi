@@ -6,6 +6,7 @@ import { hospitalDate } from "./serving-report";
 import { addDays, mealTimePhase } from "./meal-events";
 import { evidenceStorage } from "./evidence-storage";
 import { readOperationalSettings } from "./settings";
+import { getMealBusinessFacts, getMealPhase, type MealBusinessFacts, type MealPhase } from "./meal-state";
 
 export const MANAGEMENT_STATUSES = ["PLANNED", "LOCKED", "PREPARING", "PREPARED", "SERVED"] as const;
 export type ManagementStatus = (typeof MANAGEMENT_STATUSES)[number];
@@ -15,10 +16,10 @@ export type ManagementEvidence = { id: string; kind: "MEAL_PHOTO" | "FOOD_SAMPLE
 export type ManagementDiet = { id: string; code: string; name: string; status: ManagementStatus; servings: number | null; approved: boolean; menuItems: ManagementMenuItem[]; criteria: ManagementCriterion[]; approvedBy: string | null; reportedBy: string[]; kitchenLead: string | null; kitchenTimes: Partial<Record<ManagementStatus, string>>; kitchenTimeSources: Partial<Record<ManagementStatus, "KITCHEN" | "ADMIN">>; evidence: ManagementEvidence[] };
 export type ManagementDepartment = { id: string; code: string; name: string; reportId: string | null; submittedAt: string | null; submittedBy: string | null; totalServings: number | null; deliveryReceipt: { status: "FULL" | "SHORT"; expectedQuantity: number; receivedQuantity: number; note: string | null; confirmedAt: string; confirmedBy: string } | null; lines: Array<{ dietCode: string; dietName: string; quantity: number }> };
 export type ManagementAddition = { id: string; departmentId: string; departmentName: string; dietCode: string; dietName: string; quantity: number; reason: string; ackStatus: "PENDING" | "RECEIVED" | "INSUFFICIENT" | "SUBSTITUTE"; submittedAt: string; submittedBy: string };
-export type ManagementMeal = { id: string; name: string; cutoffTime: string; serviceTime: string; cutoffAt: string | null; serviceAt: string | null; totalDiets: number; unapprovedDiets: number; plannedServings: number | null; inventoryEntryCount: number; statusCounts: Record<(typeof MANAGEMENT_STATUSES)[number], number>; diets: ManagementDiet[]; departments: ManagementDepartment[]; additions: ManagementAddition[]; reportedDepartmentCount: number; totalDepartmentCount: number; deliveryReceiptCount: number; reportedServings: number | null };
+export type ManagementMeal = { id: string; name: string; cutoffTime: string; serviceTime: string; cutoffAt: string | null; serviceAt: string | null; totalDiets: number; unapprovedDiets: number; plannedServings: number | null; inventoryEntryCount: number; statusCounts: Record<(typeof MANAGEMENT_STATUSES)[number], number>; diets: ManagementDiet[]; departments: ManagementDepartment[]; additions: ManagementAddition[]; reportedDepartmentCount: number; totalDepartmentCount: number; deliveryReceiptCount: number; reportedServings: number | null; businessFacts: MealBusinessFacts };
 export type ManagementDay = { date: string; generatedAt: string; isToday: boolean; serviceCompletionMinutes: number; meals: ManagementMeal[]; departmentCount: number };
 
-export type ManagementSchedulePhase = "SERVED" | "PREPARING" | "SERVING";
+export type ManagementSchedulePhase = MealPhase;
 export type ManagementScheduleRoute = "NORMAL" | "SONDE";
 export type ManagementScheduleNote = { source: "MENU" | "SERVING" | "PATIENT"; department: string | null; text: string };
 export type ManagementLateAddition = { id: string; quantity: number; reason: string; department: string };
@@ -49,13 +50,8 @@ export type ManagementSchedule = {
 
 const dateLabel = new Intl.DateTimeFormat("vi-VN", { timeZone: "UTC", weekday: "short", day: "2-digit", month: "2-digit" });
 
-function schedulePhase(day: Date, serviceTime: string, allServiceTimes: string[], statuses: ManagementStatus[], now: Date): ManagementSchedulePhase {
-  const at = serviceAt(day, serviceTime);
-  if (statuses.length > 0 && statuses.every((status) => status === "SERVED")) return "SERVED";
-  const started = allServiceTimes.map((time) => serviceAt(day, time)).filter((time): time is number => time !== null && time <= now.getTime());
-  if (at !== null && started.length > 0 && at === Math.max(...started)) return "SERVING";
-  if (at !== null && at < now.getTime()) return "SERVED";
-  return "PREPARING";
+function schedulePhase(day: Date, cutoffTime: string, serviceTime: string, now: Date): ManagementSchedulePhase {
+  return getMealPhase(day, cutoffTime, serviceTime, now) ?? "CLOSED";
 }
 
 function managementMenuItems(value: unknown): ManagementMenuItem[] {
@@ -83,12 +79,12 @@ export async function readManagementSchedule(centerDate?: string, now = new Date
   const start = addDays(center, -1);
   const end = addDays(start, 3);
   const [mealTypes, events, patientNotes, inventory] = await Promise.all([
-    prisma.mealType.findMany({ where: { status: "ACTIVE" }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true, serviceTime: true } }),
+    prisma.mealType.findMany({ where: { status: "ACTIVE" }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true, cutoffTime: true, serviceTime: true } }),
     prisma.mealEvent.findMany({
       where: { mealDate: { gte: start, lt: end } },
       orderBy: [{ mealDate: "asc" }, { mealType: { sortOrder: "asc" } }],
       select: {
-        id: true, mealDate: true, mealTypeId: true, mealType: { select: { serviceTime: true } },
+        id: true, mealDate: true, mealTypeId: true, mealType: { select: { cutoffTime: true, serviceTime: true } },
         dietMeals: { where: { voidedAt: null, status: { not: "CANCELLED" } }, orderBy: { dietType: { sortOrder: "asc" } }, select: { id: true, dietTypeId: true, feedingRoute: true, status: true, servingsPlanned: true, menuSnapshotJson: true, evaluationJson: true, patientVisibleNote: true, dietType: { select: { code: true, name: true } }, evidence: { where: { kind: { in: ["MEAL_PHOTO", "FOOD_SAMPLE"] } }, select: { kind: true } } } },
         reports: { where: { status: "SUBMITTED" }, select: { departmentId: true, note: true, department: { select: { id: true, code: true, name: true } }, lines: { select: { dietTypeId: true, quantity: true, patientVisibleNote: true } } } },
         additions: { select: { id: true, dietTypeId: true, quantity: true, reason: true, department: { select: { name: true } } } },
@@ -126,7 +122,7 @@ export async function readManagementSchedule(centerDate?: string, now = new Date
         const relatedInventory = (directlyRelated.length > 0 ? directlyRelated : routeInventory.slice(0, 5)).map((item) => ({ id: item.id, warehouse: item.warehouse.name, type: item.type, occurredAt: item.occurredAt.toISOString(), note: item.note }));
         return { id: meal.id, code: meal.dietType.code, name: meal.dietType.name, feedingRoute: meal.feedingRoute, servings: meal.servingsPlanned > 0 ? meal.servingsPlanned : null, status: meal.status as ManagementStatus, menuItems: managementMenuItems(meal.menuSnapshotJson), criteria: managementCriteria(meal.evaluationJson), evidence: { mealPhoto: meal.evidence.some((item) => item.kind === "MEAL_PHOTO"), foodSample: meal.evidence.some((item) => item.kind === "FOOD_SAMPLE") }, notes, lateAdditions: event.additions.filter((item) => item.dietTypeId === meal.dietTypeId).map((item) => ({ id: item.id, quantity: item.quantity, reason: item.reason, department: item.department.name })), inventory: relatedInventory };
       });
-      return [mealType.id, { id: event.id, phase: schedulePhase(day, event.mealType.serviceTime, mealTypes.map((item) => item.serviceTime), diets.map((diet) => diet.status), now), serviceTime: event.mealType.serviceTime, diets }];
+      return [mealType.id, { id: event.id, phase: schedulePhase(day, event.mealType.cutoffTime, event.mealType.serviceTime, now), serviceTime: event.mealType.serviceTime, diets }];
     }));
     return { date: key, label: dateLabel.format(day), isToday: day.getTime() === hospitalDate(now).getTime(), cells };
   });
@@ -209,6 +205,6 @@ export async function readManagementDay(date?: string, now = new Date(), departm
     const cutoff = serviceAt(day, event.mealType.cutoffTime);
     const service = serviceAt(day, event.mealType.serviceTime);
     const plannedTotal = event.dietMeals.reduce((sum, meal) => sum + meal.servingsPlanned, 0);
-    return { id: event.id, name: event.mealType.name, cutoffTime: event.mealType.cutoffTime, serviceTime: event.mealType.serviceTime, cutoffAt: cutoff === null ? null : new Date(cutoff).toISOString(), serviceAt: service === null ? null : new Date(service).toISOString(), totalDiets: event.dietMeals.length, unapprovedDiets: event.dietMeals.filter((meal) => managementMenuItems(meal.menuSnapshotJson).length === 0).length, plannedServings: event.dietMeals.length ? plannedTotal : null, inventoryEntryCount: event.dietMeals.reduce((sum, meal) => sum + (inventoryCountByDiet.get(meal.id) ?? 0), 0), statusCounts, diets: event.dietMeals.map((meal) => ({ id: meal.id, code: meal.dietType.code, name: meal.dietType.name, status: meal.status as ManagementStatus, servings: meal.servingsPlanned > 0 ? meal.servingsPlanned : null, approved: mealTimePhase(day, event.mealType.cutoffTime, event.mealType.serviceTime, now) !== "BEFORE_CUTOFF", menuItems: managementMenuItems(meal.menuSnapshotJson), criteria: managementCriteria(meal.evaluationJson), approvedBy: meal.approvedBy?.displayName ?? null, reportedBy: [...new Set(event.reports.filter((report) => report.lines.some((line) => line.dietType.code === meal.dietType.code && line.quantity > 0)).map((report) => report.submittedBy.displayName))], kitchenLead: kitchenLeadByDiet.get(meal.id) ?? null, kitchenTimes: kitchenTimesByDiet.get(meal.id) ?? {}, kitchenTimeSources: kitchenTimeSourcesByDiet.get(meal.id) ?? {}, evidence: meal.evidence.map((item) => ({ id: item.id, kind: item.kind as ManagementEvidence["kind"], note: item.note, uploadedAt: item.uploadedAt.toISOString(), uploadedBy: item.uploadedBy.displayName, publicUrl: evidenceStorage.publicUrl(item.storagePath) })) })), departments: departmentRows, additions: event.additions.map((item) => ({ id: item.id, departmentId: item.departmentId, departmentName: item.department.name, dietCode: item.dietType.code, dietName: item.dietType.name, quantity: item.quantity, reason: item.reason, ackStatus: item.ackStatus, submittedAt: item.submittedAt.toISOString(), submittedBy: item.submittedBy.displayName })), reportedDepartmentCount: submitted.length, totalDepartmentCount: departments.length, deliveryReceiptCount: event.deliveryReceipts.length, reportedServings: submitted.length > 0 ? submitted.reduce((sum, department) => sum + (department.totalServings ?? 0), 0) : null };
+    return { id: event.id, name: event.mealType.name, cutoffTime: event.mealType.cutoffTime, serviceTime: event.mealType.serviceTime, cutoffAt: cutoff === null ? null : new Date(cutoff).toISOString(), serviceAt: service === null ? null : new Date(service).toISOString(), totalDiets: event.dietMeals.length, unapprovedDiets: event.dietMeals.filter((meal) => managementMenuItems(meal.menuSnapshotJson).length === 0).length, plannedServings: event.dietMeals.length ? plannedTotal : null, inventoryEntryCount: event.dietMeals.reduce((sum, meal) => sum + (inventoryCountByDiet.get(meal.id) ?? 0), 0), statusCounts, diets: event.dietMeals.map((meal) => ({ id: meal.id, code: meal.dietType.code, name: meal.dietType.name, status: meal.status as ManagementStatus, servings: meal.servingsPlanned > 0 ? meal.servingsPlanned : null, approved: mealTimePhase(day, event.mealType.cutoffTime, event.mealType.serviceTime, now) !== "BEFORE_CUTOFF", menuItems: managementMenuItems(meal.menuSnapshotJson), criteria: managementCriteria(meal.evaluationJson), approvedBy: meal.approvedBy?.displayName ?? null, reportedBy: [...new Set(event.reports.filter((report) => report.lines.some((line) => line.dietType.code === meal.dietType.code && line.quantity > 0)).map((report) => report.submittedBy.displayName))], kitchenLead: kitchenLeadByDiet.get(meal.id) ?? null, kitchenTimes: kitchenTimesByDiet.get(meal.id) ?? {}, kitchenTimeSources: kitchenTimeSourcesByDiet.get(meal.id) ?? {}, evidence: meal.evidence.map((item) => ({ id: item.id, kind: item.kind as ManagementEvidence["kind"], note: item.note, uploadedAt: item.uploadedAt.toISOString(), uploadedBy: item.uploadedBy.displayName, publicUrl: evidenceStorage.publicUrl(item.storagePath) })) })), departments: departmentRows, additions: event.additions.map((item) => ({ id: item.id, departmentId: item.departmentId, departmentName: item.department.name, dietCode: item.dietType.code, dietName: item.dietType.name, quantity: item.quantity, reason: item.reason, ackStatus: item.ackStatus, submittedAt: item.submittedAt.toISOString(), submittedBy: item.submittedBy.displayName })), reportedDepartmentCount: submitted.length, totalDepartmentCount: departments.length, deliveryReceiptCount: event.deliveryReceipts.length, reportedServings: submitted.length > 0 ? submitted.reduce((sum, department) => sum + (department.totalServings ?? 0), 0) : null, businessFacts: getMealBusinessFacts({ dietStatuses: event.dietMeals.map((meal) => meal.status), reportedDepartmentCount: submitted.length, totalDepartmentCount: departments.length, deliveryReceipts: event.deliveryReceipts.map((receipt) => ({ status: receipt.status })), mealPhotoCount: event.dietMeals.reduce((sum, meal) => sum + meal.evidence.filter((item) => item.kind === "MEAL_PHOTO").length, 0), retention24hRequired: settings?.foodRetention24hRequired ?? false, retention24hCount: event.dietMeals.reduce((sum, meal) => sum + meal.evidence.filter((item) => item.kind === "FOOD_SAMPLE").length, 0) }) };
   }) };
 }

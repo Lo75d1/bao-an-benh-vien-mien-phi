@@ -15,11 +15,11 @@ const DAY_LABELS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
 function simpleState(state: DisplayMealState | null) {
   if (!state) return { label: "—", tone: "empty", Icon: CalendarDays };
-  if (state.key === "SERVED") return { label: "Đã hoàn thành", tone: "done", Icon: CalendarCheck };
+  if (state.key === "CLOSED") return { label: "Đã đóng", tone: "muted", Icon: CalendarCheck };
   if (state.key === "INCOMPLETE") return { label: "Chưa hoàn tất", tone: "danger", Icon: TriangleAlert };
-  if (state.key === "PREPARING" || state.key === "COOKING") return { label: "Đang chuẩn bị", tone: "warning", Icon: ChefHat };
-  if (state.key === "SERVING") return { label: "Đang tiến hành", tone: "active", Icon: Clock3 };
-  if (state.key === "RECEIVING") return { label: "Đang nhận báo", tone: "active", Icon: CalendarClock };
+  if (state.key === "PREPARATION") return { label: "Giai đoạn chuẩn bị", tone: "warning", Icon: ChefHat };
+  if (state.key === "SERVICE") return { label: "Đang phục vụ", tone: "active", Icon: Clock3 };
+  if (state.key === "REPORTING") return { label: "Đang nhận báo", tone: "active", Icon: CalendarClock };
   return { label: "Chưa đến", tone: "muted", Icon: CalendarClock };
 }
 
@@ -57,7 +57,8 @@ export function WeeklyCalendar({ events, details, weekStart, dataStartDate, role
       const menuLocked = detail?.diets.filter((diet) => diet.approved && diet.menuItems.length > 0).length ?? 0;
       const menuComplete = menuTotal > 0 && menuSaved === menuTotal;
       const menuStatus = menuTotal === 0 ? "Thực đơn —" : !menuComplete ? `Thiếu thực đơn ${menuTotal - menuSaved}/${menuTotal}` : menuLocked === menuTotal ? `Thực đơn đã chốt ${menuLocked}/${menuTotal}` : `Đã lên thực đơn ${menuSaved}/${menuTotal} · Chờ tự khóa`;
-      const content = <div className="calendar-status-cell"><span className={`calendar-simple-state ${status.tone}`}><status.Icon aria-hidden="true"/><strong>{status.label}</strong></span>{detail ? <div className="calendar-cell-facts">{state?.key === "RECEIVING" ? <span className="reporting-open">Khoa báo <b>{detail.reportedDepartmentCount ?? "—"}/{detail.totalDepartmentCount ?? "—"}</b></span> : null}<span><Utensils aria-hidden="true"/> Tổng suất <b>{detail.reportedServings ?? "—"}</b></span></div> : <small>— · Chưa có dữ liệu</small>}<em className={menuComplete ? "menu-ready" : "menu-missing"}>{menuComplete ? <CalendarCheck aria-hidden="true"/> : <TriangleAlert aria-hidden="true"/>}{menuStatus}</em></div>;
+      const factWarning = detail && (state?.key === "SERVICE" || state?.key === "CLOSED") ? detail.businessFacts.kitchen !== "PREPARED" ? "Bếp chưa xác nhận xong" : detail.businessFacts.delivery === "UNCONFIRMED" ? "Khoa chưa xác nhận nhận suất" : null : null;
+      const content = <div className="calendar-status-cell"><span className={`calendar-simple-state ${status.tone}`}><status.Icon aria-hidden="true"/><strong>{status.label}</strong></span>{detail ? <div className="calendar-cell-facts">{state?.key === "REPORTING" ? <span className="reporting-open">Khoa báo <b>{detail.reportedDepartmentCount ?? "—"}/{detail.totalDepartmentCount ?? "—"}</b></span> : null}<span><Utensils aria-hidden="true"/> Tổng suất <b>{detail.reportedServings ?? "—"}</b></span>{factWarning ? <span className="warning">⚠ {factWarning}</span> : null}</div> : <small>— · Chưa có dữ liệu</small>}<em className={menuComplete ? "menu-ready" : "menu-missing"}>{menuComplete ? <CalendarCheck aria-hidden="true"/> : <TriangleAlert aria-hidden="true"/>}{menuStatus}</em></div>;
       return <td key={dayKey} className={`${dayKey === todayKey ? "calendar-today" : dayKey < todayKey ? "calendar-past" : "calendar-future"} ${state?.isCurrent ? "calendar-current-meal" : ""} ${state?.tone === "danger" ? "calendar-incomplete" : ""}`}>{detail && state ? <MealDetailDialog meal={detail} date={formatVnDay(day.date)} stateLabel={status.label} canPlanMenu={role === "DIETITIAN" || role === "ADMIN"} trigger={<button type="button" className="calendar-cell-button" aria-label={`Xem chi tiết ${mealType.name} ${formatVnDay(day.date)}`}>{content}</button>}/> : content}</td>;
     })}</tr>)}</tbody></table></div>}
     <p className="calendar-note">Lịch tự chuyển trạng thái và bữa hiện tại theo giờ bệnh viện; “—” nghĩa là chưa có dữ liệu, không phải 0.</p>

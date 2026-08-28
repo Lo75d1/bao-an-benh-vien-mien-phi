@@ -29,8 +29,8 @@ export function MealLifecycleStrip({ data, role, selectedMealId, liveClock = tru
   if (!picked) return null;
   const { meal: current, nextCycle } = picked;
   const state = displayMealState(dayDate, current.cutoffTime, current.serviceTime, statusOf(current), now, data.serviceCompletionMinutes);
-  // Bữa đã qua (đã phục vụ hoặc quá giờ): cả ba chặng đều xong, không chặng nào đang chạy.
-  const ended = !nextCycle && (state?.key === "SERVED" || state?.key === "INCOMPLETE");
-  const activeIndex = ended ? steps.length : nextCycle || state?.key === "RECEIVING" || state?.key === "UPCOMING" ? 0 : state?.key === "PREPARING" || state?.key === "COOKING" ? 1 : 2;
-  return <section className="nurse-progress-card shared-lifecycle" data-role={role.toLowerCase()} aria-label={`Vòng đời bữa ${current.name}`}><header><span>{nextCycle ? "Các bữa hôm nay đã kết thúc · bữa kế" : "Suất cần phục vụ hiện tại"}</span><strong>{current.name} — {nextCycle ? "Chưa tới" : state?.label ?? "—"}</strong><small>{nextCycle ? "Ngày mai · " : ""}Chốt {current.cutoffTime} · Phục vụ {current.serviceTime}</small></header><ol>{steps.map(({ label, icon: Icon }, index) => <li key={label} className={index < activeIndex ? "done" : index === activeIndex ? "active" : "upcoming"}><span><Icon aria-hidden="true"/><b>{label}</b></span></li>)}</ol></section>;
+  const facts = current.businessFacts;
+  const activeIndex = nextCycle || state?.key === "REPORTING" || state?.key === "UPCOMING" ? 0 : state?.key === "PREPARATION" ? 1 : 2;
+  const factWarning = state?.key === "SERVICE" || state?.key === "CLOSED" ? facts.kitchen !== "PREPARED" ? "Bếp chưa xác nhận chuẩn bị xong" : facts.delivery === "UNCONFIRMED" ? "Khoa chưa xác nhận nhận suất" : null : null;
+  return <section className="nurse-progress-card shared-lifecycle" data-role={role.toLowerCase()} aria-label={`Giai đoạn theo giờ của bữa ${current.name}`}><header><span>{nextCycle ? "Các bữa hôm nay đã kết thúc · bữa kế" : "Suất cần phục vụ hiện tại"}</span><strong>{current.name} — {nextCycle ? "Chưa tới" : state?.label ?? "—"}</strong><small>{factWarning ? `⚠ ${factWarning} · ` : ""}{nextCycle ? "Ngày mai · " : ""}Chốt {current.cutoffTime} · Phục vụ {current.serviceTime}</small></header><ol>{steps.map(({ label, icon: Icon }, index) => <li key={label} className={index < activeIndex ? "done" : index === activeIndex ? "active" : "upcoming"}><span><Icon aria-hidden="true"/><b>{label}</b></span></li>)}</ol></section>;
 }

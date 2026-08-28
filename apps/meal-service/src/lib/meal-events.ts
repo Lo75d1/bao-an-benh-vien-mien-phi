@@ -21,7 +21,7 @@ export type CalendarEvent = Prisma.MealEventGetPayload<{
 const STATUS_ORDER: DietMealStatus[] = ["PLANNED", "LOCKED", "PREPARING", "PREPARED", "SERVED"];
 
 export type DisplayMealState = {
-  key: "UPCOMING" | "RECEIVING" | "PREPARING" | "COOKING" | "SERVING" | "SERVED" | "INCOMPLETE";
+  key: "UPCOMING" | "REPORTING" | "PREPARATION" | "SERVICE" | "CLOSED" | "INCOMPLETE";
   label: string;
   tone: "muted" | "neutral" | "warning" | "active" | "done" | "danger";
   isCurrent: boolean;
@@ -71,6 +71,7 @@ export function mealTimeMilestones(
  * admin / lịch) phải dùng hàm này; KHÔNG viết bộ logic giờ thứ hai.
  */
 export type MealTimePhase = "BEFORE_CUTOFF" | "PREPARING" | "SERVING" | "PASSED";
+export type MealPhase = "REPORTING" | "PREPARATION" | "SERVICE" | "CLOSED";
 
 export const MEAL_PHASE_LABEL: Record<MealTimePhase, string> = { BEFORE_CUTOFF: "Báo suất ăn", PREPARING: "Bếp đang chuẩn bị", SERVING: "Đang phục vụ", PASSED: "Đã kết thúc" };
 
@@ -86,6 +87,15 @@ export function mealTimePhase(mealDate: Date, cutoffTime: string, serviceTime: s
   return "PASSED";
 }
 
+export function getMealPhase(mealDate: Date, cutoffTime: string, serviceTime: string, effectiveTime = new Date(), completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES): MealPhase | null {
+  const phase = mealTimePhase(mealDate, cutoffTime, serviceTime, effectiveTime, completionMinutes);
+  if (phase === "BEFORE_CUTOFF") return "REPORTING";
+  if (phase === "PREPARING") return "PREPARATION";
+  if (phase === "SERVING") return "SERVICE";
+  if (phase === "PASSED") return "CLOSED";
+  return null;
+}
+
 export function isKitchenPreparationOpen(mealDate: Date, cutoffTime: string, serviceTime: string, now = new Date(), completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES): boolean {
   const phase = mealTimePhase(mealDate, cutoffTime, serviceTime, now, completionMinutes);
   return phase !== null && phase !== "BEFORE_CUTOFF";
@@ -93,16 +103,13 @@ export function isKitchenPreparationOpen(mealDate: Date, cutoffTime: string, ser
 
 export function displayMealState(mealDate: Date, cutoffTime: string, serviceTime: string, storedStatus: DietMealStatus | null, now = new Date(), completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES): DisplayMealState | null {
   if (storedStatus === null || storedStatus === "CANCELLED") return null;
-  const phase = mealTimePhase(mealDate, cutoffTime, serviceTime, now, completionMinutes);
+  const phase = getMealPhase(mealDate, cutoffTime, serviceTime, now, completionMinutes);
   if (phase === null) return { key: "INCOMPLETE", label: "⚠ Chưa hoàn tất", tone: "danger", isCurrent: false };
-  if (storedStatus === "SERVED") return { key: "SERVED", label: "Đã phục vụ", tone: "done", isCurrent: false };
-  if (phase === "PASSED") return { key: "INCOMPLETE", label: "⚠ Chưa hoàn tất", tone: "danger", isCurrent: false };
-  if (storedStatus === "PREPARED" && phase !== "SERVING") return { key: "COOKING", label: "Đang nấu", tone: "warning", isCurrent: true };
-  if (["LOCKED", "PREPARING"].includes(storedStatus) && phase === "BEFORE_CUTOFF") return { key: "PREPARING", label: "Đang chuẩn bị", tone: "warning", isCurrent: true };
-  if (phase === "SERVING") return { key: "SERVING", label: "Đang phục vụ", tone: "active", isCurrent: true };
-  if (phase === "PREPARING") return { key: "PREPARING", label: "Đang chuẩn bị", tone: "warning", isCurrent: true };
+  if (phase === "CLOSED") return { key: "CLOSED", label: "Đã đóng", tone: "muted", isCurrent: false };
+  if (phase === "SERVICE") return { key: "SERVICE", label: "Đang phục vụ", tone: "active", isCurrent: true };
+  if (phase === "PREPARATION") return { key: "PREPARATION", label: "Giai đoạn chuẩn bị", tone: "warning", isCurrent: true };
   if (toDateKey(mealDate) > hospitalDayKey(now)) return { key: "UPCOMING", label: "Chưa tới", tone: "muted", isCurrent: false };
-  return { key: "RECEIVING", label: "Đang nhận báo suất", tone: "neutral", isCurrent: false };
+  return { key: "REPORTING", label: "Đang nhận báo suất", tone: "neutral", isCurrent: false };
 }
 
 /**
@@ -165,7 +172,7 @@ export function pickLifecycleMeal<T extends LifecycleMeal>(meals: T[], now = new
   const stateOf = (meal: T) => displayMealState(meal.mealDate, meal.cutoffTime, meal.serviceTime, meal.status, now, completionMinutes);
   const running = meals.find((meal) => stateOf(meal)?.isCurrent);
   if (running) return { meal: running, nextCycle: false };
-  const upcoming = meals.find((meal) => { const key = stateOf(meal)?.key; return key === "RECEIVING" || key === "UPCOMING"; });
+  const upcoming = meals.find((meal) => { const key = stateOf(meal)?.key; return key === "REPORTING" || key === "UPCOMING"; });
   if (upcoming) return { meal: upcoming, nextCycle: false };
   return { meal: meals[0], nextCycle: true };
 }
