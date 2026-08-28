@@ -50,10 +50,16 @@ export async function storeMealEvidence(input: { dietMealId: string; kind: Evide
   await prisma.$transaction(async (tx) => { const meal = await tx.dietMeal.findFirst({ where: { id: input.dietMealId, voidedAt: null }, select: { id: true } }); if (!meal) throw new Error("Không tìm thấy bữa ăn đang hoạt động."); const evidence = await tx.mealEvidence.create({ data: { dietMealId: meal.id, kind: input.kind, storagePath: stored.storagePath, uploadedById: actor.id, note: input.note } }); await tx.auditLog.create({ data: { entityType: "MealEvidence", entityId: evidence.id, action: "UPLOAD", actorId: actor.id, actorName: actor.displayName, afterJson: { dietMealId: meal.id, kind: input.kind, storagePath: stored.storagePath } as Prisma.InputJsonValue, reason: "Bếp đính kèm bằng chứng bữa ăn" } }); }); return { stored: true as const };
 }
 
-export async function completeKitchenEvent(input: { eventId: string; feedingRoute: "NORMAL" | "SONDE"; files: Array<{ dietMealId: string; file: File; note: string | null }>; retention?: { file: File; note: string | null } | null }, actor: { id: string; displayName: string }) {
-  const settings = await readOperationalSettings();
-  const meals = await prisma.dietMeal.findMany({ where: { mealEventId: input.eventId, feedingRoute: input.feedingRoute, voidedAt: null }, select: { id: true, status: true } });
-  if (!meals.length || meals.length !== input.files.length || meals.some((meal) => !input.files.some((item) => item.dietMealId === meal.id))) throw new Error("Cần ảnh món thực tế cho tất cả mã chế độ ăn.");
+export function missingMealPhotoIds(mealIds: string[], existingIds: string[], uploadedIds: string[]) {
+  const available = new Set([...existingIds, ...uploadedIds]);
+  return mealIds.filter((id) => !available.has(id));
+}
+
+export async function completeKitchenEvent(input: { eventId: string; feedingRoute: "NORMAL" | "SONDE"; dietMealIds: string[]; files: Array<{ dietMealId: string; file: File; note: string | null }> }, actor: { id: string; displayName: string }) {
+  const meals = await prisma.dietMeal.findMany({ where: { mealEventId: input.eventId, feedingRoute: input.feedingRoute, voidedAt: null }, select: { id: true, status: true, evidence: { where: { kind: "MEAL_PHOTO" }, select: { id: true }, take: 1 } } });
+  if (!meals.length || meals.length !== input.dietMealIds.length || meals.some((meal) => !input.dietMealIds.includes(meal.id))) throw new Error("Danh sách mã chế độ ăn không hợp lệ.");
+  const missing = missingMealPhotoIds(meals.map((meal) => meal.id), meals.filter((meal) => meal.evidence.length).map((meal) => meal.id), input.files.map((item) => item.dietMealId));
+  if (missing.length) throw new Error("Cần ảnh món thực tế cho tất cả mã chế độ ăn.");
   if (meals.some((meal) => !["PLANNED", "LOCKED", "PREPARING", "PREPARED"].includes(meal.status))) throw new Error("Bữa ăn không còn ở giai đoạn chuẩn bị.");
   const stored = [] as Array<{ dietMealId: string; storagePath: string; note: string | null }>;
   for (const item of input.files) {
@@ -62,24 +68,30 @@ export async function completeKitchenEvent(input: { eventId: string; feedingRout
     if (!result) return { stored: false as const };
     stored.push({ dietMealId: item.dietMealId, storagePath: result.storagePath, note: item.note });
   }
-  let retentionStored: { storagePath: string; note: string | null } | null = null;
-  if (settings.foodRetention24hRequired) {
-    if (!input.retention?.file || !input.retention.file.type.startsWith("image/") || input.retention.file.size <= 0 || input.retention.file.size > 10 * 1024 * 1024) throw new Error("Bệnh viện đang yêu cầu một ảnh xác nhận mẫu lưu thực phẩm 24 giờ cho toàn bữa.");
-    const result = await evidenceStorage.store(input.retention.file);
-    if (!result) return { stored: false as const };
-    retentionStored = { storagePath: result.storagePath, note: input.retention.note };
-  }
   await prisma.$transaction(async (tx) => {
     for (const item of stored) {
       const meal = meals.find((value) => value.id === item.dietMealId)!;
       const evidence = await tx.mealEvidence.create({ data: { dietMealId: meal.id, kind: "MEAL_PHOTO", storagePath: item.storagePath, uploadedById: actor.id, note: item.note } });
+      await tx.auditLog.create({ data: { entityType: "MealEvidence", entityId: evidence.id, action: meal.evidence.length ? "REPLACE" : "UPLOAD", actorId: actor.id, actorName: actor.displayName, afterJson: { dietMealId: meal.id, kind: "MEAL_PHOTO", storagePath: item.storagePath }, reason: "Bếp lưu ảnh món thực tế" } });
+    }
+    for (const meal of meals.filter((item) => item.status !== "PREPARED")) {
       await tx.dietMeal.update({ where: { id: meal.id }, data: { status: "PREPARED" } });
-      await tx.auditLog.create({ data: { entityType: "DietMeal", entityId: meal.id, action: "KITCHEN_BATCH_PREPARED", actorId: actor.id, actorName: actor.displayName, beforeJson: { status: meal.status }, afterJson: { status: "PREPARED", evidenceId: evidence.id }, reason: "Bếp xác nhận mã chế độ ăn đã chuẩn bị và chụp ảnh món thực tế" } });
+      await tx.auditLog.create({ data: { entityType: "DietMeal", entityId: meal.id, action: "KITCHEN_BATCH_PREPARED", actorId: actor.id, actorName: actor.displayName, beforeJson: { status: meal.status }, afterJson: { status: "PREPARED" }, reason: "Bếp xác nhận mã chế độ ăn đã sẵn sàng giao" } });
     }
-    if (retentionStored) {
-      const evidence = await tx.mealEvidence.create({ data: { mealEventId: input.eventId, kind: "FOOD_SAMPLE", storagePath: retentionStored.storagePath, uploadedById: actor.id, note: retentionStored.note } });
-      await tx.auditLog.create({ data: { entityType: "MealEvent", entityId: input.eventId, action: "FOOD_RETENTION_24H", actorId: actor.id, actorName: actor.displayName, afterJson: { evidenceId: evidence.id, retainedAt: evidence.uploadedAt, retainUntil: new Date(evidence.uploadedAt.getTime() + 24 * 60 * 60 * 1000) }, reason: "Bếp xác nhận mẫu lưu thực phẩm 24 giờ cho toàn bữa" } });
-    }
+  });
+  return { stored: true as const };
+}
+
+export async function saveFoodRetentionEvidence(input: { eventId: string; feedingRoute: "NORMAL" | "SONDE"; file: File; note: string | null }, actor: { id: string; displayName: string }) {
+  const settings = await readOperationalSettings();
+  if (!settings.foodRetention24hRequired) throw new Error("Bệnh viện chưa bật yêu cầu lưu mẫu thực phẩm 24 giờ.");
+  const event = await prisma.mealEvent.findFirst({ where: { id: input.eventId, mealType: { feedingRoute: input.feedingRoute }, dietMeals: { some: { feedingRoute: input.feedingRoute, voidedAt: null } } }, select: { id: true } });
+  if (!event) throw new Error("Không tìm thấy bữa ăn thuộc phạm vi bếp này.");
+  if (!input.file.type.startsWith("image/") || input.file.size <= 0 || input.file.size > 10 * 1024 * 1024) throw new Error("Cần một ảnh mẫu lưu hợp lệ, tối đa 10 MB.");
+  const stored = await evidenceStorage.store(input.file); if (!stored) return { stored: false as const };
+  await prisma.$transaction(async (tx) => {
+    const evidence = await tx.mealEvidence.create({ data: { mealEventId: event.id, kind: "FOOD_SAMPLE", storagePath: stored.storagePath, uploadedById: actor.id, note: input.note } });
+    await tx.auditLog.create({ data: { entityType: "MealEvent", entityId: event.id, action: "FOOD_RETENTION_24H", actorId: actor.id, actorName: actor.displayName, afterJson: { evidenceId: evidence.id, retainedAt: evidence.uploadedAt, retainUntil: new Date(evidence.uploadedAt.getTime() + 24 * 60 * 60 * 1000) }, reason: "Bếp ghi nhận mẫu lưu thực phẩm 24 giờ cho toàn bữa" } });
   });
   return { stored: true as const };
 }

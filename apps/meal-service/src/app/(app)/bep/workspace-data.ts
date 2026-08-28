@@ -11,6 +11,7 @@ const eventInclude = {
   mealType: true,
   additions: { orderBy: { submittedAt: "desc" as const }, include: { department: true, dietType: true } },
   reports: { where: { status: "SUBMITTED" as const }, select: { departmentId: true, department: { select: { name: true } }, lines: { select: { dietTypeId: true, quantity: true } } } },
+  deliveryReceipts: { select: { departmentId: true, status: true } },
   evidence: { orderBy: { uploadedAt: "desc" as const } },
   dietMeals: {
     where: { voidedAt: null },
@@ -77,5 +78,5 @@ export async function readKitchenWorkspace(requestedMealId?: string, feedingRout
     dietName: meal.dietType.name,
     publicUrl: evidenceStorage.publicUrl(item.storagePath),
   }))), ...selected.evidence.map((item) => ({ ...item, dietName: `Toàn bữa · ${foodRetentionLabel(item.uploadedAt, now)}`, publicUrl: evidenceStorage.publicUrl(item.storagePath) }))];
-  return { events: summaries, selected: { ...selected, shopping, evidence }, canOperate: isKitchenPreparationOpen(selected.mealDate, selected.mealType.cutoffTime, selected.mealType.serviceTime, now, settings.serviceCompletionMinutes), foodRetention24hRequired: settings.foodRetention24hRequired };
+  return { events: summaries, selected: { ...selected, dietMeals: selected.dietMeals.map((meal) => ({ ...meal, evidence: meal.evidence.map((item) => ({ ...item, publicUrl: evidenceStorage.publicUrl(item.storagePath) })) })), shopping, evidence }, canOperate: isKitchenPreparationOpen(selected.mealDate, selected.mealType.cutoffTime, selected.mealType.serviceTime, now, settings.serviceCompletionMinutes), foodRetention24hRequired: settings.foodRetention24hRequired };
 }

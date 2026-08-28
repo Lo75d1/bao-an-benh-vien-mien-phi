@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import {
   completeKitchenEvent,
+  saveFoodRetentionEvidence,
   reopenKitchenEvent,
   storeMealEvidence,
   transitionDietMeal,
@@ -146,32 +147,39 @@ async function completeKitchenEventSubmission(formData: FormData) {
   await requirePreparationOpen({ eventId }, user.kitchenRoute!);
   const files = mealIds.map((dietMealId) => ({
     dietMealId,
-    file: formData.get(`file-${dietMealId}`),
+    file: [formData.get(`library-${dietMealId}`), formData.get(`camera-${dietMealId}`)].find((value) => value instanceof File && value.size > 0),
     note:
       String(formData.get(`note-${dietMealId}`) ?? "")
         .trim()
         .slice(0, 500) || null,
   }));
-  if (files.some((item) => !(item.file instanceof File)))
-    throw new Error("Cần chọn ảnh cho tất cả mã chế độ ăn.");
-  const retentionFile = formData.get("retentionFile");
-  const retention = retentionFile instanceof File && retentionFile.size > 0 ? { file: retentionFile, note: String(formData.get("retentionNote") ?? "").trim().slice(0, 500) || null } : null;
+  const uploads = files.filter((item): item is { dietMealId: string; file: File; note: string | null } => item.file instanceof File);
   const result = await completeKitchenEvent(
     {
       eventId,
       feedingRoute: user.kitchenRoute!,
-      files: files as Array<{
-        dietMealId: string;
-        file: File;
-        note: string | null;
-      }>,
-      retention,
+      dietMealIds: mealIds,
+      files: uploads,
     },
     user,
   );
   revalidatePath("/bep");
   revalidatePath("/lich");
   return result.stored;
+}
+
+export async function saveFoodRetentionAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
+  if (!await getSessionUser()) redirect("/");
+  try {
+    const user = await requireKitchen();
+    const eventId = String(formData.get("eventId") ?? "");
+    await requirePreparationOpen({ eventId }, user.kitchenRoute!);
+    const file = [formData.get("library-retention"), formData.get("camera-retention")].find((value) => value instanceof File && value.size > 0);
+    if (!(file instanceof File)) throw new Error("Cần chụp hoặc chọn ảnh mẫu lưu 24 giờ.");
+    const result = await saveFoodRetentionEvidence({ eventId, feedingRoute: user.kitchenRoute!, file, note: String(formData.get("retentionNote") ?? "").trim().slice(0, 500) || null }, user);
+    revalidatePath("/bep"); revalidatePath("/lich"); revalidatePath("/quan-ly");
+    return result.stored ? actionSuccess("Đã ghi nhận mẫu lưu 24 giờ cho toàn bữa.") : actionFailure(new Error("Không thể lưu ảnh vào bộ nhớ."));
+  } catch (error) { return actionFailure(error); }
 }
 
 export async function completeKitchenEventAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
