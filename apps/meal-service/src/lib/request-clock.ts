@@ -1,19 +1,22 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { headers } from "next/headers";
+import { DEMO_TIME_PARAM, pageRequestClock, type RequestClock } from "./page-demo-time";
 
-export const DEMO_CLOCK_COOKIE = "meal_service_demo_now";
-export type RequestClock = { now: Date; enabled: boolean; simulated: boolean };
+export { DEMO_TIME_PARAM, pageRequestClock, parsePageDemoTime } from "./page-demo-time";
 
-export function parseDemoClockValue(value: string | undefined): Date | null {
-  if (!value) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+export async function readRequestClock(value?: unknown): Promise<RequestClock> {
+  return pageRequestClock(value);
 }
 
-export async function readRequestClock(): Promise<RequestClock> {
-  const enabled = process.env.DEMO_MODE === "1";
-  if (!enabled) return { now: new Date(), enabled: false, simulated: false };
-  const parsed = parseDemoClockValue((await cookies()).get(DEMO_CLOCK_COOKIE)?.value);
-  if (!parsed) return { now: new Date(), enabled: true, simulated: false };
-  return { now: parsed, enabled: true, simulated: true };
+// Server Actions receive the current page URL as referrer. Demo time is read only
+// from that page URL, never from a global cookie or server-side mutable state.
+export async function readActionClock(): Promise<RequestClock> {
+  if (process.env.DEMO_MODE !== "1") return pageRequestClock(null);
+  const referrer = (await headers()).get("referer");
+  if (!referrer) return pageRequestClock(null);
+  try {
+    return pageRequestClock(new URL(referrer).searchParams.get(DEMO_TIME_PARAM));
+  } catch {
+    return pageRequestClock(null);
+  }
 }

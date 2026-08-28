@@ -13,7 +13,7 @@ import { acknowledgeLateMealAddition } from "@/lib/late-addition";
 import { isKitchenPreparationOpen } from "@/lib/meal-events";
 import { prisma } from "@/lib/prisma";
 import { readOperationalSettings } from "@/lib/settings";
-import { readRequestClock } from "@/lib/request-clock";
+import { readActionClock } from "@/lib/request-clock";
 
 async function requireKitchen() {
   const user = await getSessionUser();
@@ -64,7 +64,7 @@ async function requirePreparationOpen(
   });
   if (!event) throw new Error("Không tìm thấy bữa ăn đang xử lý.");
   const settings = await readOperationalSettings();
-  const clock = await readRequestClock();
+  const clock = await readActionClock();
   if (
     !isKitchenPreparationOpen(
       event.mealDate,

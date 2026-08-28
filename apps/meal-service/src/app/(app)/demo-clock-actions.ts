@@ -1,37 +1,32 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { DEMO_CLOCK_COOKIE, readRequestClock } from "@/lib/request-clock";
-import { prisma } from "@/lib/prisma";
-import { seedDemo } from "../../../scripts/seed-demo";
+import { DEMO_TIME_PARAM, parsePageDemoTime } from "@/lib/request-clock";
 
-function safeReturnTo(value: FormDataEntryValue | null) {
+function safeReturnUrl(value: FormDataEntryValue | null) {
   const path = String(value ?? "/");
-  return path.startsWith("/") && !path.startsWith("//") ? path : "/";
+  if (!path.startsWith("/") || path.startsWith("//")) return new URL("http://demo.local/");
+  return new URL(path, "http://demo.local");
 }
 
 export async function updateDemoClockAction(formData: FormData) {
-  const returnTo = safeReturnTo(formData.get("returnTo"));
-  if (process.env.DEMO_MODE !== "1") redirect(returnTo);
-  const store = await cookies();
+  const returnUrl = safeReturnUrl(formData.get("returnTo"));
+  if (process.env.DEMO_MODE !== "1") redirect(`${returnUrl.pathname}${returnUrl.search}`);
   const mode = String(formData.get("mode") ?? "");
   if (mode === "REAL") {
-    store.set(DEMO_CLOCK_COOKIE, "", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 0 });
-    redirect(returnTo);
+    returnUrl.searchParams.delete(DEMO_TIME_PARAM);
+    redirect(`${returnUrl.pathname}${returnUrl.search}`);
   }
-  let target: Date;
+  const realNow = new Date();
+  let target: Date | null = null;
   if (mode === "STEP") {
     const minutes = Number(formData.get("minutes"));
-    if (!Number.isInteger(minutes) || Math.abs(minutes) > 1_440) throw new Error("Bước tua thời gian không hợp lệ.");
-    const current = await readRequestClock();
-    target = new Date(current.now.getTime() + minutes * 60_000);
-  } else {
-    const value = String(formData.get("now") ?? "");
-    target = new Date(`${value}:00+07:00`);
+    const current = parsePageDemoTime(formData.get("currentNow"), realNow) ?? realNow;
+    if (Number.isInteger(minutes) && minutes > 0 && minutes <= 1_440) target = new Date(current.getTime() + minutes * 60_000);
+  } else if (mode === "SET") {
+    target = parsePageDemoTime(String(formData.get("now") ?? ""), realNow);
   }
-  if (Number.isNaN(target.getTime())) throw new Error("Thời gian demo không hợp lệ.");
-  await seedDemo(prisma, target, { resetScenario: true });
-  store.set(DEMO_CLOCK_COOKIE, target.toISOString(), { httpOnly: true, sameSite: "lax", path: "/" });
-  redirect(returnTo);
+  if (!target) throw new Error("Chỉ có thể mô phỏng một mốc hợp lệ từ thời gian thực trở đi.");
+  returnUrl.searchParams.set(DEMO_TIME_PARAM, target.toISOString());
+  redirect(`${returnUrl.pathname}${returnUrl.search}`);
 }

@@ -5,7 +5,7 @@ import { getSessionUser } from "@/lib/auth";
 import { saveDietMeal } from "@/lib/menu";
 import { createMenuTemplate, deleteMenuTemplate } from "@/lib/menu-template";
 import type { MenuItemInput } from "@/lib/menu-logic";
-import { readRequestClock } from "@/lib/request-clock";
+import { readActionClock as readRequestClock } from "@/lib/request-clock";
 
 async function requireDietitian() { const user = await getSessionUser(); if (!user || user.role !== "DIETITIAN") throw new Error("Bạn không có quyền chỉnh thực đơn."); return user; }
 function readItems(formData: FormData): MenuItemInput[] { const raw = formData.get("items"); if (typeof raw !== "string") throw new Error("Dữ liệu thực đơn không hợp lệ."); const value = JSON.parse(raw) as unknown; if (!Array.isArray(value)) throw new Error("Dữ liệu thực đơn không hợp lệ."); return value as MenuItemInput[]; }
