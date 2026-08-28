@@ -529,6 +529,7 @@ model DishIngredient {
   quantityG     Float
   sortOrder     Int     @default(0)
   energyKcalRaw Float?
+  rawJson       Json?
   dish          Dish    @relation(fields: [dishId], references: [id])
   food          Food?   @relation(fields: [foodId], references: [id])
 

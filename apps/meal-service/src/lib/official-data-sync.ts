@@ -154,7 +154,8 @@ async function syncRniIngredients(dishId: string, sourceCode: string) {
     if (!foodName || quantityG === null || quantityG <= 0) continue;
     const linked = rawFoodId ? await prisma.food.findFirst({ where: { OR: [{ source: "RNI", sourceCode: rawFoodId }, { nameNormalized: normalize(foodName) }] }, select: { id: true } }) : null;
     const id = stableId("rni_ing", `${sourceCode}:${rawFoodId || normalize(foodName)}:${index}`);
-    await prisma.dishIngredient.upsert({ where: { id }, create: { id, dishId, foodId: linked?.id, foodNameRaw: foodName, quantityG, sortOrder: index, energyKcalRaw: numberOrNull(food.nangLuongKcal) }, update: { foodId: linked?.id, foodNameRaw: foodName, quantityG, sortOrder: index, energyKcalRaw: numberOrNull(food.nangLuongKcal) } });
+    const ingredientData = { foodId: linked?.id, foodNameRaw: foodName, quantityG, sortOrder: index, energyKcalRaw: numberOrNull(food.nangLuongKcal), rawJson: json(row) };
+    await prisma.dishIngredient.upsert({ where: { id }, create: { id, dishId, ...ingredientData }, update: ingredientData });
   }
 }
 
