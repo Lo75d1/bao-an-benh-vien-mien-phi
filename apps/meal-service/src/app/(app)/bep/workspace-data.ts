@@ -4,12 +4,15 @@ import { servingTotal } from "@/lib/late-addition";
 import { evidenceStorage } from "@/lib/evidence-storage";
 import { prisma } from "@/lib/prisma";
 import { readOperationalSettings } from "@/lib/settings";
+import { foodRetentionLabel } from "@/lib/food-retention";
 
 
 const eventInclude = {
   mealType: true,
   additions: { orderBy: { submittedAt: "desc" as const }, include: { department: true, dietType: true } },
   reports: { where: { status: "SUBMITTED" as const }, select: { departmentId: true, department: { select: { name: true } }, lines: { select: { dietTypeId: true, quantity: true } } } },
+  deliveryReceipts: { select: { departmentId: true, status: true } },
+  evidence: { orderBy: { uploadedAt: "desc" as const } },
   dietMeals: {
     where: { voidedAt: null },
     orderBy: { dietType: { sortOrder: "asc" as const } },
@@ -62,7 +65,7 @@ export async function readKitchenWorkspace(requestedMealId?: string, feedingRout
   const defaultEvent = lifecycle?.meal.event ?? events[0];
   const selected = events.find((event) => event.id === requestedMealId) ?? defaultEvent ?? null;
 
-  if (!selected) return { events: summaries, selected: null, canOperate: false };
+  if (!selected) return { events: summaries, selected: null, canOperate: false, foodRetention24hRequired: settings.foodRetention24hRequired };
   const shopping = buildDietMealShopping(selected.dietMeals.map((meal) => ({
     id: meal.id,
     dietTypeId: meal.dietTypeId,
@@ -70,10 +73,10 @@ export async function readKitchenWorkspace(requestedMealId?: string, feedingRout
     servingsPlanned: servingTotal(meal.servingsPlanned, selected.additions.filter((addition) => addition.dietTypeId === meal.dietTypeId && addition.ackStatus === "RECEIVED")).total,
     menuSnapshotJson: meal.menuSnapshotJson,
   })));
-  const evidence = selected.dietMeals.flatMap((meal) => meal.evidence.map((item) => ({
+  const evidence = [...selected.dietMeals.flatMap((meal) => meal.evidence.map((item) => ({
     ...item,
     dietName: meal.dietType.name,
     publicUrl: evidenceStorage.publicUrl(item.storagePath),
-  })));
-  return { events: summaries, selected: { ...selected, shopping, evidence }, canOperate: isKitchenPreparationOpen(selected.mealDate, selected.mealType.cutoffTime, selected.mealType.serviceTime, now, settings.serviceCompletionMinutes) };
+  }))), ...selected.evidence.map((item) => ({ ...item, dietName: `Toàn bữa · ${foodRetentionLabel(item.uploadedAt, now)}`, publicUrl: evidenceStorage.publicUrl(item.storagePath) }))];
+  return { events: summaries, selected: { ...selected, dietMeals: selected.dietMeals.map((meal) => ({ ...meal, evidence: meal.evidence.map((item) => ({ ...item, publicUrl: evidenceStorage.publicUrl(item.storagePath) })) })), shopping, evidence }, canOperate: isKitchenPreparationOpen(selected.mealDate, selected.mealType.cutoffTime, selected.mealType.serviceTime, now, settings.serviceCompletionMinutes), foodRetention24hRequired: settings.foodRetention24hRequired };
 }

@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS: OperationalSettings = {
   serviceCompletionMinutes: 60,
   publicMenuImages: true,
   publicViewCountVisible: true,
+  foodRetention24hRequired: false,
 };
 
 export type OperationalSettings = {
@@ -23,6 +24,7 @@ export type OperationalSettings = {
   serviceCompletionMinutes: number;
   publicMenuImages: boolean;
   publicViewCountVisible: boolean;
+  foodRetention24hRequired: boolean;
 };
 
 export type MealTimeInput = { id: string; cutoffTime: string; serviceTime: string };
@@ -43,6 +45,7 @@ export function parseOperationalSettings(value: unknown): OperationalSettings {
     serviceCompletionMinutes: Number.isInteger(source.serviceCompletionMinutes) && Number(source.serviceCompletionMinutes) >= 15 && Number(source.serviceCompletionMinutes) <= 240 ? Number(source.serviceCompletionMinutes) : DEFAULT_SETTINGS.serviceCompletionMinutes,
     publicMenuImages: typeof source.publicMenuImages === "boolean" ? source.publicMenuImages : DEFAULT_SETTINGS.publicMenuImages,
     publicViewCountVisible: typeof source.publicViewCountVisible === "boolean" ? source.publicViewCountVisible : DEFAULT_SETTINGS.publicViewCountVisible,
+    foodRetention24hRequired: typeof source.foodRetention24hRequired === "boolean" ? source.foodRetention24hRequired : DEFAULT_SETTINGS.foodRetention24hRequired,
   };
 }
 
