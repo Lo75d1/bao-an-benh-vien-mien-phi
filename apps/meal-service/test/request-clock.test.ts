@@ -16,6 +16,16 @@ test("không truyền pageDemoTime thì workspace luôn dùng giờ thực", () 
   assert.equal(clock.simulated, false);
 });
 
+test("Guided Demo được mô phỏng mốc đã qua nhưng Demo thường không được", () => {
+  const past = "2026-08-28T06:00:00.000Z";
+  assert.equal(pageRequestClock(past, realNow, true).simulated, false);
+  assert.deepEqual(pageRequestClock(past, realNow, true, true), {
+    now: new Date(past),
+    enabled: true,
+    simulated: true,
+  });
+});
+
 test("pageDemoTime chỉ tạo effectiveTime, không mang trạng thái nghiệp vụ", () => {
   const clock = pageRequestClock("2026-08-28T10:00:00.000Z", realNow, true);
   assert.deepEqual(clock, { now: new Date("2026-08-28T10:00:00.000Z"), enabled: true, simulated: true });
@@ -27,4 +37,8 @@ test("pageDemoTime chỉ tạo effectiveTime, không mang trạng thái nghiệp
 test("production bỏ qua mọi pageDemoTime", () => {
   const clock = pageRequestClock("2026-08-28T10:00:00.000Z", realNow, false);
   assert.deepEqual(clock, { now: realNow, enabled: false, simulated: false });
+  assert.deepEqual(
+    pageRequestClock("2026-08-28T06:00:00.000Z", realNow, false, true),
+    { now: realNow, enabled: false, simulated: false },
+  );
 });

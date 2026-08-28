@@ -1,4 +1,5 @@
 import type { DemoWorkspace } from "./demo-session";
+import type { DemoTourStage } from "./demo-tour-clock";
 
 export type DemoTourStatus = "NOT_STARTED" | "ACTIVE" | "DONE";
 export type DemoTourWorkspaceProgress = {
@@ -17,6 +18,10 @@ export type DemoTourStep = {
   href: string;
   target: string;
   expectation: DemoTourExpectation;
+  timeline: {
+    stage: DemoTourStage;
+    milestone: string;
+  };
 };
 
 export const DEMO_TOUR_STEPS: Record<DemoWorkspace, DemoTourStep[]> = {
@@ -30,6 +35,7 @@ export const DEMO_TOUR_STEPS: Record<DemoWorkspace, DemoTourStep[]> = {
         type: "input",
         selector: "[data-demo-control=nurse-quantity]",
       },
+      timeline: { stage: "REPORTING", milestone: "Trước giờ chốt suất" },
     },
     {
       title: "Gửi báo suất",
@@ -38,6 +44,28 @@ export const DEMO_TOUR_STEPS: Record<DemoWorkspace, DemoTourStep[]> = {
       href: "/bao-suat",
       target: ".nurse-serving-footer",
       expectation: { type: "action", actionId: "serving-report" },
+      timeline: { stage: "REPORTING", milestone: "Khoa gửi số suất cho Bếp" },
+    },
+    {
+      title: "Mở xác nhận giao nhận",
+      instruction:
+        "Đến giờ phục vụ, mở xác nhận giao nhận để kiểm đếm số suất Bếp bàn giao.",
+      href: "/bao-suat",
+      target: "[data-demo-guide=delivery-receipt]",
+      expectation: {
+        type: "click",
+        selector: "[data-demo-guide=delivery-receipt]",
+      },
+      timeline: { stage: "SERVICE", milestone: "Bếp giao suất cho khoa" },
+    },
+    {
+      title: "Xác nhận đã nhận đủ",
+      instruction:
+        "Chọn Đã nhận đủ. Bước chỉ hoàn thành khi hệ thống lưu xác nhận giao nhận thành công.",
+      href: "/bao-suat",
+      target: ".delivery-receipt-actions",
+      expectation: { type: "action", actionId: "delivery-receipt" },
+      timeline: { stage: "SERVICE", milestone: "Khoa xác nhận kết quả giao nhận" },
     },
   ],
   DIETITIAN: [
@@ -51,6 +79,7 @@ export const DEMO_TOUR_STEPS: Record<DemoWorkspace, DemoTourStep[]> = {
         selector:
           "[data-demo-guide=nutrition-picker] a, [data-demo-guide=nutrition-picker] button",
       },
+      timeline: { stage: "PLANNING", milestone: "Lên thực đơn trước giờ khóa" },
     },
     {
       title: "Mở nhập Excel",
@@ -62,6 +91,7 @@ export const DEMO_TOUR_STEPS: Record<DemoWorkspace, DemoTourStep[]> = {
         type: "click",
         selector: "[data-demo-guide=excel-import]",
       },
+      timeline: { stage: "PLANNING", milestone: "Nhập dữ liệu thực đơn" },
     },
     {
       title: "Chọn mã chế độ ăn",
@@ -70,6 +100,7 @@ export const DEMO_TOUR_STEPS: Record<DemoWorkspace, DemoTourStep[]> = {
       href: "/thuc-don",
       target: ".nutrition-code-actions",
       expectation: { type: "click", selector: ".nutrition-code-actions" },
+      timeline: { stage: "PLANNING", milestone: "Đối chiếu khuyến nghị theo mã" },
     },
     {
       title: "Mở phần phân tích",
@@ -81,6 +112,7 @@ export const DEMO_TOUR_STEPS: Record<DemoWorkspace, DemoTourStep[]> = {
         type: "click",
         selector: "[data-demo-control=nutrition-analysis]",
       },
+      timeline: { stage: "PLANNING", milestone: "Kiểm tra trước khi tự khóa" },
     },
   ],
   KITCHEN_NORMAL: [
@@ -94,6 +126,7 @@ export const DEMO_TOUR_STEPS: Record<DemoWorkspace, DemoTourStep[]> = {
         type: "click",
         selector: ".kitchen-operation-main tbody tr",
       },
+      timeline: { stage: "PREPARATION", milestone: "Bếp tiếp nhận số suất đã chốt" },
     },
     {
       title: "Mở bằng chứng ảnh",
@@ -101,6 +134,7 @@ export const DEMO_TOUR_STEPS: Record<DemoWorkspace, DemoTourStep[]> = {
       href: "/bep",
       target: ".kitchen-complete",
       expectation: { type: "click", selector: ".kitchen-complete" },
+      timeline: { stage: "PREPARATION", milestone: "Chuẩn bị bằng chứng món" },
     },
     {
       title: "Chọn hoặc chụp ảnh",
@@ -111,6 +145,7 @@ export const DEMO_TOUR_STEPS: Record<DemoWorkspace, DemoTourStep[]> = {
         type: "change",
         selector: ".kitchen-finish-dialog input[type=file]",
       },
+      timeline: { stage: "PREPARATION", milestone: "Chụp hoặc chọn ảnh thực tế" },
     },
     {
       title: "Xác nhận sẵn sàng",
@@ -119,6 +154,7 @@ export const DEMO_TOUR_STEPS: Record<DemoWorkspace, DemoTourStep[]> = {
       href: "/bep",
       target: ".kitchen-finish-actions",
       expectation: { type: "action", actionId: "kitchen-ready" },
+      timeline: { stage: "PREPARATION", milestone: "Bếp xác nhận sẵn sàng giao" },
     },
   ],
   ADMIN: [
@@ -132,6 +168,7 @@ export const DEMO_TOUR_STEPS: Record<DemoWorkspace, DemoTourStep[]> = {
         type: "click",
         selector: ".admin-serving-master tbody tr",
       },
+      timeline: { stage: "SERVICE", milestone: "Theo dõi giao nhận theo khoa" },
     },
     {
       title: "Đối chiếu theo mã",
@@ -140,6 +177,7 @@ export const DEMO_TOUR_STEPS: Record<DemoWorkspace, DemoTourStep[]> = {
       href: "/quan-ly",
       target: ".admin-view-switch",
       expectation: { type: "click", selector: ".admin-view-switch button" },
+      timeline: { stage: "CLOSED", milestone: "Đối chiếu fact còn thiếu sau phục vụ" },
     },
   ],
   KITCHEN_SONDE: [
@@ -152,6 +190,7 @@ export const DEMO_TOUR_STEPS: Record<DemoWorkspace, DemoTourStep[]> = {
         type: "click",
         selector: ".kitchen-operation-main tbody tr",
       },
+      timeline: { stage: "PREPARATION", milestone: "Bếp Sonde tiếp nhận đúng cữ" },
     },
     {
       title: "Mở bằng chứng Sonde",
@@ -159,6 +198,7 @@ export const DEMO_TOUR_STEPS: Record<DemoWorkspace, DemoTourStep[]> = {
       href: "/bep",
       target: ".kitchen-complete",
       expectation: { type: "click", selector: ".kitchen-complete" },
+      timeline: { stage: "PREPARATION", milestone: "Chuẩn bị bằng chứng đúng cữ" },
     },
     {
       title: "Chụp hoặc chọn ảnh Sonde",
@@ -169,6 +209,7 @@ export const DEMO_TOUR_STEPS: Record<DemoWorkspace, DemoTourStep[]> = {
         type: "change",
         selector: ".kitchen-finish-dialog input[type=file]",
       },
+      timeline: { stage: "PREPARATION", milestone: "Chụp hoặc chọn ảnh cữ Sonde" },
     },
     {
       title: "Xác nhận cữ sẵn sàng",
@@ -176,6 +217,7 @@ export const DEMO_TOUR_STEPS: Record<DemoWorkspace, DemoTourStep[]> = {
       href: "/bep",
       target: ".kitchen-finish-actions",
       expectation: { type: "action", actionId: "kitchen-ready" },
+      timeline: { stage: "PREPARATION", milestone: "Xác nhận cữ Sonde sẵn sàng" },
     },
   ],
 };

@@ -29,7 +29,7 @@ function ReceiptForm({ eventId, route, expected, kind, previous, action }: { eve
     {kind === "FULL" ? <input type="hidden" name="receivedQuantity" value={expected}/> : <><label>Số suất thực nhận<input name="receivedQuantity" type="number" min="0" max={Math.max(0, expected - 1)} step="1" defaultValue={previous?.status === "SHORT" ? previous.receivedQuantity : ""} required/></label><label>Lý do thiếu<textarea name="note" minLength={3} maxLength={500} defaultValue={previous?.status === "SHORT" ? previous.note ?? "" : ""} required/></label></>}
     {previous ? <label>Lý do điều chỉnh xác nhận<input name="correctionReason" minLength={3} maxLength={500} required placeholder="Ví dụ: Khoa kiểm đếm lại số suất"/></label> : null}
     <ActionButton type="submit" className={kind === "FULL" ? "primary-action" : "secondary-button"} disabled={expected < 1} pending={pending} pendingLabel="Đang xác nhận…" completed={result.status === "success"} completedLabel={kind === "FULL" ? "Đã nhận đủ" : "Đã ghi nhận nhận thiếu"}>{kind === "FULL" ? <><Check/>Đã nhận đủ {expected} suất</> : "Xác nhận nhận thiếu"}</ActionButton>
-    <ActionFeedback result={result}/>
+    <ActionFeedback result={result} actionId="delivery-receipt"/>
   </form>;
 }
 

@@ -22,11 +22,11 @@ function menuItems(value: unknown) {
   return (value.items as SnapshotItem[]).flatMap((item) => typeof item.itemName === "string" && item.itemName.trim() ? [{ name: item.itemName.trim(), dishName: typeof item.dishName === "string" && item.dishName.trim() ? item.dishName.trim() : "Món 1", grams: typeof item.grams === "number" && Number.isFinite(item.grams) ? item.grams : null }] : []);
 }
 
-export default async function KitchenPage({ searchParams }: { searchParams: Promise<{ updated?: string; storage?: string; meal?: string; demoNow?: string }> }) {
+export default async function KitchenPage({ searchParams }: { searchParams: Promise<{ updated?: string; storage?: string; meal?: string; demoNow?: string; demoTour?: string }> }) {
   const user = await getSessionUser();
   if (!user || user.role !== "KITCHEN") redirect("/");
   const query = await searchParams;
-  const clock = await readRequestClock(query.demoNow);
+  const clock = await readRequestClock(query.demoNow, query.demoTour === "1" && Boolean(user.demoSessionId));
   const kitchenRoute = user.kitchenRoute ?? "NORMAL";
   let [workspace, notes] = await Promise.all([readKitchenWorkspace(query.meal, kitchenRoute, clock.now), readApprovedKitchenNotes()]);
   if (!clock.simulated && workspace.selected && await lockExpiredMealEvent(workspace.selected.id, user, clock.now, kitchenRoute) > 0) workspace = await readKitchenWorkspace(query.meal, kitchenRoute, clock.now);

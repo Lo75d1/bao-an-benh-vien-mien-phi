@@ -23,12 +23,36 @@ test("mỗi bước yêu cầu đúng một tương tác trên control cụ th�
     for (const step of steps) {
       assert.ok(step.target.length > 0);
       assert.ok(step.instruction.length > 0);
+      assert.ok(step.timeline.milestone.length > 0);
+      assert.ok(
+        ["PLANNING", "REPORTING", "PREPARATION", "SERVICE", "CLOSED"].includes(
+          step.timeline.stage,
+        ),
+      );
       assert.ok(
         step.expectation.type === "action"
           ? step.expectation.actionId
           : step.expectation.selector,
       );
     }
+});
+
+test("tour đi qua đủ các mốc nghiệp vụ và tự tách lịch Sonde", () => {
+  assert.deepEqual(
+    [...new Set(DEMO_TOUR_STEPS.NURSE.map((step) => step.timeline.stage))],
+    ["REPORTING", "SERVICE"],
+  );
+  assert.ok(
+    DEMO_TOUR_STEPS.KITCHEN_NORMAL.every(
+      (step) => step.timeline.stage === "PREPARATION",
+    ),
+  );
+  assert.ok(
+    DEMO_TOUR_STEPS.KITCHEN_SONDE.every(
+      (step) => step.timeline.stage === "PREPARATION",
+    ),
+  );
+  assert.equal(DEMO_TOUR_STEPS.ADMIN.at(-1)?.timeline.stage, "CLOSED");
 });
 
 test("tiến độ reload giữ NORMAL và Sonde riêng", () => {

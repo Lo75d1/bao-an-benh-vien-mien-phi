@@ -1,7 +1,7 @@
 "use client";
 
-import { CheckCircle2, CircleHelp, LoaderCircle, X } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { CheckCircle2, CircleHelp, Clock3, LoaderCircle, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SessionUser } from "@/lib/auth";
 import {
@@ -10,10 +10,21 @@ import {
   type DemoTourWorkspaceProgress,
 } from "@/lib/demo-tour";
 import type { DemoWorkspace } from "@/lib/demo-session";
+import { DEMO_TIME_PARAM, DEMO_TOUR_TIME_PARAM } from "@/lib/page-demo-time";
 
 const EMPTY_PROGRESS: DemoTourWorkspaceProgress = {
   status: "NOT_STARTED",
   step: 0,
+};
+
+type TourClock = {
+  nowIso: string;
+  timeLabel: string;
+  mealName: string;
+  stageLabel: string;
+  responsibility: string;
+  cutoffTime: string;
+  serviceTime: string;
 };
 
 function workspaceOf(user: SessionUser): DemoWorkspace | null {
@@ -55,6 +66,7 @@ function matchesInteraction(event: Event, selector: string) {
 
 export function DemoGuide({ user }: { user: SessionUser }) {
   const pathname = usePathname();
+  const router = useRouter();
   const workspace = workspaceOf(user);
   const steps = useMemo(
     () => (workspace ? DEMO_TOUR_STEPS[workspace] : []),
@@ -65,6 +77,9 @@ export function DemoGuide({ user }: { user: SessionUser }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [tourClock, setTourClock] = useState<TourClock | null>(null);
+  const [clockReady, setClockReady] = useState(false);
+  const [clockLoading, setClockLoading] = useState(false);
   const advancing = useRef(false);
   const progress = workspace
     ? (tour[workspace] ?? EMPTY_PROGRESS)
@@ -76,6 +91,21 @@ export function DemoGuide({ user }: { user: SessionUser }) {
   const completedCount = Object.values(tour).filter(
     (item) => item?.status === "DONE",
   ).length;
+
+  const returnToRealTime = useCallback(() => {
+    const url = new URL(window.location.href);
+    const hadTourTime =
+      url.searchParams.has(DEMO_TIME_PARAM) ||
+      url.searchParams.has(DEMO_TOUR_TIME_PARAM);
+    url.searchParams.delete(DEMO_TIME_PARAM);
+    url.searchParams.delete(DEMO_TOUR_TIME_PARAM);
+    setClockReady(false);
+    setTourClock(null);
+    if (hadTourTime)
+      router.replace(`${url.pathname}${url.search}${url.hash}`, {
+        scroll: false,
+      });
+  }, [router]);
 
   useEffect(() => {
     if (!workspace) return;
@@ -107,6 +137,59 @@ export function DemoGuide({ user }: { user: SessionUser }) {
     };
   }, [workspace]);
 
+  useEffect(() => {
+    if (!open || !step || pathname !== step.href) return;
+    let active = true;
+    let readyTimer: number | undefined;
+    queueMicrotask(() => {
+      if (!active) return;
+      setClockLoading(true);
+      setClockReady(false);
+    });
+    fetch(`/api/demo/tour-clock?stage=${encodeURIComponent(step.timeline.stage)}`)
+      .then(async (response) => {
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok)
+          throw new Error(body.error ?? "Không thể chuẩn bị mốc giờ hướng dẫn.");
+        return body as TourClock;
+      })
+      .then((body) => {
+        if (!active) return;
+        setTourClock(body);
+        const url = new URL(window.location.href);
+        const alreadyApplied =
+          url.searchParams.get(DEMO_TIME_PARAM) === body.nowIso &&
+          url.searchParams.get(DEMO_TOUR_TIME_PARAM) === "1";
+        if (alreadyApplied) {
+          setClockReady(true);
+          return;
+        }
+        url.searchParams.set(DEMO_TIME_PARAM, body.nowIso);
+        url.searchParams.set(DEMO_TOUR_TIME_PARAM, "1");
+        router.replace(`${url.pathname}${url.search}${url.hash}`, {
+          scroll: false,
+        });
+        readyTimer = window.setTimeout(() => {
+          if (active) setClockReady(true);
+        }, 350);
+      })
+      .catch((reason) => {
+        if (!active) return;
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Không thể chuẩn bị mốc giờ hướng dẫn.",
+        );
+      })
+      .finally(() => {
+        if (active) setClockLoading(false);
+      });
+    return () => {
+      active = false;
+      if (readyTimer) window.clearTimeout(readyTimer);
+    };
+  }, [open, pathname, router, step]);
+
   const advance = useCallback(async () => {
     if (!workspace || progress.status !== "ACTIVE" || advancing.current) return;
     advancing.current = true;
@@ -118,7 +201,7 @@ export function DemoGuide({ user }: { user: SessionUser }) {
     try {
       await saveProgress(next);
       setTour((current) => ({ ...current, [workspace]: next }));
-      if (isLast) setOpen(true);
+      if (isLast) returnToRealTime();
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -129,10 +212,10 @@ export function DemoGuide({ user }: { user: SessionUser }) {
       advancing.current = false;
       setSaving(false);
     }
-  }, [progress.status, progress.step, steps.length, workspace]);
+  }, [progress.status, progress.step, returnToRealTime, steps.length, workspace]);
 
   useEffect(() => {
-    if (!open || !step || pathname !== step.href) return;
+    if (!open || !step || pathname !== step.href || !clockReady) return;
     const expectation = step.expectation;
     const onInteraction = (event: Event) => {
       if (expectation.type === "action") return;
@@ -159,13 +242,13 @@ export function DemoGuide({ user }: { user: SessionUser }) {
       document.removeEventListener("change", onInteraction, true);
       window.removeEventListener("demo:action-success", onAction);
     };
-  }, [advance, open, pathname, step]);
+  }, [advance, clockReady, open, pathname, step]);
 
   useEffect(() => {
     document
       .querySelectorAll("[data-demo-highlight]")
       .forEach((node) => node.removeAttribute("data-demo-highlight"));
-    if (!open || !step || pathname !== step.href) return;
+    if (!open || !step || pathname !== step.href || !clockReady) return;
     let highlighted: Element | null = null;
     const highlight = () => {
       const next = document.querySelector(step.target);
@@ -184,7 +267,7 @@ export function DemoGuide({ user }: { user: SessionUser }) {
       observer.disconnect();
       highlighted?.removeAttribute("data-demo-highlight");
     };
-  }, [open, pathname, step]);
+  }, [clockReady, open, pathname, step]);
 
   if (!workspace || loading) return null;
 
@@ -210,6 +293,11 @@ export function DemoGuide({ user }: { user: SessionUser }) {
     }
   }
 
+  function closeGuide() {
+    setOpen(false);
+    returnToRealTime();
+  }
+
   if (!open)
     return (
       <button className="demo-guide-reopen" type="button" onClick={start}>
@@ -229,7 +317,7 @@ export function DemoGuide({ user }: { user: SessionUser }) {
           <span>Hướng dẫn Demo</span>
           <button
             type="button"
-            onClick={() => setOpen(false)}
+            onClick={closeGuide}
             aria-label="Đóng hướng dẫn"
           >
             <X />
@@ -264,19 +352,41 @@ export function DemoGuide({ user }: { user: SessionUser }) {
         </span>
         <button
           type="button"
-          onClick={() => setOpen(false)}
+          onClick={closeGuide}
           aria-label="Thoát hướng dẫn"
         >
           <X />
         </button>
       </header>
       <strong>{step.title}</strong>
+      <section className="demo-tour-timeline" aria-live="polite">
+        <Clock3 aria-hidden="true" />
+        <div>
+          <span>Thời gian mô phỏng</span>
+          <strong>
+            {tourClock
+              ? `${tourClock.timeLabel} · ${tourClock.stageLabel}`
+              : "Đang xác định theo lịch bữa…"}
+          </strong>
+          {tourClock ? (
+            <small>
+              {tourClock.mealName} · Chốt {tourClock.cutoffTime} · Phục vụ {tourClock.serviceTime}
+            </small>
+          ) : null}
+        </div>
+      </section>
+      <p className="demo-tour-milestone">
+        <strong>{step.timeline.milestone}</strong>
+        {tourClock?.responsibility ?? "Đang chuẩn bị vai trò và mốc thời gian phù hợp."}
+      </p>
       <p>{step.instruction}</p>
       {pathname !== step.href ? <a href={step.href}>Mở đúng màn hình</a> : null}
       <footer>
         <span>
           {error ||
-            (pathname === step.href
+            (clockLoading || !clockReady
+              ? "Đang chuyển tới mốc thời gian mô phỏng…"
+              : pathname === step.href
               ? "Thao tác đúng vào vùng đang được làm nổi bật."
               : "Đang chờ control sẵn sàng…")}
         </span>

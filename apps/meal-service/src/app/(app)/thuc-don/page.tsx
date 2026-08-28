@@ -20,12 +20,12 @@ function thresholdsOf(code: { energyKcalMin: number | null; energyKcalMax: numbe
 
 export const dynamic = "force-dynamic";
 
-export default async function MenuPage({ searchParams }: { searchParams: Promise<{ meal?: string; saved?: string; route?: string; demoNow?: string }> }) {
+export default async function MenuPage({ searchParams }: { searchParams: Promise<{ meal?: string; saved?: string; route?: string; demoNow?: string; demoTour?: string }> }) {
   const user = await getSessionUser();
   if (!user) redirect("/");
   if (user.role !== "DIETITIAN") redirect("/");
   const params = await searchParams;
-  const [settings, clock] = await Promise.all([readOperationalSettings(), readRequestClock(params.demoNow)]);
+  const [settings, clock] = await Promise.all([readOperationalSettings(), readRequestClock(params.demoNow, params.demoTour === "1" && Boolean(user.demoSessionId))]);
   let [meals, templates] = await Promise.all([
     prisma.dietMeal.findMany({ where: { voidedAt: null, mealEvent: { mealDate: { lte: entryWindowEnd(clock.now, settings.advanceEntryDays) } }, ...(settings.sondeEnabled ? {} : { feedingRoute: "NORMAL" }) }, orderBy: [{ mealEvent: { mealDate: "asc" } }, { mealEvent: { mealType: { sortOrder: "asc" } } }, { dietType: { sortOrder: "asc" } }], include: { mealEvent: { include: { mealType: true } }, dietType: { include: { dietCodeRef: true } } } }),
     prisma.menuTemplate.findMany({ where: { ownerId: user.id }, orderBy: { updatedAt: "desc" }, include: { items: { orderBy: { id: "asc" } } } }),
