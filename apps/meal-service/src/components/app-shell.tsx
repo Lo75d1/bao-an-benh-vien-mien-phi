@@ -39,6 +39,7 @@ type NavItem = { href: string; label: string };
 const NAVIGATION: Record<SessionUser["role"], NavItem[]> = {
   ADMIN: [
     { href: "/quan-ly", label: "Điều hành" },
+    { href: "/thuc-don", label: "Thực đơn" },
     { href: "/lich", label: "Lịch tuần" },
     { href: "/kho", label: "Kho" },
     { href: "/bao-cao", label: "Báo cáo" },

@@ -7,7 +7,7 @@ import { createMenuTemplate, deleteMenuTemplate } from "@/lib/menu-template";
 import type { MenuItemInput } from "@/lib/menu-logic";
 import { readActionClock as readRequestClock } from "@/lib/request-clock";
 
-async function requireDietitian() { const user = await getSessionUser(); if (!user || user.role !== "DIETITIAN") throw new Error("Bạn không có quyền chỉnh thực đơn."); return user; }
+async function requireDietitian() { const user = await getSessionUser(); if (!user || (user.role !== "DIETITIAN" && user.role !== "ADMIN")) throw new Error("Bạn không có quyền chỉnh thực đơn."); return user; }
 function readItems(formData: FormData): MenuItemInput[] { const raw = formData.get("items"); if (typeof raw !== "string") throw new Error("Dữ liệu thực đơn không hợp lệ."); const value = JSON.parse(raw) as unknown; if (!Array.isArray(value)) throw new Error("Dữ liệu thực đơn không hợp lệ."); return value as MenuItemInput[]; }
 
 export async function saveMenuAction(formData: FormData) { const user = await requireDietitian(); const clock = await readRequestClock(); const dietMealId = String(formData.get("dietMealId") ?? ""); await saveDietMeal({ dietMealId, items: readItems(formData), sourceTemplateId: String(formData.get("sourceTemplateId") ?? "") || null, patientVisibleNote: formData.get("patientVisibleNote") }, user, clock.now); revalidatePath("/thuc-don"); revalidatePath("/lich"); revalidatePath("/"); redirect(`/thuc-don?meal=${encodeURIComponent(dietMealId)}&saved=menu`); }
