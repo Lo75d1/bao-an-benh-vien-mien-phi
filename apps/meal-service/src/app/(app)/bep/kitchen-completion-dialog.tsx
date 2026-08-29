@@ -19,6 +19,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { INITIAL_ACTION_RESULT } from "@/lib/action-result";
+import { optimizeFormImages } from "@/lib/client-image-upload";
 import {
   completeKitchenEventAction,
   reopenKitchenEventAction,
@@ -30,6 +31,39 @@ type Evidence = {
   note: string | null;
   uploadedAt: string;
 } | null;
+
+function useOptimizedImageSubmit() {
+  const resubmitting = useRef(false);
+  const [optimizing, setOptimizing] = useState(false);
+  const [optimizationError, setOptimizationError] = useState<string | null>(null);
+
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    if (resubmitting.current) {
+      resubmitting.current = false;
+      return;
+    }
+    const form = event.currentTarget;
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    const hasNewImage = Array.from(form.querySelectorAll<HTMLInputElement>('input[type="file"]'))
+      .some((input) => Boolean(input.files?.[0]));
+    if (!hasNewImage) return;
+
+    event.preventDefault();
+    setOptimizing(true);
+    setOptimizationError(null);
+    try {
+      await optimizeFormImages(form);
+      resubmitting.current = true;
+      form.requestSubmit(submitter ?? undefined);
+    } catch (error) {
+      setOptimizationError(error instanceof Error ? error.message : "Không thể tối ưu ảnh đã chọn.");
+    } finally {
+      setOptimizing(false);
+    }
+  }
+
+  return { onSubmit, optimizing, optimizationError };
+}
 
 function ImagePicker({
   baseName,
@@ -144,8 +178,10 @@ export function FoodRetentionControl({
     saveFoodRetentionAction,
     INITIAL_ACTION_RESULT,
   );
+  const imageSubmit = useOptimizedImageSubmit();
+  const busy = pending || imageSubmit.optimizing;
   return (
-    <form action={action} className="kitchen-retention-card">
+    <form action={action} onSubmit={imageSubmit.onSubmit} className="kitchen-retention-card">
       <input type="hidden" name="eventId" value={eventId} />
       <div>
         <b>Mẫu lưu thực phẩm 24 giờ</b>
@@ -162,12 +198,13 @@ export function FoodRetentionControl({
         defaultValue={evidence?.note ?? ""}
         placeholder="Vị trí lưu hoặc ghi chú (không bắt buộc)"
       />
+      {imageSubmit.optimizationError ? <p role="alert" className="action-feedback action-feedback-error">{imageSubmit.optimizationError}</p> : null}
       <ActionFeedback result={result} />
       <ActionButton
         type="submit"
         disabled={!canOperate}
-        pending={pending}
-        pendingLabel="Đang lưu mẫu…"
+        pending={busy}
+        pendingLabel={imageSubmit.optimizing ? "Đang tối ưu ảnh…" : "Đang lưu mẫu…"}
       >
         <CheckCircle2 /> {evidence ? "Cập nhật mẫu lưu" : "Xác nhận đã lưu mẫu"}
       </ActionButton>
@@ -190,6 +227,8 @@ export function KitchenCompletionDialog({
     completeKitchenEventAction,
     INITIAL_ACTION_RESULT,
   );
+  const imageSubmit = useOptimizedImageSubmit();
+  const busy = pending || imageSubmit.optimizing;
   return (
     <div className="kitchen-completion-area">
       {prepared ? (
@@ -210,7 +249,7 @@ export function KitchenCompletionDialog({
           <button
             type="button"
             className="kitchen-complete"
-            disabled={!canOperate || pending}
+            disabled={!canOperate || busy}
           >
             <Camera />{" "}
             {prepared
@@ -229,20 +268,21 @@ export function KitchenCompletionDialog({
               Bếp.
             </DialogDescription>
           </DialogHeader>
-          <form action={formAction}>
+          <form action={formAction} onSubmit={imageSubmit.onSubmit}>
             <input type="hidden" name="eventId" value={eventId} />
             <div className="kitchen-proof-list">
               {meals.map((meal) => (
                 <ProofField key={meal.id} meal={meal} />
               ))}
             </div>
+            {imageSubmit.optimizationError ? <p role="alert" className="action-feedback action-feedback-error">{imageSubmit.optimizationError}</p> : null}
             <ActionFeedback result={result} actionId="kitchen-ready" />
             <div className="kitchen-finish-actions">
               <DialogTrigger asChild>
                 <button
                   type="button"
                   className="secondary-button"
-                  disabled={pending}
+                  disabled={busy}
                 >
                   <RotateCcw /> Quay lại
                 </button>
@@ -251,8 +291,8 @@ export function KitchenCompletionDialog({
                 type="submit"
                 className="primary-action"
                 disabled={!canOperate}
-                pending={pending}
-                pendingLabel="Đang lưu ảnh…"
+                pending={busy}
+                pendingLabel={imageSubmit.optimizing ? "Đang tối ưu ảnh…" : "Đang lưu ảnh…"}
               >
                 <CheckCircle2 />{" "}
                 {prepared ? "Lưu ảnh thay đổi" : "Xác nhận sẵn sàng giao"}
