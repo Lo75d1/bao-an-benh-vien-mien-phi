@@ -15,17 +15,26 @@ type HandoffSource = {
   additions: ReadonlyArray<{ departmentId: string; quantity: number }>;
 };
 
+export function deriveHandoffSnapshots(source: HandoffSource, kitchenRoute: FeedingRoute): HandoffSnapshot[] {
+  if (source.route !== kitchenRoute) return [];
+  if (source.dietStatuses.length === 0 || source.dietStatuses.some((status) => status !== "PREPARED")) return [];
+  const quantities = new Map<string, number>();
+  for (const report of source.reports) quantities.set(report.departmentId, report.quantities.reduce((sum, quantity) => sum + quantity, 0));
+  for (const addition of source.additions) quantities.set(addition.departmentId, (quantities.get(addition.departmentId) ?? 0) + addition.quantity);
+  return [...quantities.entries()]
+    .filter(([, quantity]) => quantity > 0)
+    .map(([departmentId, quantity]) => ({ departmentId, quantity }))
+    .sort((left, right) => left.departmentId.localeCompare(right.departmentId));
+}
+
 export function buildHandoffSnapshots(source: HandoffSource, kitchenRoute: FeedingRoute): HandoffSnapshot[] {
   if (source.route !== kitchenRoute) throw new Error("Bữa ăn không thuộc phạm vi của bếp này.");
   if (source.dietStatuses.length === 0 || source.dietStatuses.some((status) => status !== "PREPARED")) {
     throw new Error("Chỉ được bàn giao khi toàn bộ mã chế độ ăn đã sẵn sàng giao.");
   }
-  const quantities = new Map<string, number>();
-  for (const report of source.reports) quantities.set(report.departmentId, report.quantities.reduce((sum, quantity) => sum + quantity, 0));
-  for (const addition of source.additions) quantities.set(addition.departmentId, (quantities.get(addition.departmentId) ?? 0) + addition.quantity);
-  const snapshots = [...quantities.entries()].filter(([, quantity]) => quantity > 0).map(([departmentId, quantity]) => ({ departmentId, quantity }));
+  const snapshots = deriveHandoffSnapshots(source, kitchenRoute);
   if (snapshots.length === 0) throw new Error("Chưa có số suất của khoa để bàn giao.");
-  return snapshots.sort((left, right) => left.departmentId.localeCompare(right.departmentId));
+  return snapshots;
 }
 
 export async function handoffMealEvent(
