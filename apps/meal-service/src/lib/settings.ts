@@ -11,6 +11,8 @@ export const DEFAULT_SETTINGS: OperationalSettings = {
   warehouseApprovalRole: "ADMIN",
   serviceCompletionMinutes: 60,
   publicMenuImages: true,
+  publicMenuDishes: true,
+  publicMenuIngredients: false,
   publicViewCountVisible: true,
   foodRetention24hRequired: false,
 };
@@ -23,6 +25,8 @@ export type OperationalSettings = {
   warehouseApprovalRole: Role;
   serviceCompletionMinutes: number;
   publicMenuImages: boolean;
+  publicMenuDishes: boolean;
+  publicMenuIngredients: boolean;
   publicViewCountVisible: boolean;
   foodRetention24hRequired: boolean;
 };
@@ -44,6 +48,8 @@ export function parseOperationalSettings(value: unknown): OperationalSettings {
     warehouseApprovalRole: typeof source.warehouseApprovalRole === "string" && APPROVAL_ROLES.has(source.warehouseApprovalRole as Role) ? source.warehouseApprovalRole as Role : DEFAULT_SETTINGS.warehouseApprovalRole,
     serviceCompletionMinutes: Number.isInteger(source.serviceCompletionMinutes) && Number(source.serviceCompletionMinutes) >= 15 && Number(source.serviceCompletionMinutes) <= 240 ? Number(source.serviceCompletionMinutes) : DEFAULT_SETTINGS.serviceCompletionMinutes,
     publicMenuImages: typeof source.publicMenuImages === "boolean" ? source.publicMenuImages : DEFAULT_SETTINGS.publicMenuImages,
+    publicMenuDishes: typeof source.publicMenuDishes === "boolean" ? source.publicMenuDishes : DEFAULT_SETTINGS.publicMenuDishes,
+    publicMenuIngredients: typeof source.publicMenuIngredients === "boolean" ? source.publicMenuIngredients : DEFAULT_SETTINGS.publicMenuIngredients,
     publicViewCountVisible: typeof source.publicViewCountVisible === "boolean" ? source.publicViewCountVisible : DEFAULT_SETTINGS.publicViewCountVisible,
     foodRetention24hRequired: typeof source.foodRetention24hRequired === "boolean" ? source.foodRetention24hRequired : DEFAULT_SETTINGS.foodRetention24hRequired,
   };
@@ -66,6 +72,10 @@ export function validateMealTimes(items: MealTimeInput[]): MealTimeInput[] {
 
 export function routeVisible(route: "NORMAL" | "SONDE", sondeEnabled: boolean): boolean {
   return route === "NORMAL" || sondeEnabled;
+}
+
+export function visibleOperationalItems<T extends { feedingRoute: "NORMAL" | "SONDE" }>(items: T[], sondeEnabled: boolean): T[] {
+  return items.filter((item) => routeVisible(item.feedingRoute, sondeEnabled));
 }
 
 export function entryWindowEnd(now: Date, advanceEntryDays: number): Date {

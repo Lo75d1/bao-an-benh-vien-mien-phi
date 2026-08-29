@@ -466,3 +466,17 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .nurse-late-exception summary { cursor: pointer; color: #38566a; font-weight: 750; }
 .nurse-late-exception p { margin: .35rem 0 .65rem; color: #65747d; font-size: .85rem; }
 @media (max-width: 640px) { .service-receipt-pending, .service-receipt-result { grid-template-columns: 1fr; } .service-receipt-icon { display: none; } .service-receipt-pending button, .service-receipt-result > button, .receipt-edit { width: 100%; } }
+/* Public theme contrast tokens and compact dish disclosure. */
+.public-menu-home .public-menu-copy h1{color:var(--public-hero-primary-text,var(--primary))}
+.public-menu-home .public-menu-copy .eyebrow{color:var(--public-hero-accent-text,var(--accent))}
+.public-menu-home .public-menu-copy>p:last-child{color:var(--public-hero-foreground,var(--muted-foreground))}
+.public-menu-home .public-dish-list section{border-color:var(--public-border,var(--border))}
+.public-menu-home .public-dish-list h4{display:flex;align-items:center;justify-content:space-between;gap:.75rem;border-bottom:0;color:var(--public-hero-primary-text,var(--primary))}
+.public-menu-home .public-dish-list h4 strong{white-space:nowrap;font-variant-numeric:tabular-nums}
+.public-menu-home .public-dish-list details{border-top:1px solid var(--public-border,var(--border))}
+.public-menu-home .public-dish-list summary{padding:.55rem .7rem;color:var(--public-hero-accent-text,var(--accent));font-size:var(--fs-sm);font-weight:700;cursor:pointer}
+.public-menu-home .public-dish-list details li{border-top:1px solid var(--public-border,var(--border));border-bottom:0}
+.brand-public-preview header{color:var(--preview-primary-foreground)}
+.brand-public-preview header b{background:var(--preview-primary-foreground);color:var(--preview-primary)}
+.brand-public-preview h4{color:var(--preview-hero-primary)}
+.brand-public-preview button{color:var(--preview-primary-foreground)}

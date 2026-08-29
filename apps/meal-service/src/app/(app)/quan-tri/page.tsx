@@ -4,7 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/presentation";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { readOperationalSettings } from "@/lib/settings";
+import { readOperationalSettings, visibleOperationalItems } from "@/lib/settings";
 import { readBrandingSettings } from "@/lib/branding";
 import { readPublicViewStats } from "@/lib/public-page-views";
 import { accountStatusAction, departmentStatusAction, dietTypeStatusAction, mealTypeStatusAction, previewOfficialDataAction, queueOfficialDataAction, retryOfficialDataAction, saveAccountAction, saveBrandingAction, saveDepartmentAction, saveDietTypeAction, saveMealTypeAction, saveSettingsAction } from "./actions";
@@ -44,6 +44,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const activeUsers = users.filter((account) => account.status === "ACTIVE").length;
   const activeDiets = dietTypes.filter((diet) => diet.status === "ACTIVE").length;
   const activeDepartments = departments.filter((department) => department.status === "ACTIVE");
+  const operationalMealTypes = visibleOperationalItems(mealTypes, settings.sondeEnabled);
   return <AppShell user={user}><main className="workspace admin-page admin-workspace"><Separator className="page-separator" aria-hidden="true"/>
     <PageHeader eyebrow="Trung tâm quản trị" title="Thiết lập để hệ thống vận hành đúng" description="Theo dõi cấu hình đang áp dụng, quản lý nhân sự và danh mục từ một nơi." actions={<div className="admin-header-actions"><a className="secondary-button" href="/api/setup/handoff/docx">Hồ sơ bàn giao DOCX</a><a className="secondary-button" href="/api/setup/handoff/xlsx">Danh sách IT XLSX</a><p className="scope-note">Chỉ ADMIN · mọi thay đổi đều được truy vết</p></div>}/>
     {updated && messages[updated] && <p className="success-banner" role="status">{messages[updated]}</p>}
@@ -63,9 +64,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     </section>
 
     <section id="settings" className="admin-panel"><div className="section-heading"><div><p className="eyebrow">Cài đặt vận hành</p><h2>Áp dụng cho các luồng nghiệp vụ</h2></div><span>Giờ chốt · Sonde · Kho</span></div>
-      <SettingsForm settings={{ dataStartDate: settings.dataStartDate, advanceEntryDays: settings.advanceEntryDays, serviceCompletionMinutes: settings.serviceCompletionMinutes, publicMenuImages: settings.publicMenuImages, publicViewCountVisible: settings.publicViewCountVisible, foodRetention24hRequired: settings.foodRetention24hRequired, sondeEnabled: settings.sondeEnabled, warehouseMode: settings.warehouseMode, warehouseApprovalRole: settings.warehouseApprovalRole as "ADMIN" | "DIETITIAN" | "KITCHEN" }} mealTypes={mealTypes.filter((meal) => meal.status === "ACTIVE")} action={saveSettingsAction}/>
+      <SettingsForm settings={{ dataStartDate: settings.dataStartDate, advanceEntryDays: settings.advanceEntryDays, serviceCompletionMinutes: settings.serviceCompletionMinutes, publicMenuImages: settings.publicMenuImages, publicMenuDishes: settings.publicMenuDishes, publicMenuIngredients: settings.publicMenuIngredients, publicViewCountVisible: settings.publicViewCountVisible, foodRetention24hRequired: settings.foodRetention24hRequired, sondeEnabled: settings.sondeEnabled, warehouseMode: settings.warehouseMode, warehouseApprovalRole: settings.warehouseApprovalRole as "ADMIN" | "DIETITIAN" | "KITCHEN" }} mealTypes={operationalMealTypes.filter((meal) => meal.status === "ACTIVE")} action={saveSettingsAction}/>
       <div className="admin-inline-create"><div><strong>Thêm bữa ăn hoặc cữ Sonde</strong><small>Mỗi đường nuôi có lịch và giờ nghiệp vụ riêng.</small></div><form action={saveMealTypeAction} className="admin-grid"><label>Loại lịch<select name="feedingRoute"><option value="NORMAL">Suất ăn thường</option><option value="SONDE">Cữ Sonde</option></select></label><label>Mã<input name="code" pattern="[A-Za-z0-9_-]{2,20}" autoComplete="off" spellCheck={false} required/></label><label>Tên bữa/cữ<input name="name" autoComplete="off" required/></label><label>Giờ chốt<input name="cutoffTime" type="time" required/></label><label>Giờ phục vụ<input name="serviceTime" type="time" required/></label><label>Thứ tự<input name="sortOrder" type="number" min="0" max="999" defaultValue="0" required/></label><button className="primary-action">Thêm vào lịch</button></form></div>
-      <MealTypeTable saveAction={saveMealTypeAction} statusAction={mealTypeStatusAction} data={mealTypes.map((meal) => ({ id: meal.id, code: meal.code, name: meal.name, cutoffTime: meal.cutoffTime, serviceTime: meal.serviceTime, feedingRoute: meal.feedingRoute, routeLabel: meal.feedingRoute === "SONDE" ? "Cữ Sonde" : "Suất ăn thường", sortOrder: meal.sortOrder, status: meal.status, statusLabel: meal.status === "ACTIVE" ? "Đang dùng" : "Đã vô hiệu" }))}/>
+      <MealTypeTable saveAction={saveMealTypeAction} statusAction={mealTypeStatusAction} data={operationalMealTypes.map((meal) => ({ id: meal.id, code: meal.code, name: meal.name, cutoffTime: meal.cutoffTime, serviceTime: meal.serviceTime, feedingRoute: meal.feedingRoute, routeLabel: meal.feedingRoute === "SONDE" ? "Cữ Sonde" : "Suất ăn thường", sortOrder: meal.sortOrder, status: meal.status, statusLabel: meal.status === "ACTIVE" ? "Đang dùng" : "Đã vô hiệu" }))}/>
     </section>
 
     <section id="departments" className="admin-panel"><div className="section-heading"><div><p className="eyebrow">Khoa điều trị</p><h2>Danh mục khoa của bệnh viện</h2></div><span>{activeDepartments.length} đang dùng · {departments.length - activeDepartments.length} vô hiệu</span></div>

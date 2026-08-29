@@ -123,6 +123,12 @@ export function selectPublicMealWindow<T extends { at: Date }>(meals: T[], now =
   return { current: meals.filter((meal) => meal.at <= now).at(-1) ?? null, next: meals.find((meal) => meal.at > now) ?? null };
 }
 
+export function publicDishSummaries(dishNames: string[], ingredients: Array<{ dishName: string; grams: number | null }>): Array<{ name: string; totalGrams: number | null }> {
+  const grouped = new Map<string, Array<number | null>>(dishNames.map((name) => [name, []]));
+  for (const ingredient of ingredients) grouped.set(ingredient.dishName, [...(grouped.get(ingredient.dishName) ?? []), ingredient.grams]);
+  return [...grouped].map(([name, grams]) => ({ name, totalGrams: grams.length > 0 && grams.every((value): value is number => value !== null && Number.isFinite(value)) ? grams.reduce((sum, value) => sum + value, 0) : null }));
+}
+
 export async function readPublicDepartment(token: string, selectedDate?: string, now = new Date()) {
   const [department, settings] = await Promise.all([prisma.department.findFirst({ where: { publicToken: token, status: "ACTIVE" }, select: { id: true, name: true } }), readOperationalSettings()]);
   if (!department) return null;
@@ -152,5 +158,5 @@ export async function readPublicDietMenu(dietCode?: string, selectedDate?: strin
   const shapedMeals = timelineMeals.map((meal) => { const items = parseMenuItems(meal.menuSnapshotJson); const publicMeal = publicDietMeal(meal); return { id: meal.id, status: meal.status, mealDate: meal.mealEvent.mealDate, at: serviceAt(meal.mealEvent.mealDate, meal.mealEvent.mealType.serviceTime), mealType: meal.mealEvent.mealType, dishes: [...new Set(items.map((item) => item.dishName))], ingredients: items.map((item) => ({ dishName: item.dishName, name: item.itemName.split(" (")[0].trim() || item.itemName, grams: Number.isFinite(item.grams) && item.grams > 0 ? item.grams : null })), patientVisibleNote: publicMeal.patientVisibleNote, evidence: settings.publicMenuImages ? meal.evidence.map((item) => ({ id: item.id, note: item.note, publicUrl: publicMealEvidenceUrl(item.id) })) : [] }; });
   const selectedKey = selected.toISOString().slice(0, 10);
   const mealWindow = selectPublicMealWindow(shapedMeals, now);
-  return { diets, departments: departments.map((department) => ({ id: department.id, name: department.name, token: department.publicToken })), selectedDiet, selectedDate: selectedKey, minDate: start.toISOString().slice(0, 10), maxDate: end.toISOString().slice(0, 10), advanceEntryDays: settings.advanceEntryDays, showImages: settings.publicMenuImages, showViewCount: settings.publicViewCountVisible, currentMeal: mealWindow.current, nextMeal: mealWindow.next, meals: shapedMeals.filter((meal) => meal.mealDate.toISOString().slice(0, 10) === selectedKey) };
+  return { diets, departments: departments.map((department) => ({ id: department.id, name: department.name, token: department.publicToken })), selectedDiet, selectedDate: selectedKey, minDate: start.toISOString().slice(0, 10), maxDate: end.toISOString().slice(0, 10), advanceEntryDays: settings.advanceEntryDays, showImages: settings.publicMenuImages, showDishes: settings.publicMenuDishes, showIngredients: settings.publicMenuDishes && settings.publicMenuIngredients, showViewCount: settings.publicViewCountVisible, currentMeal: mealWindow.current, nextMeal: mealWindow.next, meals: shapedMeals.filter((meal) => meal.mealDate.toISOString().slice(0, 10) === selectedKey) };
 }

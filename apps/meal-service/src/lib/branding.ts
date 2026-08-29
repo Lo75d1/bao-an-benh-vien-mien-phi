@@ -68,6 +68,38 @@ export function readableForeground(hex: string): "#FFFFFF" | "#17241F" {
   return whiteContrast >= darkContrast ? "#FFFFFF" : "#17241F";
 }
 
+export function contrastRatio(first: string, second: string): number {
+  const luminance = (hex: string) => {
+    const normalized = hex.replace("#", "");
+    const channels = [0, 2, 4].map((offset) => Number.parseInt(normalized.slice(offset, offset + 2), 16) / 255)
+      .map((value) => value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+    return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+  };
+  const [lighter, darker] = [luminance(first), luminance(second)].sort((a, b) => b - a);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+export function contrastSafeText(color: string, background = "#F8FBFD"): string {
+  if (contrastRatio(color, background) >= 4.5) return color;
+  for (let weight = 0.15; weight <= 0.9; weight += 0.05) {
+    const candidate = blendHex(color, "#000000", weight);
+    if (contrastRatio(candidate, background) >= 4.5) return candidate;
+  }
+  return readableForeground(background);
+}
+
+export function publicThemeTokens(primary: string, accent: string) {
+  const heroSurface = "#F8FBFD";
+  return {
+    primaryForeground: readableForeground(primary),
+    accentForeground: readableForeground(accent),
+    heroForeground: readableForeground(heroSurface),
+    heroPrimaryText: contrastSafeText(primary, heroSurface),
+    heroAccentText: contrastSafeText(accent, heroSurface),
+    border: readableForeground(primary) === "#FFFFFF" ? blendHex(primary, "#FFFFFF", 0.78) : blendHex(primary, "#000000", 0.15),
+  };
+}
+
 export function blendHex(hex: string, target: "#FFFFFF" | "#000000", targetWeight: number): string {
   const source = hex.replace("#", "");
   const destination = target.replace("#", "");

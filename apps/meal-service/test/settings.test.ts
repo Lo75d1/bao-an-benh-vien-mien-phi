@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { canApproveWarehouse, entryWindowEnd, parseOperationalSettings, routeVisible, validateMealTimes, validateOperationalSettings } from "../src/lib/settings";
+import { canApproveWarehouse, entryWindowEnd, parseOperationalSettings, routeVisible, validateMealTimes, validateOperationalSettings, visibleOperationalItems } from "../src/lib/settings";
 import { validateAccountInput } from "../src/lib/accounts";
 import { hashPassword, verifyPassword } from "../src/lib/password";
 import { validateMealTypeInput } from "../src/lib/meal-types";
-import { blendHex, parseBrandingSettings, readableForeground, validateBrandingSettings } from "../src/lib/branding";
+import { blendHex, contrastRatio, contrastSafeText, parseBrandingSettings, publicThemeTokens, readableForeground, validateBrandingSettings } from "../src/lib/branding";
 
 test("nhận diện bệnh viện giữ giá trị hợp lệ và tự chọn màu chữ tương phản", () => {
   const branding = parseBrandingSettings({ organizationName: "Bệnh viện An Bình", shortName: "AB", primaryColor: "#F3E8C8" });
@@ -87,4 +87,29 @@ test("mật khẩu lưu bằng scrypt, không chứa plaintext", () => {
   assert.equal(encoded.includes(password), false);
   assert.equal(verifyPassword(password, encoded), true);
   assert.equal(verifyPassword("sai-mat-khau", encoded), false);
+});
+
+test("lọc cữ vận hành theo cấu hình Sonde mà không xóa dữ liệu nguồn", () => {
+  const slots = [{ id: "sang", feedingRoute: "NORMAL" as const }, { id: "sonde-03", feedingRoute: "SONDE" as const }];
+  assert.deepEqual(visibleOperationalItems(slots, false).map((item) => item.id), ["sang"]);
+  assert.deepEqual(visibleOperationalItems(slots, true).map((item) => item.id), ["sang", "sonde-03"]);
+  assert.equal(slots.length, 2);
+});
+
+test("cấu hình public menu mặc định chỉ hiện món, không bung thành phần", () => {
+  const defaults = parseOperationalSettings(null);
+  assert.equal(defaults.publicMenuDishes, true);
+  assert.equal(defaults.publicMenuIngredients, false);
+  const hidden = parseOperationalSettings({ publicMenuDishes: false, publicMenuIngredients: true });
+  assert.equal(hidden.publicMenuDishes, false);
+  assert.equal(hidden.publicMenuIngredients, true);
+});
+
+test("token trang công khai giữ tương phản chữ trên màu sáng và tối", () => {
+  assert.ok(contrastRatio(contrastSafeText("#F2C94C"), "#F8FBFD") >= 4.5);
+  const light = publicThemeTokens("#E3F0FA", "#F2C94C");
+  assert.equal(light.primaryForeground, "#17241F");
+  assert.ok(contrastRatio(light.heroPrimaryText, "#F8FBFD") >= 4.5);
+  assert.ok(contrastRatio(light.heroAccentText, "#F8FBFD") >= 4.5);
+  assert.equal(publicThemeTokens("#153B5B", "#2F80B7").primaryForeground, "#FFFFFF");
 });
