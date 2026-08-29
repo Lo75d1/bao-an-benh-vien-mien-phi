@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { readOperationalSettings } from "@/lib/settings";
 import { foodRetentionLabel } from "@/lib/food-retention";
 import { readDemoSession } from "@/lib/demo-session";
-import { buildHandoffSnapshots } from "@/lib/meal-handoff";
+import { deriveHandoffSnapshots } from "@/lib/meal-handoff";
 
 
 const eventInclude = {
@@ -117,8 +117,7 @@ export async function readKitchenWorkspace(requestedMealId?: string, feedingRout
   const prepared = selected.dietMeals.length > 0 && selected.dietMeals.every((meal) => meal.status === "PREPARED");
   const handoffReports = selected.reports.map((report) => ({ departmentId: report.departmentId, quantities: report.lines.map((line) => line.quantity) }));
   const handoffAdditions = selected.additions.filter((addition) => addition.ackStatus === "RECEIVED" || addition.ackStatus === "SUBSTITUTE").map((addition) => ({ departmentId: addition.departmentId, quantity: addition.quantity }));
-  const hasHandoffQuantity = handoffReports.some((report) => report.quantities.some((quantity) => quantity > 0)) || handoffAdditions.some((addition) => addition.quantity > 0);
-  const handoffSnapshots = prepared && hasHandoffQuantity ? buildHandoffSnapshots({ route: selected.mealType.feedingRoute, dietStatuses: selected.dietMeals.map((meal) => meal.status), reports: handoffReports, additions: handoffAdditions }, feedingRoute) : [];
+  const handoffSnapshots = deriveHandoffSnapshots({ route: selected.mealType.feedingRoute, dietStatuses: prepared ? selected.dietMeals.map((meal) => meal.status) : [], reports: handoffReports, additions: handoffAdditions }, feedingRoute);
   const departmentNames = new Map([...selected.reports.map((report) => [report.departmentId, report.department.name] as const), ...selected.additions.map((addition) => [addition.departmentId, addition.department.name] as const)]);
   const existingHandoffs = new Map(selected.mealHandoffs.map((handoff) => [handoff.departmentId, handoff]));
   const handoffs = handoffSnapshots.map((snapshot) => { const existing = existingHandoffs.get(snapshot.departmentId); return { departmentId: snapshot.departmentId, departmentName: existing?.department.name ?? departmentNames.get(snapshot.departmentId) ?? "—", quantity: existing?.quantity ?? snapshot.quantity, handedOffAt: existing?.handedOffAt.toISOString() ?? null, handedOffBy: existing?.handedOffBy.displayName ?? null }; });
