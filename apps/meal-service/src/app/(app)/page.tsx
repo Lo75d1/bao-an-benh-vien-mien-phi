@@ -11,6 +11,7 @@ import { readPublicDietMenu } from "@/lib/patient-note";
 import { readPublicViewStats } from "@/lib/public-page-views";
 import { PublicViewTracker } from "@/components/public-view-tracker";
 import { submitPublicPatientNoteAction } from "@/app/patient-note-actions";
+import { readSetupCompletion } from "@/lib/first-time-setup";
 
 const dateLabel = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
 const numberFormat = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
@@ -18,7 +19,11 @@ const numberFormat = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ diet?: string; date?: string; patient?: string; note?: string }> }) {
   const query = await searchParams;
   const [user, branding, menu, views] = await Promise.all([getSessionUser({ allowPasswordChange: true }), readBrandingSettings(), readPublicDietMenu(query.diet, query.date), readPublicViewStats()]);
-  if (user) redirect(user.mustChangePassword ? "/ho-so?first=1" : { ADMIN: "/quan-ly", DIETITIAN: "/quan-ly", NURSE: "/bao-suat", KITCHEN: "/bep" }[user.role]);
+  if (user) {
+    if (user.mustChangePassword) redirect("/ho-so?first=1");
+    if (user.role === "ADMIN" && !await readSetupCompletion()) redirect("/thiet-lap-ban-dau");
+    redirect({ ADMIN: "/quan-ly", DIETITIAN: "/quan-ly", NURSE: "/bao-suat", KITCHEN: "/bep" }[user.role]);
+  }
 
   const publicForeground = readableForeground(branding.publicPrimaryColor);
   const publicStyle = { "--public-primary": branding.publicPrimaryColor, "--public-accent": branding.publicAccentColor, "--public-primary-foreground": publicForeground, "--primary": branding.publicPrimaryColor, "--primary-foreground": publicForeground, "--accent": branding.publicAccentColor, "--accent-foreground": readableForeground(branding.publicAccentColor), "--ring": branding.publicAccentColor, "--brand-surface": branding.publicPrimaryColor, "--brand-foreground": publicForeground, "--secondary": blendHex(branding.publicPrimaryColor, "#FFFFFF", .9) } as CSSProperties;

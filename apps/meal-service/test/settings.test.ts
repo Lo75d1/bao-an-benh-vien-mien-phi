@@ -32,6 +32,7 @@ test("cấu hình lượt xem mặc định hiển thị và đọc được tr�
 });
 
 test("setting giờ chốt chỉ nhận HH:mm hợp lệ", () => {
+  assert.deepEqual(validateMealTimes([]), []);
   assert.deepEqual(validateMealTimes([{ id: "breakfast", cutoffTime: "05:30", serviceTime: "06:30" }])[0].cutoffTime, "05:30");
   assert.throws(() => validateMealTimes([{ id: "breakfast", cutoffTime: "25:00", serviceTime: "06:30" }]));
 });

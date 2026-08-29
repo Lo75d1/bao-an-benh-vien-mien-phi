@@ -9,11 +9,13 @@ import { clampDateToDataStart, readOperationalSettings } from "@/lib/settings";
 import { readRequestClock } from "@/lib/request-clock";
 import { prisma } from "@/lib/prisma";
 import { VoiceNotificationControl } from "@/components/voice-notification-control";
+import { readSetupCompletion } from "@/lib/first-time-setup";
 import { ManagementBoard } from "./management-board";
 
 const shortDate = new Intl.DateTimeFormat("vi-VN", { timeZone: "UTC", weekday: "short", day: "2-digit", month: "2-digit" });
 export default async function ManagementPage({ searchParams }: { searchParams: Promise<{ date?: string; meal?: string }> }) {
   const user = await getSessionUser(); if (!user || !["ADMIN", "DIETITIAN"].includes(user.role)) redirect("/");
+  if (user.role === "ADMIN" && !await readSetupCompletion()) redirect("/thiet-lap-ban-dau");
   const [query, settings, clock] = await Promise.all([searchParams, readOperationalSettings(), readRequestClock()]);
   if (!clock.simulated) await synchronizeSystemTimeline(user, clock.now);
   const selected = clampDateToDataStart(query.date ?? hospitalDayKey(clock.now), settings.dataStartDate);

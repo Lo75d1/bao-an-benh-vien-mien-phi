@@ -15,6 +15,7 @@ import { DietTypeTable } from "./diet-type-table";
 import { MealTypeTable } from "./meal-type-table";
 import { DepartmentTable } from "./department-table";
 import { OfficialSyncStatus } from "./official-sync-status";
+import { readSetupCompletion } from "@/lib/first-time-setup";
 
 const roleLabel = { ADMIN: "Quản trị", DIETITIAN: "Dinh dưỡng", NURSE: "Điều dưỡng", KITCHEN: "Nhà bếp" } as const;
 const messages: Record<string, string> = { branding: "Đã cập nhật nhận diện bệnh viện trên toàn hệ thống.", settings: "Đã áp dụng cấu hình và ghi nhật ký.", "data-sync": "Đã đưa tác vụ cập nhật dữ liệu chính thức vào hàng đợi.", created: "Đã tạo tài khoản với mật khẩu được băm scrypt.", account: "Đã cập nhật tài khoản.", status: "Đã đổi trạng thái tài khoản, không xóa lịch sử.", department: "Đã lưu khoa điều trị.", "department-status": "Đã đổi trạng thái khoa, không xóa lịch sử.", diet: "Đã lưu mã chế độ ăn.", "diet-status": "Đã đổi trạng thái mã chế độ ăn, không xóa lịch sử.", meal: "Đã lưu bữa ăn.", "meal-status": "Đã đổi trạng thái bữa ăn, lịch sử cũ được giữ nguyên." };
@@ -23,6 +24,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const user = await getSessionUser();
   if (!user) redirect("/");
   if (user.role !== "ADMIN") redirect("/");
+  if (!await readSetupCompletion()) redirect("/thiet-lap-ban-dau");
   const [{ updated, sync, syncJob }, branding, settings, viewStats, mealTypes, users, departments, dietTypes, dietCodes] = await Promise.all([
     searchParams,
     readBrandingSettings(),

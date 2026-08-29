@@ -58,7 +58,6 @@ export function validateOperationalSettings(input: OperationalSettings): Operati
 }
 
 export function validateMealTimes(items: MealTimeInput[]): MealTimeInput[] {
-  if (!items.length) throw new Error("Chưa có bữa ăn để cấu hình giờ.");
   return items.map((item) => {
     if (!item.id || !TIME_PATTERN.test(item.cutoffTime) || !TIME_PATTERN.test(item.serviceTime)) throw new Error("Giờ chốt và giờ ăn phải có dạng HH:mm.");
     return { ...item };
