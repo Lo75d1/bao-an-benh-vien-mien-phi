@@ -14,7 +14,7 @@ import { useBranding } from "@/components/branding-context";
 const ROLE_LABEL = { ADMIN: "Quản trị", DIETITIAN: "Dinh dưỡng", NURSE: "Điều dưỡng", KITCHEN: "Nhà bếp" } as const;
 type NavItem = { href: string; label: string };
 const NAVIGATION: Record<SessionUser["role"], NavItem[]> = {
-  ADMIN: [{ href: "/quan-ly", label: "Điều hành" }, { href: "/lich", label: "Lịch tuần" }, { href: "/kho", label: "Kho" }, { href: "/bao-cao", label: "Báo cáo" }, { href: "/quan-tri", label: "Quản trị" }],
+  ADMIN: [{ href: "/quan-ly", label: "Điều hành" }, { href: "/thuc-don", label: "Thực đơn" }, { href: "/lich", label: "Lịch tuần" }, { href: "/kho", label: "Kho" }, { href: "/bao-cao", label: "Báo cáo" }, { href: "/quan-tri", label: "Quản trị" }],
   DIETITIAN: [{ href: "/quan-ly", label: "Vận hành" }, { href: "/thuc-don", label: "Thực đơn" }, { href: "/lich", label: "Lịch tuần" }, { href: "/kho", label: "Kho" }, { href: "/bao-cao", label: "Báo cáo" }],
   NURSE: [{ href: "/bao-suat", label: "Báo suất" }, { href: "/lich", label: "Lịch tuần" }, { href: "/bao-cao", label: "Báo cáo" }],
   KITCHEN: [{ href: "/bep", label: "Bếp" }, { href: "/lich", label: "Lịch tuần" }, { href: "/kho", label: "Kho" }, { href: "/bao-cao", label: "Báo cáo" }],

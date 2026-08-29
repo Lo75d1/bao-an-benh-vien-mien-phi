@@ -12,6 +12,7 @@ import { entryWindowEnd, readOperationalSettings } from "@/lib/settings";
 import { formatVnDay } from "@/lib/presentation";
 import { readRequestClock } from "@/lib/request-clock";
 import { saveMenusAction, saveTemplateAction } from "./actions";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 function thresholdsOf(code: { energyKcalMin: number | null; energyKcalMax: number | null; proteinGMin: number | null; proteinGMax: number | null; lipidGMin: number | null; lipidGMax: number | null; glucidGMin: number | null; glucidGMax: number | null; sodiumMgMin: number | null; sodiumMgMax: number | null; potassiumMgMin: number | null; potassiumMgMax: number | null; waterGMin: number | null; waterGMax: number | null; mealsMin: number | null; mealsMax: number | null } | null) {
   return code ? { ...code } : null;
@@ -22,7 +23,7 @@ export const dynamic = "force-dynamic";
 export default async function MenuPage({ searchParams }: { searchParams: Promise<{ meal?: string; saved?: string; route?: string }> }) {
   const user = await getSessionUser();
   if (!user) redirect("/");
-  if (user.role !== "DIETITIAN") redirect("/");
+  if (user.role !== "DIETITIAN" && user.role !== "ADMIN") redirect("/");
   const params = await searchParams;
   const [settings, clock] = await Promise.all([readOperationalSettings(), readRequestClock()]);
   const [meals, templates] = await Promise.all([
@@ -52,16 +53,16 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   const message = params.saved === "menus" || params.saved === "menu" ? "Đã lưu thực đơn. Hệ thống sẽ tự khóa khi tới giờ chốt." : params.saved === "template" ? "Đã lưu mẫu cá nhân." : null;
   return <AppShell user={user}><main className="nutrition-menu-page">
     {message ? <p className="success-banner" role="status">{message}</p> : null}
-    <section className="nutrition-meal-picker" aria-label="Chọn bữa để lên thực đơn">
-      <header><div><CalendarDays aria-hidden="true"/><span><strong>Chọn bữa cần lên thực đơn</strong><small>Hai lịch ăn thường và Sonde vận hành độc lập.</small></span></div><nav aria-label="Chọn đường nuôi"><Link href="/thuc-don?route=NORMAL" aria-current={selected.feedingRoute === "NORMAL" ? "page" : undefined}>Bếp ăn thường</Link>{settings.sondeEnabled ? <Link href="/thuc-don?route=SONDE" aria-current={selected.feedingRoute === "SONDE" ? "page" : undefined}>Bếp Sonde</Link> : null}</nav></header>
-      <div className="nutrition-meal-options">{eventGroups.filter((group) => group[0].feedingRoute === selected.feedingRoute).map((group) => {
+    <section className="nutrition-meal-context" aria-label="Bữa đang lên thực đơn" data-demo-guide="nutrition-picker">
+      <div><CalendarDays aria-hidden="true"/><span><small>Bữa đang làm · {selected.feedingRoute === "SONDE" ? "Bếp Sonde" : "Bếp ăn thường"}</small><strong>{formatVnDay(selected.mealEvent.mealDate)} · {selected.mealEvent.mealType.name}</strong></span></div>
+      <Dialog><DialogTrigger asChild><button type="button" className="secondary-button">Chọn bữa</button></DialogTrigger><DialogContent className="nutrition-meal-dialog"><DialogHeader><DialogTitle>Chọn ngày và bữa cần lên thực đơn</DialogTitle><DialogDescription>Hai lịch ăn thường và Sonde vận hành độc lập. Chọn một ô để chuyển bàn làm việc.</DialogDescription></DialogHeader><nav className="nutrition-route-tabs" aria-label="Chọn đường nuôi"><Link href="/thuc-don?route=NORMAL" aria-current={selected.feedingRoute === "NORMAL" ? "page" : undefined}>Bếp ăn thường</Link>{settings.sondeEnabled ? <Link href="/thuc-don?route=SONDE" aria-current={selected.feedingRoute === "SONDE" ? "page" : undefined}>Bếp Sonde</Link> : null}</nav><div className="nutrition-meal-options">{eventGroups.filter((group) => group[0].feedingRoute === selected.feedingRoute).map((group) => {
         const first = group[0];
         const filled = group.filter((meal) => parseMenuItems(meal.menuSnapshotJson).length > 0).length;
         const phase = mealTimePhase(first.mealEvent.mealDate, first.mealEvent.mealType.cutoffTime, first.mealEvent.mealType.serviceTime, clock.now);
         const locked = phase !== "BEFORE_CUTOFF";
         const complete = filled === group.length;
         return <Link key={first.mealEventId} href={`/thuc-don?meal=${encodeURIComponent(first.id)}`} aria-current={first.mealEventId === selected.mealEventId ? "true" : undefined}><span><strong>{formatVnDay(first.mealEvent.mealDate)}</strong><small>{first.mealEvent.mealType.name}</small></span><span className={complete ? "meal-picker-state complete" : "meal-picker-state missing"}>{complete ? <CheckCircle2 aria-hidden="true"/> : <CircleAlert aria-hidden="true"/>}{filled}/{group.length} mã</span><span className={locked ? "meal-picker-lock locked" : "meal-picker-lock"}>{locked ? <LockKeyhole aria-hidden="true"/> : null}{locked ? "Đã khóa" : "Còn sửa"}</span></Link>;
-      })}</div>
+      })}</div></DialogContent></Dialog>
     </section>
     {!relatedMeals.length ? <EmptyState icon={Utensils} title="Bữa chưa có mã chế độ ăn" description="Quay lại lịch tuần hoặc nhờ quản trị bổ sung mã cho bữa này."/> : <MultiCodeMenuBoard
       context={{ eventId: selected.mealEventId, date: formatVnDay(selected.mealEvent.mealDate), mealName: selected.mealEvent.mealType.name, feedingRoute: selected.feedingRoute }} dataStartDate={settings.dataStartDate}
