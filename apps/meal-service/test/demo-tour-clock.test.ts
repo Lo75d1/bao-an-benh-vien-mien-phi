@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  applyDemoTourMealContext,
   demoTourRoute,
   demoTourStageInstant,
 } from "../src/lib/demo-tour-clock";
@@ -24,4 +25,18 @@ test("Bếp Sonde dùng lịch SONDE, các workspace còn lại dùng NORMAL", (
   assert.equal(demoTourRoute("NURSE"), "NORMAL");
   assert.equal(demoTourRoute("DIETITIAN"), "NORMAL");
   assert.equal(demoTourRoute("ADMIN"), "NORMAL");
+});
+
+test("tour khóa đúng bữa theo từng workspace", () => {
+  const context = { route: "NORMAL" as const, mealEventId: "event-trua", dietMealId: "diet-thuong", mealDate: "2026-08-29", serviceTime: "11:30" };
+  const nurse = new URL("https://demo.local/bao-suat");
+  applyDemoTourMealContext(nurse, "NURSE", context);
+  assert.equal(nurse.searchParams.get("meal"), "event-trua");
+  const dietitian = new URL("https://demo.local/thuc-don");
+  applyDemoTourMealContext(dietitian, "DIETITIAN", context);
+  assert.equal(dietitian.searchParams.get("meal"), "diet-thuong");
+  const admin = new URL("https://demo.local/quan-ly");
+  applyDemoTourMealContext(admin, "ADMIN", context);
+  assert.equal(admin.searchParams.get("date"), "2026-08-29");
+  assert.equal(admin.searchParams.get("meal"), "11:30");
 });

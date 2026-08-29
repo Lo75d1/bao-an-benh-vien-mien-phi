@@ -29,7 +29,7 @@ function criteria(value: unknown) {
   return value.criteria.flatMap((entry) => { if (!entry || typeof entry !== "object") return []; const row = entry as Record<string, unknown>; if (typeof row.label !== "string") return []; return [{ label: row.label, status: typeof row.status === "string" ? row.status : "MISSING", actual: typeof row.actual === "number" ? row.actual : null, target: typeof row.target === "string" ? row.target : "—" }]; });
 }
 
-export default async function ServingReportPage({ searchParams }: { searchParams: Promise<{ saved?: string; route?: string; demoNow?: string; demoTour?: string }> }) {
+export default async function ServingReportPage({ searchParams }: { searchParams: Promise<{ saved?: string; route?: string; meal?: string; demoNow?: string; demoTour?: string }> }) {
   const user = await getSessionUser(); if (!user) redirect("/"); if (user.role !== "NURSE") redirect("/");
   const params = await searchParams;
   const requestedRoute = params.route === "SONDE" ? "SONDE" : "NORMAL";
@@ -39,7 +39,8 @@ export default async function ServingReportPage({ searchParams }: { searchParams
   const routeSwitch = <Tabs value={data.route} className="nurse-route-switch"><TabsList aria-label="Chọn luồng báo suất"><TabsTrigger value="NORMAL" asChild><Link href="/bao-suat?route=NORMAL">Ăn thường</Link></TabsTrigger>{data.sondeEnabled ? <TabsTrigger value="SONDE" asChild><Link href="/bao-suat?route=SONDE">Qua Sonde</Link></TabsTrigger> : null}</TabsList></Tabs>;
   // Mốc giờ lấy từ nguồn sự thật duy nhất (lib/meal-events) — dùng chung với bếp, lịch và admin.
   const phaseOf = (event: (typeof data.events)[number]) => mealTimePhase(event.mealDate, event.mealType.cutoffTime, event.mealType.serviceTime, clock.now, data.serviceCompletionMinutes);
-  const currentEvent = pickReportingMeal(data.events.map((event) => ({ ...event, cutoffTime: event.mealType.cutoffTime, serviceTime: event.mealType.serviceTime })), clock.now, data.serviceCompletionMinutes);
+  const tourEvent = params.demoTour === "1" ? data.events.find((item) => item.id === params.meal) : null;
+  const currentEvent = tourEvent ?? pickReportingMeal(data.events.map((event) => ({ ...event, cutoffTime: event.mealType.cutoffTime, serviceTime: event.mealType.serviceTime })), clock.now, data.serviceCompletionMinutes);
   const currentPhase = currentEvent ? phaseOf(currentEvent) : null;
   const dayOver = !currentEvent || currentPhase === "PASSED";
   const selectedIndex = Math.max(0, data.events.findIndex((event) => event.id === currentEvent?.id));

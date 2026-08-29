@@ -11,6 +11,7 @@ import {
 } from "@/lib/demo-tour";
 import type { DemoWorkspace } from "@/lib/demo-session";
 import { DEMO_TIME_PARAM, DEMO_TOUR_TIME_PARAM } from "@/lib/page-demo-time";
+import { applyDemoTourMealContext } from "@/lib/demo-tour-clock";
 
 const EMPTY_PROGRESS: DemoTourWorkspaceProgress = {
   status: "NOT_STARTED",
@@ -25,6 +26,10 @@ type TourClock = {
   responsibility: string;
   cutoffTime: string;
   serviceTime: string;
+  route: "NORMAL" | "SONDE";
+  mealEventId: string;
+  dietMealId: string | null;
+  mealDate: string;
 };
 
 function workspaceOf(user: SessionUser): DemoWorkspace | null {
@@ -138,7 +143,7 @@ export function DemoGuide({ user }: { user: SessionUser }) {
   }, [workspace]);
 
   useEffect(() => {
-    if (!open || !step || pathname !== step.href) return;
+    if (!workspace || !open || !step || pathname !== step.href) return;
     let active = true;
     let readyTimer: number | undefined;
     queueMicrotask(() => {
@@ -157,13 +162,18 @@ export function DemoGuide({ user }: { user: SessionUser }) {
         if (!active) return;
         setTourClock(body);
         const url = new URL(window.location.href);
+        const contextApplied = workspace === "ADMIN"
+          ? url.searchParams.get("date") === body.mealDate && url.searchParams.get("meal") === body.serviceTime
+          : url.searchParams.get("meal") === (workspace === "DIETITIAN" ? body.dietMealId : body.mealEventId);
         const alreadyApplied =
           url.searchParams.get(DEMO_TIME_PARAM) === body.nowIso &&
-          url.searchParams.get(DEMO_TOUR_TIME_PARAM) === "1";
+          url.searchParams.get(DEMO_TOUR_TIME_PARAM) === "1" &&
+          contextApplied;
         if (alreadyApplied) {
           setClockReady(true);
           return;
         }
+        applyDemoTourMealContext(url, workspace, body);
         url.searchParams.set(DEMO_TIME_PARAM, body.nowIso);
         url.searchParams.set(DEMO_TOUR_TIME_PARAM, "1");
         router.replace(`${url.pathname}${url.search}${url.hash}`, {
@@ -188,7 +198,7 @@ export function DemoGuide({ user }: { user: SessionUser }) {
       active = false;
       if (readyTimer) window.clearTimeout(readyTimer);
     };
-  }, [open, pathname, router, step]);
+  }, [open, pathname, router, step, workspace]);
 
   const advance = useCallback(async () => {
     if (!workspace || progress.status !== "ACTIVE" || advancing.current) return;

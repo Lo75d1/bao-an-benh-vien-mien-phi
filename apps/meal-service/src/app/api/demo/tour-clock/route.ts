@@ -32,7 +32,14 @@ export async function GET(request: Request) {
       orderBy: [{ mealDate: "desc" }],
       take: 40,
       select: {
+        id: true,
         mealDate: true,
+        dietMeals: {
+          where: { voidedAt: null, feedingRoute: route },
+          orderBy: { dietType: { sortOrder: "asc" } },
+          take: 1,
+          select: { id: true },
+        },
         mealType: {
           select: {
             name: true,
@@ -73,5 +80,8 @@ export async function GET(request: Request) {
     cutoffTime: event.mealType.cutoffTime,
     serviceTime: event.mealType.serviceTime,
     route,
+    mealEventId: event.id,
+    dietMealId: event.dietMeals[0]?.id ?? null,
+    mealDate: event.mealDate.toISOString().slice(0, 10),
   });
 }

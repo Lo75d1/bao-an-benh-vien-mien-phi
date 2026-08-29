@@ -23,6 +23,23 @@ export function demoTourRoute(workspace: DemoWorkspace): FeedingRoute {
   return workspace === "KITCHEN_SONDE" ? "SONDE" : "NORMAL";
 }
 
+export type DemoTourMealContext = {
+  route: FeedingRoute;
+  mealEventId: string;
+  dietMealId: string | null;
+  mealDate: string;
+  serviceTime: string;
+};
+
+export function applyDemoTourMealContext(url: URL, workspace: DemoWorkspace, clock: DemoTourMealContext) {
+  url.searchParams.set("route", clock.route);
+  if (workspace === "DIETITIAN" && clock.dietMealId) url.searchParams.set("meal", clock.dietMealId);
+  else if (workspace === "ADMIN") {
+    url.searchParams.set("date", clock.mealDate);
+    url.searchParams.set("meal", clock.serviceTime);
+  } else url.searchParams.set("meal", clock.mealEventId);
+}
+
 export function demoTourStageInstant(
   mealDate: Date,
   cutoffTime: string,
