@@ -27,7 +27,13 @@ export function PasswordForm({ required = false, role }: { required?: boolean; r
     if (state.status === "success") { formRef.current?.reset(); reset(); if (required) window.location.assign(workspaceForRole(role)); }
   }, [required, reset, role, state.status]);
 
-  const submit = handleSubmit((_values, event) => { const form = event?.currentTarget; if (form instanceof HTMLFormElement) { const data = new FormData(form); startTransition(() => formAction(data)); } });
+  const submit = handleSubmit((values) => {
+    const data = new FormData();
+    data.set("currentPassword", values.currentPassword);
+    data.set("newPassword", values.newPassword);
+    data.set("confirmPassword", values.confirmPassword);
+    startTransition(() => formAction(data));
+  });
 
   return (
     <form ref={formRef} onSubmit={submit} noValidate className="grid gap-5">
