@@ -34,6 +34,17 @@ test("điều dưỡng giữ bữa đang phục vụ, hết giờ mới chuyển
   assert.equal(next?.at.toISOString(), "2026-08-23T07:00:00.000Z");
 });
 
+test("điều dưỡng giữ bữa sáng đang chuẩn bị thay vì nhảy sang bữa trưa còn nhận báo", () => {
+  const meals = [
+    { id: "sang", mealDate: day, cutoffTime: "05:00", serviceTime: "06:30" },
+    { id: "trua", mealDate: day, cutoffTime: "09:00", serviceTime: "11:30" },
+  ];
+  const preparingBreakfast = new Date("2026-08-22T22:25:00.000Z"); // 05:25 VN
+  assert.equal(mealTimePhase(day, "05:00", "06:30", preparingBreakfast), "PREPARING");
+  assert.equal(mealTimePhase(day, "09:00", "11:30", preparingBreakfast), "BEFORE_CUTOFF");
+  assert.equal(pickReportingMeal(meals, preparingBreakfast)?.id, "sang");
+});
+
 test("sự kiện tiếp theo ưu tiên phục vụ chiều nay trước giờ chốt sáng mai", () => {
   const meals = [
     { id: "chieu-nay", mealDate: day, cutoffTime: "14:00", serviceTime: "17:00" },
