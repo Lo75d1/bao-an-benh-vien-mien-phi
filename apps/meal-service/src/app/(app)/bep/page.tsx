@@ -44,7 +44,7 @@ export default async function KitchenPage({ searchParams }: { searchParams: Prom
   const unreadNotes = notes.filter((note) => !note.acknowledged).length;
   const notifications = [...(pendingAdditions ? [{ id: "pending-additions", label: `${pendingAdditions} suất bổ sung chờ xác nhận`, detail: "Xác nhận khả năng chuẩn bị trước khi tính vào bữa" }] : []), ...(unreadNotes ? [{ id: "unread-notes", label: `${unreadNotes} ghi chú chưa đọc`, detail: "Ghi chú đã được điều dưỡng duyệt" }] : [])];
   const voiceEvents = [
-    ...(meal && phase === "PREPARING" ? [{ key: `phase:${hospitalDayKey(meal.mealDate)}:${meal.id}:${kitchenRoute}:PREPARING`, message: "Đã đến thời gian chuẩn bị suất ăn. Vui lòng kiểm tra số lượng." }] : []),
+    ...(meal && phase === "PREPARING" ? [{ key: `phase:${hospitalDayKey(meal.mealDate)}:${meal.id}:${kitchenRoute}:PREPARING`, message: "Đã đến thời gian chuẩn bị suất ăn. Vui lòng kiểm tra số lượng.", announceOnEnable: true }] : []),
     ...(meal?.additions.filter((item) => item.ackStatus === "PENDING").map((item) => ({ key: `addition:${hospitalDayKey(meal.mealDate)}:${meal.id}:${kitchenRoute}:${item.id}`, message: "Có báo bổ sung suất ăn mới. Vui lòng kiểm tra." })) ?? []),
   ];
   const voiceControl = <VoiceNotificationControl workspace="kitchen" scope={kitchenRoute} events={voiceEvents}/>;

@@ -61,7 +61,7 @@ export default async function ServingReportPage({ searchParams }: { searchParams
   const lifecycleEvent = dayOver ? data.events[0] : currentEvent;
   const notifications = [...(pendingNotes.length ? [{ id: "patient-notes", label: `${pendingNotes.length} ghi chú chờ xác nhận`, detail: "Cần xác nhận trước khi chuyển tới bếp" }] : []), ...(event && report && (currentPhase === "SERVING" || currentPhase === "PASSED") && !receipt ? receiptAvailability.status === "WAITING_HANDOFF" ? [{ id: "delivery-handoff", label: `${event.mealType.name}: chờ Bếp bàn giao`, detail: "Khoa sẽ xác nhận đủ hoặc thiếu sau khi Bếp bàn giao" }] : [{ id: "delivery-receipt", label: `${event.mealType.name}: chưa xác nhận nhận suất`, detail: "Xác nhận nhận đủ hoặc nhận thiếu" }] : [])];
   const voiceEvents = [
-    ...(currentEvent && currentPhase === "BEFORE_CUTOFF" ? [{ key: `phase:${hospitalDayKey(currentEvent.mealDate)}:${currentEvent.id}:${data.route}:${data.departmentId}:BEFORE_CUTOFF`, message: "Đã đến thời gian báo suất ăn. Vui lòng kiểm tra và gửi báo suất." }] : []),
+    ...(currentEvent && currentPhase === "BEFORE_CUTOFF" ? [{ key: `phase:${hospitalDayKey(currentEvent.mealDate)}:${currentEvent.id}:${data.route}:${data.departmentId}:BEFORE_CUTOFF`, message: "Đã đến thời gian báo suất ăn. Vui lòng kiểm tra và gửi báo suất.", announceOnEnable: true }] : []),
     ...(event && handoff ? [{ key: `handoff:${hospitalDayKey(event.mealDate)}:${event.id}:${data.route}:${data.departmentId}`, message: "Bếp đã bàn giao suất ăn. Vui lòng kiểm tra và xác nhận số lượng." }] : []),
   ];
   const voiceControl = <VoiceNotificationControl workspace="nurse" scope={`${data.departmentId}:${data.route}`} events={voiceEvents}/>;

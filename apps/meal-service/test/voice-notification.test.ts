@@ -24,3 +24,8 @@ test("baseline lần đầu ghi nhận record hiện có mà không tạo event 
   assert.deepEqual(baseline, [events[0].key]);
   assert.deepEqual(unseenVoiceEvents(baseline, events), []);
 });
+
+test("chỉ phase được đánh dấu mới đọc ngay khi bật", () => {
+  const events = [{ key: "phase:meal-1", message: "phase", announceOnEnable: true }, { key: "handoff:meal-1", message: "handoff" }];
+  assert.deepEqual(events.filter((event) => event.announceOnEnable).map((event) => event.message), ["phase"]);
+});

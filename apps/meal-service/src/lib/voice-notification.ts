@@ -1,6 +1,7 @@
 export type VoiceNotificationEvent = {
   key: string;
   message: string;
+  announceOnEnable?: boolean;
 };
 
 export function voiceEventKeys(events: VoiceNotificationEvent[]) {
