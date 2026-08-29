@@ -39,6 +39,13 @@ export type DemoReceipt = {
   confirmedAt: string;
   confirmedBy: string;
 };
+export type DemoHandoff = {
+  mealEventId: string;
+  departmentId: string;
+  quantity: number;
+  handedOffAt: string;
+  handedOffBy: string;
+};
 export type DemoEvidence = {
   kind: "MEAL_PHOTO" | "FOOD_SAMPLE";
   dietMealId?: string;
@@ -65,6 +72,7 @@ export type DemoAddition = {
 export type DemoSessionState = {
   reports: DemoReport[];
   receipts: DemoReceipt[];
+  handoffs: DemoHandoff[];
   dietStatuses: Record<string, string>;
   evidence: DemoEvidence[];
   additions: DemoAddition[];
@@ -74,6 +82,7 @@ export type DemoSessionState = {
 export const emptyDemoState = (): DemoSessionState => ({
   reports: [],
   receipts: [],
+  handoffs: [],
   dietStatuses: {},
   evidence: [],
   additions: [],
@@ -137,6 +146,7 @@ function parseState(value: unknown): DemoSessionState {
   return {
     reports: Array.isArray(state.reports) ? state.reports : [],
     receipts: Array.isArray(state.receipts) ? state.receipts : [],
+    handoffs: Array.isArray(state.handoffs) ? state.handoffs : [],
     dietStatuses:
       state.dietStatuses &&
       typeof state.dietStatuses === "object" &&
