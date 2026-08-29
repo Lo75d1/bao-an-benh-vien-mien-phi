@@ -1,25 +1,31 @@
-export type OperationalVoiceEvent = {
-  id: string;
-  scope: "NORMAL" | "SONDE";
+export type VoiceNotificationEvent = {
+  key: string;
+  message: string;
 };
 
-export function voiceEventKeys(events: OperationalVoiceEvent[]) {
-  return events.map((event) => `${event.scope}:${event.id}`);
+export function voiceEventKeys(events: VoiceNotificationEvent[]) {
+  return events.map((event) => event.key);
 }
 
-export function unseenVoiceEvents(previousIds: Iterable<string>, events: OperationalVoiceEvent[]) {
+export function unseenVoiceEvents(previousIds: Iterable<string>, events: VoiceNotificationEvent[]) {
   const seen = new Set(previousIds);
-  return events.filter((event) => !seen.has(`${event.scope}:${event.id}`));
+  return events.filter((event) => !seen.has(event.key));
 }
 
-export function speakVietnamese(text: string) {
+export function mergeVoiceEventKeys(previousIds: Iterable<string>, events: VoiceNotificationEvent[]) {
+  return [...new Set([...previousIds, ...voiceEventKeys(events)])];
+}
+
+export function speakVietnamese(messages: string | string[]) {
   if (typeof window === "undefined" || !("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined") return false;
   try {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "vi-VN";
     const voice = window.speechSynthesis.getVoices().find((item) => item.lang.toLowerCase().startsWith("vi"));
-    if (voice) utterance.voice = voice;
-    window.speechSynthesis.speak(utterance);
+    for (const message of typeof messages === "string" ? [messages] : messages) {
+      const utterance = new SpeechSynthesisUtterance(message);
+      utterance.lang = "vi-VN";
+      if (voice) utterance.voice = voice;
+      window.speechSynthesis.speak(utterance);
+    }
     return true;
   } catch {
     return false;
