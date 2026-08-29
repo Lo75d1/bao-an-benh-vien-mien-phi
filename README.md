@@ -23,7 +23,7 @@ Hệ thống mã nguồn mở hỗ trợ bệnh viện quản lý một luồng 
 
 ```bash
 cp .env.example .env
-docker compose up -d --build
+sh scripts/compose-env.sh up -d --build
 ```
 
 Trước khi chạy, thay toàn bộ giá trị mẫu trong `.env`, đặc biệt là mật khẩu PostgreSQL, mật khẩu quản trị đầu tiên và hai salt. `DATABASE_URL` dùng hostname `db` khi chạy trong Compose.

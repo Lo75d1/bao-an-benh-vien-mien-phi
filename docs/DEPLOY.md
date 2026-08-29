@@ -19,17 +19,22 @@ Gán lần lượt cho `PATIENT_NOTE_IP_SALT` và `AUTH_RATE_LIMIT_SALT`.
 ## 2. Build và khởi động
 
 ```bash
-docker compose up -d --build
+sh scripts/compose-env.sh up -d --build
 ```
+
+Luon chay Compose qua `scripts/compose-env.sh`. Script nay loai bo cac bien cau
+hinh cu da `export` trong terminal, vi Docker Compose uu tien bien cua shell hon
+file `.env`; neu chay `docker compose` truc tiep, tai khoan bootstrap co the khac
+voi gia tri dang ghi trong `.env`.
 
 Compose chờ PostgreSQL khỏe, chạy migration, tạo tài khoản quản trị đầu tiên nếu chưa có rồi mới chạy ứng dụng. Seed có tính lặp lại an toàn và không in mật khẩu ra log.
 
 ## 3. Kiểm tra
 
 ```bash
-docker compose ps
+sh scripts/compose-env.sh ps
 curl http://localhost:3000/api/health
-docker compose logs --tail=100 app migrate seed
+sh scripts/compose-env.sh logs --tail=100 app migrate seed
 ```
 
 Kết quả health mong đợi: `{"status":"ok"}`. Đăng nhập bằng `BOOTSTRAP_ADMIN_EMAIL`, đổi mật khẩu tạm ngay lần đầu, rồi cấu hình bệnh viện trong phần Quản trị.
@@ -37,7 +42,7 @@ Kết quả health mong đợi: `{"status":"ok"}`. Đăng nhập bằng `BOOTSTR
 ## 4. Cập nhật
 
 ```bash
-git fetch origin && git checkout main && git pull --ff-only origin main && docker compose up -d --build --force-recreate
+git fetch origin && git checkout main && git pull --ff-only origin main && sh scripts/compose-env.sh up -d --build --force-recreate
 ```
 
 Không dùng `git reset --hard` hoặc reset database. Migration chỉ chạy tiến; sao lưu PostgreSQL và volume ảnh trước lần cập nhật quan trọng.
