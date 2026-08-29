@@ -470,6 +470,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .public-menu-home .public-menu-copy h1{color:var(--public-hero-primary-text,var(--primary))}
 .public-menu-home .public-menu-copy .eyebrow{color:var(--public-hero-accent-text,var(--accent))}
 .public-menu-home .public-menu-copy>p:last-child{color:var(--public-hero-foreground,var(--muted-foreground))}
+.public-menu-home .public-menu-filter label{color:var(--public-hero-primary-text,var(--foreground))}
+.public-menu-home .public-menu-filter select,.public-menu-home .public-menu-filter input{background:#fff;color:#17241f;color-scheme:light;-webkit-text-fill-color:#17241f;opacity:1}
+.public-menu-home .public-menu-filter select:disabled,.public-menu-home .public-menu-filter input:disabled{background:#f2f5f4;color:#52615b;-webkit-text-fill-color:#52615b}
 .public-menu-home .public-dish-list section{border-color:var(--public-border,var(--border))}
 .public-menu-home .public-dish-list h4{display:flex;align-items:center;justify-content:space-between;gap:.75rem;border-bottom:0;color:var(--public-hero-primary-text,var(--primary))}
 .public-menu-home .public-dish-list h4 strong{white-space:nowrap;font-variant-numeric:tabular-nums}
