@@ -470,6 +470,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .public-menu-home .public-menu-copy h1{color:var(--public-hero-primary-text,var(--primary))}
 .public-menu-home .public-menu-copy .eyebrow{color:var(--public-hero-accent-text,var(--accent))}
 .public-menu-home .public-menu-copy>p:last-child{color:var(--public-hero-foreground,var(--muted-foreground))}
+.public-menu-home .public-menu-results h2,.public-menu-home .public-menu-meal-list h3,.public-menu-home .public-menu-empty strong,.public-menu-home .public-meal-timeline strong,.public-menu-home .public-patient-feedback h2,.public-menu-home .public-patient-feedback label,.public-menu-home .public-patient-note strong{color:var(--public-primary-text,var(--public-hero-primary-text,var(--foreground)))}
+.public-menu-home .public-menu-meal-list article>div>span,.public-menu-home .public-menu-photo-empty,.public-menu-home .public-menu-meal-list summary,.public-menu-home .public-menu-empty svg,.public-menu-home .public-meal-timeline article.is-next>svg,.public-menu-home .public-patient-feedback-copy>svg{color:var(--public-accent-text,var(--public-hero-accent-text,var(--foreground)))}
 .public-menu-home .public-menu-filter label{color:var(--public-hero-primary-text,var(--foreground))}
 .public-menu-home .public-menu-filter select,.public-menu-home .public-menu-filter input{background:#fff;color:#17241f;color-scheme:light;-webkit-text-fill-color:#17241f;opacity:1}
 .public-menu-home .public-menu-filter select:disabled,.public-menu-home .public-menu-filter input:disabled{background:#f2f5f4;color:#52615b;-webkit-text-fill-color:#52615b}
