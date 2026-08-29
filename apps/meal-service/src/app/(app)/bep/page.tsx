@@ -9,6 +9,7 @@ import { lockExpiredMealEvent, servingTotal } from "@/lib/late-addition";
 import { hospitalDayKey, mealTimePhase } from "@/lib/meal-events";
 import { formatMass } from "@/lib/presentation";
 import { readRequestClock } from "@/lib/request-clock";
+import { mealOverrideForClock } from "@/lib/demo-meal-context";
 import { KitchenBoard } from "./kitchen-board";
 import { KitchenDialogs } from "./kitchen-dialogs";
 import { KitchenHeaderStatus } from "./kitchen-header-status";
@@ -29,7 +30,7 @@ export default async function KitchenPage({ searchParams }: { searchParams: Prom
   const query = await searchParams;
   const clock = await readRequestClock(query.demoNow);
   const kitchenRoute = user.kitchenRoute ?? "NORMAL";
-  let [workspace, notes] = await Promise.all([readKitchenWorkspace(query.meal, kitchenRoute, clock.now), readApprovedKitchenNotes()]);
+  let [workspace, notes] = await Promise.all([readKitchenWorkspace(mealOverrideForClock(query.meal, clock.simulated), kitchenRoute, clock.now), readApprovedKitchenNotes()]);
   if (!clock.simulated && workspace.selected && await materializeServingCutoffSnapshot(workspace.selected.id, user, clock.now)) workspace = await readKitchenWorkspace(query.meal, kitchenRoute, clock.now);
   if (!clock.simulated && workspace.selected && await lockExpiredMealEvent(workspace.selected.id, user, clock.now, kitchenRoute) > 0) workspace = await readKitchenWorkspace(query.meal, kitchenRoute, clock.now);
   const meal = workspace.selected;
