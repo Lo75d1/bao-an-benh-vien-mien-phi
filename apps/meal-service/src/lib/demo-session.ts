@@ -77,6 +77,7 @@ export type DemoSessionState = {
   additions: DemoAddition[];
   menus: Record<string, unknown>;
   tour: DemoTourProgress;
+  tourScenario: Partial<Record<FeedingRoute, { mealEventId: string; initializedAt: string }>>;
 };
 
 export const emptyDemoState = (): DemoSessionState => ({
@@ -87,6 +88,7 @@ export const emptyDemoState = (): DemoSessionState => ({
   additions: [],
   menus: {},
   tour: {},
+  tourScenario: {},
 });
 export const demoSessionEnabled = (
   env: Record<string, string | undefined> = process.env,
@@ -161,7 +163,49 @@ function parseState(value: unknown): DemoSessionState {
         ? state.menus
         : {},
     tour: normalizeTourProgress(state.tour),
+    tourScenario:
+      state.tourScenario &&
+      typeof state.tourScenario === "object" &&
+      !Array.isArray(state.tourScenario)
+        ? state.tourScenario
+        : {},
   } as DemoSessionState;
+}
+
+export function isDemoTourScenarioMeal(
+  state: Pick<DemoSessionState, "tourScenario">,
+  mealEventId: string,
+) {
+  return Object.values(state.tourScenario).some(
+    (scenario) => scenario?.mealEventId === mealEventId,
+  );
+}
+
+export async function ensureDemoTourScenario(workspace: DemoWorkspace) {
+  const session = await readDemoSession();
+  if (!session) throw new Error("Phiên Demo đã hết hạn.");
+  const route: FeedingRoute = workspace === "KITCHEN_SONDE" ? "SONDE" : "NORMAL";
+  const existing = session.state.tourScenario[route];
+  if (existing) return existing;
+  const event = await prisma.mealEvent.findFirst({
+    where: {
+      mealType: { feedingRoute: route, status: "ACTIVE" },
+      dietMeals: { some: { voidedAt: null, feedingRoute: route } },
+    },
+    orderBy: [{ mealDate: "desc" }, { mealType: { sortOrder: "asc" } }],
+    select: { id: true, dietMeals: { where: { voidedAt: null, feedingRoute: route }, select: { id: true } } },
+  });
+  if (!event) throw new Error(`Chưa có ${route === "SONDE" ? "cữ Sonde" : "bữa ăn"} mẫu để chạy hướng dẫn.`);
+  const scenario = { mealEventId: event.id, initializedAt: new Date().toISOString() };
+  await updateDemoState((state) => {
+    state.tourScenario[route] = scenario;
+    state.reports = state.reports.filter((item) => item.mealEventId !== event.id);
+    state.receipts = state.receipts.filter((item) => item.mealEventId !== event.id);
+    state.additions = state.additions.filter((item) => item.mealEventId !== event.id);
+    state.evidence = state.evidence.filter((item) => item.mealEventId !== event.id && (!item.dietMealId || !event.dietMeals.some((meal) => meal.id === item.dietMealId)));
+    for (const meal of event.dietMeals) delete state.dietStatuses[meal.id];
+  });
+  return scenario;
 }
 
 export async function readDemoSession() {
@@ -282,6 +326,7 @@ export async function updateDemoTourProgress(
   };
   if (!canTransitionTour(current, progress, DEMO_TOUR_STEPS[workspace].length))
     throw new Error("Không thể bỏ qua bước hướng dẫn bắt buộc.");
+  if (progress.status === "ACTIVE" && workspace === "NURSE") await ensureDemoTourScenario(workspace);
   await updateDemoState((state) => {
     state.tour[workspace] = progress;
   });

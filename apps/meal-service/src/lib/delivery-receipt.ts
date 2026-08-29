@@ -2,7 +2,7 @@ import type { DeliveryReceiptStatus, Prisma, Role } from "@prisma/client";
 import { mealTimePhase } from "./meal-events";
 import { prisma } from "./prisma";
 import { readOperationalSettings } from "./settings";
-import { readDemoSession, updateDemoState } from "./demo-session";
+import { isDemoTourScenarioMeal, readDemoSession, updateDemoState } from "./demo-session";
 
 export function normalizeDeliveryReceipt(input: { status: unknown; receivedQuantity: unknown; expectedQuantity: number; note: unknown }) {
   const status = String(input.status ?? "") as DeliveryReceiptStatus;
@@ -42,8 +42,12 @@ export async function confirmMealDelivery(
   if (phase !== "SERVING" && phase !== "PASSED") throw new Error("Chưa tới giờ phục vụ nên chưa thể xác nhận giao nhận.");
   const demo = actor.demoSessionId ? await readDemoSession() : null;
   const demoReport = demo?.state.reports.find((item) => item.mealEventId === input.mealEventId && item.departmentId === input.departmentId);
-  if (event.reports.length === 0 && !demoReport) throw new Error("Khoa chưa có báo suất đã chốt cho bữa này.");
-  const expectedQuantity = (demoReport ? demoReport.lines : event.reports.flatMap((report) => report.lines)).reduce((sum, line) => sum + line.quantity, 0) + event.additions.reduce((sum, item) => sum + item.quantity, 0);
+  const scenario = demo ? isDemoTourScenarioMeal(demo.state, input.mealEventId) : false;
+  if ((scenario || event.reports.length === 0) && !demoReport) throw new Error("Khoa chưa có báo suất đã chốt cho bữa này.");
+  const acceptedAdditions = scenario
+    ? demo?.state.additions.filter((item) => item.mealEventId === input.mealEventId && item.departmentId === input.departmentId && (item.ackStatus === "RECEIVED" || item.ackStatus === "SUBSTITUTE")).reduce((sum, item) => sum + item.quantity, 0) ?? 0
+    : event.additions.reduce((sum, item) => sum + item.quantity, 0);
+  const expectedQuantity = (demoReport ? demoReport.lines : event.reports.flatMap((report) => report.lines)).reduce((sum, line) => sum + line.quantity, 0) + acceptedAdditions;
   const normalized = normalizeDeliveryReceipt({ ...input, expectedQuantity });
   if (actor.demoSessionId) {
     const existing = demo?.state.receipts.find((item) => item.mealEventId === input.mealEventId && item.departmentId === input.departmentId);

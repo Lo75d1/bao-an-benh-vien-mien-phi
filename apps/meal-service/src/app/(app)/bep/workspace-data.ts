@@ -5,7 +5,7 @@ import { evidenceStorage } from "@/lib/evidence-storage";
 import { prisma } from "@/lib/prisma";
 import { readOperationalSettings } from "@/lib/settings";
 import { foodRetentionLabel } from "@/lib/food-retention";
-import { readDemoSession } from "@/lib/demo-session";
+import { isDemoTourScenarioMeal, readDemoSession } from "@/lib/demo-session";
 
 
 const eventInclude = {
@@ -68,20 +68,21 @@ export async function readKitchenWorkspace(requestedMealId?: string, feedingRout
     const departmentsById = new Map(additionDepartments.map((item) => [item.id, item]));
     const dietTypesById = new Map(additionDietTypes.map((item) => [item.id, item]));
     events = events.map((event) => {
-      const reports = [...event.reports];
+      const scenario = isDemoTourScenarioMeal(demo.state, event.id);
+      const reports = scenario ? [] : [...event.reports];
       for (const overlay of demo.state.reports.filter((item) => item.mealEventId === event.id)) {
         const report = { departmentId: overlay.departmentId, department: { name: departmentNames.get(overlay.departmentId) ?? "—" }, lines: overlay.lines.map((line) => ({ dietTypeId: line.dietTypeId, quantity: line.quantity })) };
         const current = reports.findIndex((item) => item.departmentId === overlay.departmentId);
         if (current >= 0) reports.splice(current, 1, report); else reports.push(report);
       }
-      const additions = [...event.additions];
+      const additions = scenario ? [] : [...event.additions];
       for (const item of demoAdditions.filter((addition) => addition.mealEventId === event.id)) {
         const department = departmentsById.get(item.departmentId);
         const dietType = dietTypesById.get(item.dietTypeId);
         if (!department || !dietType) continue;
         additions.push({ ...item, submittedById: "demo", submittedAt: new Date(item.submittedAt), ackById: null, ackAt: null, department, dietType });
       }
-      return { ...event, reports, additions, dietMeals: event.dietMeals.map((meal) => ({ ...meal, servingsPlanned: reports.reduce((sum, report) => sum + (report.lines.find((line) => line.dietTypeId === meal.dietTypeId)?.quantity ?? 0), 0), status: (demo.state.dietStatuses[meal.id] ?? meal.status) as typeof meal.status, evidence: [...demo.state.evidence.filter((item) => item.kind === "MEAL_PHOTO" && item.dietMealId === meal.id).map((item) => ({ id: `demo:${meal.id}`, dietMealId: meal.id, mealEventId: null, kind: "MEAL_PHOTO" as const, storagePath: item.storagePath, uploadedById: "demo", uploadedAt: new Date(item.uploadedAt), note: item.note })), ...meal.evidence] })), evidence: [...demo.state.evidence.filter((item) => item.kind === "FOOD_SAMPLE" && item.mealEventId === event.id).map((item) => ({ id: `demo:${event.id}:sample`, dietMealId: null, mealEventId: event.id, kind: "FOOD_SAMPLE" as const, storagePath: item.storagePath, uploadedById: "demo", uploadedAt: new Date(item.uploadedAt), note: item.note })), ...event.evidence] };
+      return { ...event, reports, additions, deliveryReceipts: scenario ? [] : event.deliveryReceipts, dietMeals: event.dietMeals.map((meal) => ({ ...meal, servingsPlanned: reports.reduce((sum, report) => sum + (report.lines.find((line) => line.dietTypeId === meal.dietTypeId)?.quantity ?? 0), 0), status: (demo.state.dietStatuses[meal.id] ?? (scenario ? "PLANNED" : meal.status)) as typeof meal.status, evidence: [...demo.state.evidence.filter((item) => item.kind === "MEAL_PHOTO" && item.dietMealId === meal.id).map((item) => ({ id: `demo:${meal.id}`, dietMealId: meal.id, mealEventId: null, kind: "MEAL_PHOTO" as const, storagePath: item.storagePath, uploadedById: "demo", uploadedAt: new Date(item.uploadedAt), note: item.note })), ...(scenario ? [] : meal.evidence)] })), evidence: [...demo.state.evidence.filter((item) => item.kind === "FOOD_SAMPLE" && item.mealEventId === event.id).map((item) => ({ id: `demo:${event.id}:sample`, dietMealId: null, mealEventId: event.id, kind: "FOOD_SAMPLE" as const, storagePath: item.storagePath, uploadedById: "demo", uploadedAt: new Date(item.uploadedAt), note: item.note })), ...(scenario ? [] : event.evidence)] };
     });
   }
   const summaries = events.map((event) => ({

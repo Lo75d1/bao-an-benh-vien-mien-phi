@@ -1,7 +1,7 @@
 import type { FeedingRoute, Prisma, Role } from "@prisma/client";
 import { prisma } from "./prisma";
 import { readOperationalSettings } from "./settings";
-import { readDemoSession, updateDemoState } from "./demo-session";
+import { isDemoTourScenarioMeal, readDemoSession, updateDemoState } from "./demo-session";
 
 export type ServingLineInput = { dietTypeId: string; quantity: number; internalNote: string | null; patientVisibleNote: string | null };
 type ServingSnapshot = { status: "SUBMITTED"; departmentId: string; mealEventId: string; reportedByName: string | null; lines: ServingLineInput[] };
@@ -126,6 +126,11 @@ export async function readNurseServingDay(userId: string, requestedRoute: Feedin
   const demo = await readDemoSession();
   const demoDietTypes = demo ? new Map((await prisma.dietType.findMany({ where: { id: { in: demo.state.additions.map((item) => item.dietTypeId) } } })).map((item) => [item.id, item])) : new Map();
   if (demo) for (const event of events) {
+    if (isDemoTourScenarioMeal(demo.state, event.id)) {
+      event.reports.splice(0, event.reports.length);
+      event.deliveryReceipts.splice(0, event.deliveryReceipts.length);
+      event.additions.splice(0, event.additions.length);
+    }
     const report = demo.state.reports.find((item) => item.mealEventId === event.id && item.departmentId === departmentId);
     if (report) {
       const existing = event.reports.findIndex((item) => item.departmentId === departmentId);

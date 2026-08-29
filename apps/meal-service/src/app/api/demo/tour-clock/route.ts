@@ -1,4 +1,4 @@
-import { readDemoSession } from "@/lib/demo-session";
+import { ensureDemoTourScenario, readDemoSession } from "@/lib/demo-session";
 import {
   DEMO_TOUR_STAGE_COPY,
   demoTourRoute,
@@ -15,7 +15,7 @@ const timeLabel = new Intl.DateTimeFormat("vi-VN", {
 });
 
 export async function GET(request: Request) {
-  const session = await readDemoSession();
+  let session = await readDemoSession();
   if (!session)
     return Response.json({ error: "Phiên Demo đã hết hạn." }, { status: 401 });
   const stageValue = new URL(request.url).searchParams.get("stage");
@@ -23,6 +23,12 @@ export async function GET(request: Request) {
     return Response.json({ error: "Mốc hướng dẫn không hợp lệ." }, { status: 400 });
 
   const route = demoTourRoute(session.workspace);
+  if (session.workspace === "NURSE" && !session.state.tourScenario[route]) {
+    await ensureDemoTourScenario(session.workspace);
+    session = await readDemoSession();
+    if (!session)
+      return Response.json({ error: "Phiên Demo đã hết hạn." }, { status: 401 });
+  }
   const [settings, events] = await Promise.all([
     readOperationalSettings(),
     prisma.mealEvent.findMany({
@@ -51,8 +57,9 @@ export async function GET(request: Request) {
       },
     }),
   ]);
+  const scenarioId = session.state.tourScenario[route]?.mealEventId;
   const latestDate = events[0]?.mealDate.getTime();
-  const event = events
+  const event = events.find((item) => item.id === scenarioId) ?? events
     .filter((item) => item.mealDate.getTime() === latestDate)
     .sort((a, b) => a.mealType.sortOrder - b.mealType.sortOrder)[0];
   if (!event)
