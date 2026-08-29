@@ -108,7 +108,7 @@ export async function completeFirstTimeSetup<T>(
   const artifact = await buildBeforeCommit(
     () => buildOneTimeArtifact({ completion, credentials }),
     () => prisma.$transaction(async (tx) => {
-      await tx.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${FIRST_TIME_SETUP_LOCK}))`);
+      await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${FIRST_TIME_SETUP_LOCK}))`);
       const existing = await tx.appSetting.findUnique({ where: { key: FIRST_TIME_SETUP_KEY }, select: { valueJson: true } });
       if (parseSetupCompletion(existing?.valueJson)) throw new Error("Hệ thống đã hoàn tất khởi tạo; không thể chạy bootstrap lần nữa.");
       for (const credential of credentials) await tx.user.update({ where: { id: credential.userId }, data: { passwordHash: hashPassword(credential.password), mustChangePassword: true } });
