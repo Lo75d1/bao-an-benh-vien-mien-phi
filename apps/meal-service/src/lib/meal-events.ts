@@ -125,10 +125,10 @@ export function pickReportingMeal<T extends ReportingMeal>(meals: T[], now = new
   if (meals.length === 0) return null;
   const serving = meals.find((meal) => mealTimePhase(meal.mealDate, meal.cutoffTime, meal.serviceTime, now, completionMinutes) === "SERVING");
   if (serving) return serving;
-  const receiving = meals.find((meal) => mealTimePhase(meal.mealDate, meal.cutoffTime, meal.serviceTime, now, completionMinutes) === "BEFORE_CUTOFF");
-  if (receiving) return receiving;
   const preparing = meals.find((meal) => mealTimePhase(meal.mealDate, meal.cutoffTime, meal.serviceTime, now, completionMinutes) === "PREPARING");
-  return preparing ?? meals.at(-1) ?? null;
+  if (preparing) return preparing;
+  const receiving = meals.find((meal) => mealTimePhase(meal.mealDate, meal.cutoffTime, meal.serviceTime, now, completionMinutes) === "BEFORE_CUTOFF");
+  return receiving ?? meals.at(-1) ?? null;
 }
 
 export function nextReportingCutoff<T extends ReportingMeal>(meals: T[], now = new Date()): { meal: T; at: Date } | null {
