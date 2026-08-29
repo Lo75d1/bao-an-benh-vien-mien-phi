@@ -9,6 +9,7 @@ import {
   startDemoSession,
   updateDemoTourProgress,
 } from "@/lib/demo-session";
+import { publicDemoError } from "@/lib/demo-public-error";
 
 export async function GET() {
   if (!demoSessionEnabled())
@@ -61,14 +62,10 @@ export async function POST(request: Request) {
       );
     return Response.json({ href: demoWorkspaceIdentity(workspace).href });
   } catch (error) {
+    const safe = publicDemoError(error);
     return Response.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Không thể cập nhật Demo Session.",
-      },
-      { status: 400 },
+      { error: safe.message },
+      { status: safe.status },
     );
   }
 }

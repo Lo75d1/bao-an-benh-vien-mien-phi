@@ -56,6 +56,58 @@ export function buildServingSnapshot(report: { departmentId: string; mealEventId
   return { status: "SUBMITTED", departmentId: report.departmentId, mealEventId: report.mealEventId, reportedByName: report.reportedByName ?? null, lines: report.lines.map((line) => ({ ...line })).sort((a, b) => a.dietTypeId.localeCompare(b.dietTypeId)) };
 }
 
+export function cutoffServingTotals(lines: Array<{ dietTypeId: string; quantity: number }>) {
+  return [...aggregateHospitalServings(lines).entries()]
+    .map(([dietTypeId, quantity]) => ({ dietTypeId, quantity }))
+    .sort((a, b) => a.dietTypeId.localeCompare(b.dietTypeId));
+}
+
+/** Chốt snapshot số suất đúng một lần sau giờ chốt; không dùng cho Demo Clock. */
+export async function materializeServingCutoffSnapshot(
+  mealEventId: string,
+  actor: { id: string; displayName: string; demoSessionId?: string },
+  now = new Date(),
+) {
+  if (actor.demoSessionId) return false;
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "MealEvent" WHERE "id" = ${mealEventId} FOR UPDATE`;
+    const event = await tx.mealEvent.findUnique({
+      where: { id: mealEventId },
+      include: {
+        mealType: { select: { cutoffTime: true } },
+        dietMeals: { where: { voidedAt: null }, select: { id: true, dietTypeId: true, servingsPlanned: true } },
+        reports: { where: { status: "SUBMITTED" }, select: { lines: { select: { dietTypeId: true, quantity: true } } } },
+      },
+    });
+    if (!event || isBeforeCutoff(event.mealDate, event.mealType.cutoffTime, now)) return false;
+    const existing = await tx.auditLog.findFirst({
+      where: { entityType: "MealEvent", entityId: mealEventId, action: "SERVING_CUTOFF_SNAPSHOT" },
+      select: { id: true },
+    });
+    if (existing) return false;
+    const totals = new Map(cutoffServingTotals(event.reports.flatMap((report) => report.lines)).map((item) => [item.dietTypeId, item.quantity]));
+    const before = event.dietMeals.map((meal) => ({ dietTypeId: meal.dietTypeId, quantity: meal.servingsPlanned }));
+    const after = event.dietMeals.map((meal) => ({ dietTypeId: meal.dietTypeId, quantity: totals.get(meal.dietTypeId) ?? 0 }));
+    for (const meal of event.dietMeals) {
+      const quantity = totals.get(meal.dietTypeId) ?? 0;
+      if (quantity !== meal.servingsPlanned) await tx.dietMeal.update({ where: { id: meal.id }, data: { servingsPlanned: quantity } });
+    }
+    await tx.auditLog.create({
+      data: {
+        entityType: "MealEvent",
+        entityId: mealEventId,
+        action: "SERVING_CUTOFF_SNAPSHOT",
+        actorId: actor.id,
+        actorName: actor.displayName,
+        beforeJson: before as unknown as Prisma.InputJsonValue,
+        afterJson: after as unknown as Prisma.InputJsonValue,
+        reason: "Chốt số suất chính thức theo báo cáo khoa tại giờ chốt",
+      },
+    });
+    return true;
+  }, { isolationLevel: "Serializable" });
+}
+
 export function hospitalDate(now = new Date()): Date {
   const vietnam = new Date(now.getTime() + 7 * 60 * 60 * 1000);
   return new Date(Date.UTC(vietnam.getUTCFullYear(), vietnam.getUTCMonth(), vietnam.getUTCDate()));
@@ -110,14 +162,6 @@ export async function saveServingReport(input: { mealEventId: string; department
     const report = await tx.servingReport.upsert({ where: { departmentId_mealEventId: { departmentId: input.departmentId, mealEventId: input.mealEventId } }, create: { departmentId: input.departmentId, mealEventId: input.mealEventId, submittedById: actor.id, submittedAt: now, reportedByName, status: "SUBMITTED" }, update: { submittedById: actor.id, submittedAt: now, reportedByName, status: "SUBMITTED" } });
     for (const line of input.lines) await tx.servingReportLine.upsert({ where: { servingReportId_dietTypeId: { servingReportId: report.id, dietTypeId: line.dietTypeId } }, create: { servingReportId: report.id, ...line }, update: { quantity: line.quantity, internalNote: line.internalNote, patientVisibleNote: line.patientVisibleNote } });
     await tx.auditLog.create({ data: { entityType: "ServingReport", entityId: report.id, action: existing ? "UPDATE" : "CREATE", actorId: actor.id, actorName: actor.displayName, beforeJson: existing ? buildServingSnapshot({ ...existing, lines: existing.lines }) as unknown as Prisma.InputJsonValue : undefined, afterJson: buildServingSnapshot({ ...report, lines: input.lines }) as unknown as Prisma.InputJsonValue, reason: `Điều dưỡng ${reportedByName} xác nhận báo suất` } });
-    const submittedLines = await tx.servingReportLine.findMany({ where: { servingReport: { mealEventId: input.mealEventId, status: "SUBMITTED" } }, select: { dietTypeId: true, quantity: true } });
-    const totals = aggregateHospitalServings(submittedLines);
-    for (const meal of event.dietMeals) {
-      const after = totals.get(meal.dietTypeId) ?? 0;
-      if (after === meal.servingsPlanned) continue;
-      await tx.dietMeal.update({ where: { id: meal.id }, data: { servingsPlanned: after } });
-      await tx.auditLog.create({ data: { entityType: "DietMeal", entityId: meal.id, action: "MATERIALIZE_SERVINGS", actorId: actor.id, actorName: actor.displayName, beforeJson: { servingsPlanned: meal.servingsPlanned }, afterJson: { servingsPlanned: after }, reason: "Cộng lại báo suất toàn viện theo chế độ" } });
-    }
     return report;
   }, { isolationLevel: "Serializable" });
 }

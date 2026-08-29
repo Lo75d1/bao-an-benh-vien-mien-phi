@@ -15,6 +15,7 @@ import { KitchenHeaderStatus } from "./kitchen-header-status";
 import { LivePhaseRefresh } from "@/components/live-phase-refresh";
 import { readKitchenWorkspace } from "./workspace-data";
 import { PhaseTransitionNotice } from "@/components/phase-transition-notice";
+import { materializeServingCutoffSnapshot } from "@/lib/serving-report";
 
 type SnapshotItem = { itemName?: unknown; dishName?: unknown; grams?: unknown };
 function menuItems(value: unknown) {
@@ -29,6 +30,7 @@ export default async function KitchenPage({ searchParams }: { searchParams: Prom
   const clock = await readRequestClock(query.demoNow, query.demoTour === "1" && Boolean(user.demoSessionId));
   const kitchenRoute = user.kitchenRoute ?? "NORMAL";
   let [workspace, notes] = await Promise.all([readKitchenWorkspace(query.meal, kitchenRoute, clock.now), readApprovedKitchenNotes()]);
+  if (!clock.simulated && workspace.selected && await materializeServingCutoffSnapshot(workspace.selected.id, user, clock.now)) workspace = await readKitchenWorkspace(query.meal, kitchenRoute, clock.now);
   if (!clock.simulated && workspace.selected && await lockExpiredMealEvent(workspace.selected.id, user, clock.now, kitchenRoute) > 0) workspace = await readKitchenWorkspace(query.meal, kitchenRoute, clock.now);
   const meal = workspace.selected;
   const routeSummary = meal ? (["NORMAL", "SONDE"] as const).flatMap((route) => { const routeMeals = meal.dietMeals.filter((item) => item.feedingRoute === route); if (!routeMeals.length) return []; const hasData = routeMeals.some((item) => item.servingsPlanned > 0); const total = routeMeals.reduce((sum, item) => { const additions = meal.additions.filter((addition) => addition.dietTypeId === item.dietTypeId && addition.ackStatus === "RECEIVED"); return sum + servingTotal(item.servingsPlanned, additions).total; }, 0); return [`${route === "SONDE" ? "Qua sonde" : "Ăn đường miệng"}: ${hasData ? `${total} suất` : "—"}`]; }).join(" · ") : "";
