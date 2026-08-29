@@ -38,7 +38,7 @@ export function VoiceNotificationControl({ workspace, scope, events }: { workspa
   function toggle() {
     const next = !enabled;
     setEnabled(next);
-    if (next) speakVietnamese("Đã bật thông báo giọng nói.");
+    if (next) speakVietnamese(["Đã bật thông báo giọng nói.", ...events.filter((event) => event.announceOnEnable).map((event) => event.message)]);
     else if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
   }
 
