@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { readOperationalSettings } from "@/lib/settings";
 import { foodRetentionLabel } from "@/lib/food-retention";
 import { readDemoSession } from "@/lib/demo-session";
+import { buildHandoffSnapshots } from "@/lib/meal-handoff";
 
 
 const eventInclude = {
@@ -13,6 +14,7 @@ const eventInclude = {
   additions: { orderBy: { submittedAt: "desc" as const }, include: { department: true, dietType: true } },
   reports: { where: { status: "SUBMITTED" as const }, select: { departmentId: true, department: { select: { name: true } }, lines: { select: { dietTypeId: true, quantity: true } } } },
   deliveryReceipts: { select: { departmentId: true, status: true } },
+  mealHandoffs: { select: { departmentId: true, quantity: true, handedOffAt: true, department: { select: { name: true } }, handedOffBy: { select: { displayName: true } } } },
   evidence: { orderBy: { uploadedAt: "desc" as const } },
   dietMeals: {
     where: { voidedAt: null },
@@ -107,5 +109,13 @@ export async function readKitchenWorkspace(requestedMealId?: string, feedingRout
     dietName: meal.dietType.name,
     publicUrl: evidenceStorage.publicUrl(item.storagePath),
   }))), ...selected.evidence.map((item) => ({ ...item, dietName: `Toàn bữa · ${foodRetentionLabel(item.uploadedAt, now)}`, publicUrl: evidenceStorage.publicUrl(item.storagePath) }))];
-  return { events: summaries, selected: { ...selected, dietMeals: selected.dietMeals.map((meal) => ({ ...meal, evidence: meal.evidence.map((item) => ({ ...item, publicUrl: evidenceStorage.publicUrl(item.storagePath) })) })), shopping, evidence }, canOperate: isKitchenPreparationOpen(selected.mealDate, selected.mealType.cutoffTime, selected.mealType.serviceTime, now, settings.serviceCompletionMinutes), foodRetention24hRequired: settings.foodRetention24hRequired };
+  const prepared = selected.dietMeals.length > 0 && selected.dietMeals.every((meal) => meal.status === "PREPARED");
+  const handoffReports = selected.reports.map((report) => ({ departmentId: report.departmentId, quantities: report.lines.map((line) => line.quantity) }));
+  const handoffAdditions = selected.additions.filter((addition) => addition.ackStatus === "RECEIVED" || addition.ackStatus === "SUBSTITUTE").map((addition) => ({ departmentId: addition.departmentId, quantity: addition.quantity }));
+  const hasHandoffQuantity = handoffReports.some((report) => report.quantities.some((quantity) => quantity > 0)) || handoffAdditions.some((addition) => addition.quantity > 0);
+  const handoffSnapshots = prepared && hasHandoffQuantity ? buildHandoffSnapshots({ route: selected.mealType.feedingRoute, dietStatuses: selected.dietMeals.map((meal) => meal.status), reports: handoffReports, additions: handoffAdditions }, feedingRoute) : [];
+  const departmentNames = new Map([...selected.reports.map((report) => [report.departmentId, report.department.name] as const), ...selected.additions.map((addition) => [addition.departmentId, addition.department.name] as const)]);
+  const existingHandoffs = new Map(selected.mealHandoffs.map((handoff) => [handoff.departmentId, handoff]));
+  const handoffs = handoffSnapshots.map((snapshot) => { const existing = existingHandoffs.get(snapshot.departmentId); return { departmentId: snapshot.departmentId, departmentName: existing?.department.name ?? departmentNames.get(snapshot.departmentId) ?? "—", quantity: existing?.quantity ?? snapshot.quantity, handedOffAt: existing?.handedOffAt.toISOString() ?? null, handedOffBy: existing?.handedOffBy.displayName ?? null }; });
+  return { events: summaries, selected: { ...selected, dietMeals: selected.dietMeals.map((meal) => ({ ...meal, evidence: meal.evidence.map((item) => ({ ...item, publicUrl: evidenceStorage.publicUrl(item.storagePath) })) })), shopping, evidence, handoffs }, canOperate: isKitchenPreparationOpen(selected.mealDate, selected.mealType.cutoffTime, selected.mealType.serviceTime, now, settings.serviceCompletionMinutes), foodRetention24hRequired: settings.foodRetention24hRequired };
 }
