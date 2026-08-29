@@ -13,15 +13,17 @@ import { PublicViewTracker } from "@/components/public-view-tracker";
 import { submitPublicPatientNoteAction } from "@/app/patient-note-actions";
 import { readSetupCompletion } from "@/lib/first-time-setup";
 
+export const dynamic = "force-dynamic";
+
 const dateLabel = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
 const numberFormat = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
 
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ diet?: string; date?: string; patient?: string; note?: string }> }) {
+  if (!await readSetupCompletion()) redirect("/thiet-lap-ban-dau");
   const query = await searchParams;
   const [user, branding, menu, views] = await Promise.all([getSessionUser({ allowPasswordChange: true }), readBrandingSettings(), readPublicDietMenu(query.diet, query.date), readPublicViewStats()]);
   if (user) {
     if (user.mustChangePassword) redirect("/ho-so?first=1");
-    if (user.role === "ADMIN" && !await readSetupCompletion()) redirect("/thiet-lap-ban-dau");
     redirect({ ADMIN: "/quan-ly", DIETITIAN: "/quan-ly", NURSE: "/bao-suat", KITCHEN: "/bep" }[user.role]);
   }
 

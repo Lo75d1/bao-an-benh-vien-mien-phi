@@ -3,7 +3,7 @@ import test from "node:test";
 import { parseSetupCompletion, validateSetupInventory, type SetupInventory } from "../src/lib/first-time-setup";
 
 const valid: SetupInventory = {
-  adminPasswordChanged: true,
+  adminValid: true,
   activeDepartments: 1,
   activeNursesWithDepartment: 1,
   activeKitchenByRoute: { NORMAL: 1, SONDE: 0 },
@@ -39,8 +39,8 @@ test("Sonde tắt không bắt buộc dữ liệu Sonde", () => {
   assert.deepEqual(validateSetupInventory(valid), []);
 });
 
-test("Admin chưa đổi mật khẩu và giờ bữa sai bị chặn", () => {
-  const result = codes({ ...valid, adminPasswordChanged: false, invalidMealTimes: ["Trưa"] });
-  assert.ok(result.includes("ADMIN_PASSWORD"));
+test("Admin không hợp lệ và giờ bữa sai bị chặn", () => {
+  const result = codes({ ...valid, adminValid: false, invalidMealTimes: ["Trưa"] });
+  assert.ok(result.includes("ADMIN"));
   assert.ok(result.includes("MEAL_TIME"));
 });

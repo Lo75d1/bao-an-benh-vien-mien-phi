@@ -2,12 +2,14 @@ import type { FeedingRoute, Prisma, Role } from "@prisma/client";
 import { prisma } from "./prisma";
 import { ensureEmptyMealEvents, startOfIsoWeek } from "./meal-events";
 import { readOperationalSettings } from "./settings";
+import { randomBytes } from "node:crypto";
+import { hashPassword } from "./password";
 
 export const FIRST_TIME_SETUP_KEY = "firstTimeSetup";
 export const FIRST_TIME_SETUP_VERSION = 1;
 
 export type SetupInventory = {
-  adminPasswordChanged: boolean;
+  adminValid: boolean;
   activeDepartments: number;
   activeNursesWithDepartment: number;
   activeKitchenByRoute: Record<FeedingRoute, number>;
@@ -22,7 +24,7 @@ export type SetupIssue = { code: string; message: string };
 
 export function validateSetupInventory(input: SetupInventory): SetupIssue[] {
   const issues: SetupIssue[] = [];
-  if (!input.adminPasswordChanged) issues.push({ code: "ADMIN_PASSWORD", message: "Admin chính chưa hoàn tất đổi mật khẩu ban đầu." });
+  if (!input.adminValid) issues.push({ code: "ADMIN", message: "Cần xác nhận ít nhất một tài khoản Admin đang hoạt động." });
   if (input.activeDepartments < 1) issues.push({ code: "DEPARTMENT", message: "Cần ít nhất 1 khoa/phòng đang hoạt động." });
   if (input.activeNursesWithDepartment < 1) issues.push({ code: "NURSE", message: "Cần ít nhất 1 Điều dưỡng đang hoạt động và được gắn khoa." });
   if (input.activeKitchenByRoute.NORMAL < 1) issues.push({ code: "KITCHEN_NORMAL", message: "Cần ít nhất 1 tài khoản Bếp ăn thường." });
@@ -50,9 +52,9 @@ export async function readSetupCompletion() {
   return parseSetupCompletion(row?.valueJson);
 }
 
-export async function readSetupInventory(adminId: string): Promise<SetupInventory> {
+export async function readSetupInventory(adminId?: string): Promise<SetupInventory> {
   const [admin, settings, departments, nurses, kitchens, editors, diets, meals] = await Promise.all([
-    prisma.user.findUnique({ where: { id: adminId }, select: { mustChangePassword: true } }),
+    adminId ? prisma.user.findUnique({ where: { id: adminId }, select: { mustChangePassword: true } }) : prisma.user.findFirst({ where: { role: "ADMIN", status: "ACTIVE" }, select: { mustChangePassword: true } }),
     readOperationalSettings(),
     prisma.department.count({ where: { status: "ACTIVE" } }),
     prisma.user.count({ where: { role: "NURSE", status: "ACTIVE", memberships: { some: { department: { status: "ACTIVE" } } } } }),
@@ -63,7 +65,7 @@ export async function readSetupInventory(adminId: string): Promise<SetupInventor
   ]);
   const routeCount = <T extends { feedingRoute?: FeedingRoute | null; kitchenRoute?: FeedingRoute | null; _count: { _all: number } }>(rows: T[], key: "feedingRoute" | "kitchenRoute", route: FeedingRoute) => rows.find((row) => row[key] === route)?._count._all ?? 0;
   return {
-    adminPasswordChanged: !!admin && !admin.mustChangePassword,
+    adminValid: !!admin,
     activeDepartments: departments,
     activeNursesWithDepartment: nurses,
     activeKitchenByRoute: { NORMAL: routeCount(kitchens, "kitchenRoute", "NORMAL"), SONDE: routeCount(kitchens, "kitchenRoute", "SONDE") },
@@ -77,15 +79,20 @@ export async function readSetupInventory(adminId: string): Promise<SetupInventor
 
 export async function completeFirstTimeSetup(actor: { id: string; displayName: string; role: Role }, now = new Date()) {
   if (actor.role !== "ADMIN") throw new Error("Chỉ Admin được hoàn tất thiết lập ban đầu.");
+  if (await readSetupCompletion()) throw new Error("Hệ thống đã hoàn tất khởi tạo; không thể chạy bootstrap lần nữa.");
   const inventory = await readSetupInventory(actor.id);
   const issues = validateSetupInventory(inventory);
   if (issues.length) throw new Error(issues.map((item) => item.message).join(" "));
   await ensureEmptyMealEvents(startOfIsoWeek(now), actor);
   const completion = { completedAt: now.toISOString(), completedById: actor.id, version: FIRST_TIME_SETUP_VERSION };
+  const auxiliaryUsers = await prisma.user.findMany({ where: { id: { not: actor.id }, status: "ACTIVE" }, select: { id: true } });
+  const credentials = auxiliaryUsers.map((user) => ({ userId: user.id, password: `BV-${randomBytes(9).toString("base64url")}` }));
   await prisma.$transaction(async (tx) => {
     const existing = await tx.appSetting.findUnique({ where: { key: FIRST_TIME_SETUP_KEY }, select: { valueJson: true } });
+    if (parseSetupCompletion(existing?.valueJson)) throw new Error("Hệ thống đã hoàn tất khởi tạo; không thể chạy bootstrap lần nữa.");
+    for (const credential of credentials) await tx.user.update({ where: { id: credential.userId }, data: { passwordHash: hashPassword(credential.password), mustChangePassword: true } });
     await tx.appSetting.upsert({ where: { key: FIRST_TIME_SETUP_KEY }, create: { key: FIRST_TIME_SETUP_KEY, valueJson: completion }, update: { valueJson: completion } });
     await tx.auditLog.create({ data: { entityType: "AppSetting", entityId: FIRST_TIME_SETUP_KEY, action: existing ? "RECONFIRM_SETUP" : "COMPLETE_SETUP", actorId: actor.id, actorName: actor.displayName, beforeJson: existing?.valueJson as Prisma.InputJsonValue | undefined, afterJson: completion, reason: "Admin xác nhận hoàn tất thiết lập ban đầu" } });
   });
-  return completion;
+  return { completion, credentials };
 }
