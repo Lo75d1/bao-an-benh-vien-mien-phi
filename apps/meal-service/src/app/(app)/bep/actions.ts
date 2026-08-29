@@ -16,6 +16,7 @@ import { prisma } from "@/lib/prisma";
 import { readOperationalSettings } from "@/lib/settings";
 import { readRequestClock } from "@/lib/request-clock";
 import { actionFailure, actionSuccess, type ActionResult } from "@/lib/action-result";
+import { handoffMealEvent } from "@/lib/meal-handoff";
 
 async function requireKitchen() {
   const user = await getSessionUser();
@@ -187,6 +188,16 @@ export async function completeKitchenEventAction(_previous: ActionResult, formDa
   try {
     const stored = await completeKitchenEventSubmission(formData);
     return stored ? actionSuccess("Đã lưu bằng chứng và xác nhận toàn bộ bữa đã chuẩn bị xong.") : actionFailure(new Error("Không thể lưu ảnh vào bộ nhớ. Dữ liệu chưa được xác nhận."));
+  } catch (error) { return actionFailure(error); }
+}
+
+export async function handoffMealEventAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
+  if (!await getSessionUser()) redirect("/");
+  try {
+    const user = await requireKitchen();
+    const handoffs = await handoffMealEvent({ mealEventId: String(formData.get("eventId") ?? ""), feedingRoute: user.kitchenRoute! }, user);
+    revalidatePath("/bep"); revalidatePath("/bao-suat"); revalidatePath("/quan-ly"); revalidatePath("/lich");
+    return actionSuccess(`Đã bàn giao suất ăn cho ${handoffs.length} khoa.`);
   } catch (error) { return actionFailure(error); }
 }
 export async function reopenKitchenEventAction(formData: FormData) {

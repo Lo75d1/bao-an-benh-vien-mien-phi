@@ -24,6 +24,12 @@ export function normalizeReceiptCorrectionReason(value: unknown) {
   return reason;
 }
 
+export function expectedQuantityFromHandoff(handoff: { quantity: number } | null | undefined) {
+  if (!handoff) throw new Error("Bếp chưa bàn giao suất ăn cho khoa này.");
+  if (!Number.isInteger(handoff.quantity) || handoff.quantity <= 0) throw new Error("Số suất bàn giao không hợp lệ.");
+  return handoff.quantity;
+}
+
 export async function confirmMealDelivery(
   input: { mealEventId: string; departmentId: string; status: unknown; receivedQuantity: unknown; note: unknown; correctionReason?: unknown },
   actor: { id: string; displayName: string; role: Role },
@@ -32,15 +38,14 @@ export async function confirmMealDelivery(
   if (actor.role !== "NURSE") throw new Error("Chỉ điều dưỡng được xác nhận giao nhận của khoa.");
   const [membership, event, settings] = await Promise.all([
     prisma.departmentMembership.findUnique({ where: { userId_departmentId: { userId: actor.id, departmentId: input.departmentId } }, select: { id: true } }),
-    prisma.mealEvent.findUnique({ where: { id: input.mealEventId }, select: { id: true, mealDate: true, mealType: { select: { cutoffTime: true, serviceTime: true } }, reports: { where: { departmentId: input.departmentId, status: "SUBMITTED" }, select: { lines: { select: { quantity: true } } } }, additions: { where: { departmentId: input.departmentId, ackStatus: { in: ["RECEIVED", "SUBSTITUTE"] } }, select: { quantity: true } } } }),
+    prisma.mealEvent.findUnique({ where: { id: input.mealEventId }, select: { id: true, mealDate: true, mealType: { select: { cutoffTime: true, serviceTime: true } }, mealHandoffs: { where: { departmentId: input.departmentId }, select: { quantity: true }, take: 1 } } }),
     readOperationalSettings(),
   ]);
   if (!membership) throw new Error("Bạn không có quyền xác nhận giao nhận cho khoa này.");
   if (!event) throw new Error("Không tìm thấy bữa ăn cần xác nhận.");
   const phase = mealTimePhase(event.mealDate, event.mealType.cutoffTime, event.mealType.serviceTime, now, settings.serviceCompletionMinutes);
   if (phase !== "SERVING" && phase !== "PASSED") throw new Error("Chưa tới giờ phục vụ nên chưa thể xác nhận giao nhận.");
-  if (event.reports.length === 0) throw new Error("Khoa chưa có báo suất đã chốt cho bữa này.");
-  const expectedQuantity = event.reports.flatMap((report) => report.lines).reduce((sum, line) => sum + line.quantity, 0) + event.additions.reduce((sum, item) => sum + item.quantity, 0);
+  const expectedQuantity = expectedQuantityFromHandoff(event.mealHandoffs[0]);
   const normalized = normalizeDeliveryReceipt({ ...input, expectedQuantity });
   return prisma.$transaction(async (tx) => {
     const existing = await tx.mealDeliveryReceipt.findUnique({ where: { departmentId_mealEventId: { departmentId: input.departmentId, mealEventId: input.mealEventId } } });

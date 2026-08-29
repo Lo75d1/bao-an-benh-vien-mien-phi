@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeDeliveryReceipt, normalizeReceiptCorrectionReason } from "../src/lib/delivery-receipt";
+import { expectedQuantityFromHandoff, normalizeDeliveryReceipt, normalizeReceiptCorrectionReason } from "../src/lib/delivery-receipt";
 
 test("nhận đủ phải khớp số suất dự kiến", () => {
   assert.deepEqual(normalizeDeliveryReceipt({ status: "FULL", expectedQuantity: 20, receivedQuantity: 20, note: "" }), { status: "FULL", receivedQuantity: 20, note: null });
@@ -17,4 +17,11 @@ test("sửa xác nhận bắt buộc lý do đủ rõ", () => {
   assert.equal(normalizeReceiptCorrectionReason("  Khoa kiểm đếm lại  "), "Khoa kiểm đếm lại");
   assert.throws(() => normalizeReceiptCorrectionReason(""));
   assert.throws(() => normalizeReceiptCorrectionReason("x".repeat(501)));
+});
+
+test("receipt bắt buộc handoff và lấy expectedQuantity từ snapshot", () => {
+  assert.throws(() => expectedQuantityFromHandoff(null));
+  assert.equal(expectedQuantityFromHandoff({ quantity: 36 }), 36);
+  assert.deepEqual(normalizeDeliveryReceipt({ status: "FULL", expectedQuantity: expectedQuantityFromHandoff({ quantity: 36 }), receivedQuantity: 36, note: "" }), { status: "FULL", receivedQuantity: 36, note: null });
+  assert.deepEqual(normalizeDeliveryReceipt({ status: "SHORT", expectedQuantity: expectedQuantityFromHandoff({ quantity: 36 }), receivedQuantity: 34, note: "Thiếu 2 suất" }), { status: "SHORT", receivedQuantity: 34, note: "Thiếu 2 suất" });
 });
