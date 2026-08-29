@@ -1,11 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { aggregateHospitalServings, buildServingSnapshot, cutoffAt, hospitalDate, isBeforeCutoff, normalizeServingNote, requireNurseDepartment } from "../src/lib/serving-report";
+import { aggregateHospitalServings, buildServingSnapshot, cutoffAt, cutoffServingTotals, hospitalDate, isBeforeCutoff, normalizeServingNote, requireNurseDepartment } from "../src/lib/serving-report";
 
 test("cộng báo suất đa khoa theo từng chế độ", () => {
   const totals = aggregateHospitalServings([{ dietTypeId: "thuong", quantity: 20 }, { dietTypeId: "dtd", quantity: 8 }, { dietTypeId: "thuong", quantity: 13 }, { dietTypeId: "dtd", quantity: 4 }]);
   assert.equal(totals.get("thuong"), 33);
   assert.equal(totals.get("dtd"), 12);
+});
+
+test("snapshot giờ chốt gom đúng số suất và có thứ tự ổn định", () => {
+  const snapshot = cutoffServingTotals([
+    { dietTypeId: "thuong", quantity: 10 },
+    { dietTypeId: "dtd", quantity: 4 },
+    { dietTypeId: "thuong", quantity: 2 },
+  ]);
+  assert.deepEqual(snapshot, [
+    { dietTypeId: "dtd", quantity: 4 },
+    { dietTypeId: "thuong", quantity: 12 },
+  ]);
 });
 
 test("NURSE chỉ có đúng một khoa tự động và role khác bị từ chối", () => {
