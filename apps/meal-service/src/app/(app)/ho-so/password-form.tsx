@@ -9,6 +9,7 @@ import { changePasswordAction, type ChangePasswordState } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { workspaceForRole, type WorkspaceRole } from "@/lib/role-workspace";
 
 const initialState: ChangePasswordState = { status: "idle", message: "" };
 const schema = z.object({ currentPassword: z.string().min(10, "Mật khẩu hiện tại cần ít nhất 10 ký tự.").max(256), newPassword: z.string().min(10, "Mật khẩu mới cần ít nhất 10 ký tự.").max(256), confirmPassword: z.string().min(10, "Hãy nhập lại mật khẩu mới.").max(256) }).superRefine((value, context) => {
@@ -17,14 +18,14 @@ const schema = z.object({ currentPassword: z.string().min(10, "Mật khẩu hi�
 });
 type Fields = z.infer<typeof schema>;
 
-export function PasswordForm({ required = false }: { required?: boolean }) {
+export function PasswordForm({ required = false, role }: { required?: boolean; role: WorkspaceRole }) {
   const [state, formAction, pending] = useActionState(changePasswordAction, initialState);
   const formRef = useRef<HTMLFormElement>(null);
   const { register, handleSubmit, reset, formState: { errors } } = useForm<Fields>({ resolver: zodResolver(schema), shouldFocusError: true });
 
   useEffect(() => {
-    if (state.status === "success") { formRef.current?.reset(); reset(); if (required) window.location.assign("/"); }
-  }, [required, reset, state.status]);
+    if (state.status === "success") { formRef.current?.reset(); reset(); if (required) window.location.assign(workspaceForRole(role)); }
+  }, [required, reset, role, state.status]);
 
   const submit = handleSubmit((_values, event) => { const form = event?.currentTarget; if (form instanceof HTMLFormElement) { const data = new FormData(form); startTransition(() => formAction(data)); } });
 

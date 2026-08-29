@@ -67,7 +67,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
               <CardTitle className="text-xl text-[#123c36]">Đổi mật khẩu</CardTitle>
               <CardDescription>Sau khi đổi, phiên hiện tại được giữ lại và các phiên đăng nhập khác sẽ bị đăng xuất.</CardDescription>
             </CardHeader>
-            <CardContent><PasswordForm required={firstLogin} /></CardContent>
+            <CardContent><PasswordForm required={firstLogin} role={profile.role} /></CardContent>
           </Card>
         </div>
       </main>
