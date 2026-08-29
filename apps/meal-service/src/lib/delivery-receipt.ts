@@ -30,6 +30,14 @@ export function expectedQuantityFromHandoff(handoff: { quantity: number } | null
   return handoff.quantity;
 }
 
+export function deliveryReceiptAvailability(
+  handoff: { quantity: number } | null | undefined,
+  receipt: { expectedQuantity: number } | null | undefined,
+) {
+  if (!handoff) return { status: "WAITING_HANDOFF" as const, expectedQuantity: null };
+  return { status: receipt ? "CONFIRMED" as const : "READY" as const, expectedQuantity: handoff.quantity };
+}
+
 export async function confirmMealDelivery(
   input: { mealEventId: string; departmentId: string; status: unknown; receivedQuantity: unknown; note: unknown; correctionReason?: unknown },
   actor: { id: string; displayName: string; role: Role },
