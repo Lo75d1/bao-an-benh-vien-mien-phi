@@ -2,7 +2,7 @@
 
 import { Check, LoaderCircle } from "lucide-react";
 import { useFormStatus } from "react-dom";
-import { useEffect, type ButtonHTMLAttributes, type ReactNode } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 import type { ActionResult } from "@/lib/action-result";
 
 export function ActionButton({
@@ -48,17 +48,10 @@ export function ActionButton({
 
 export function ActionFeedback({
   result,
-  actionId,
 }: {
   result: ActionResult;
   actionId?: string;
 }) {
-  useEffect(() => {
-    if (result.status === "success" && actionId)
-      window.dispatchEvent(
-        new CustomEvent("demo:action-success", { detail: { actionId } }),
-      );
-  }, [actionId, result.status]);
   if (result.status === "idle" || !result.message) return null;
   return (
     <p

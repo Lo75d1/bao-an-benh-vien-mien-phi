@@ -7,7 +7,7 @@ import { addDays, mealTimePhase } from "./meal-events";
 import { evidenceStorage } from "./evidence-storage";
 import { readOperationalSettings } from "./settings";
 import { getMealBusinessFacts, getMealPhase, type MealBusinessFacts, type MealPhase } from "./meal-state";
-import { isDemoTourScenarioMeal, readDemoSession } from "./demo-session";
+import { readDemoSession } from "./demo-session";
 
 export const MANAGEMENT_STATUSES = ["PLANNED", "LOCKED", "PREPARING", "PREPARED", "SERVED"] as const;
 export type ManagementStatus = (typeof MANAGEMENT_STATUSES)[number];
@@ -171,25 +171,14 @@ export async function readManagementDay(date?: string, now = new Date(), departm
   const demoDepartmentNames = demo ? new Map((await prisma.department.findMany({ where: { id: { in: [...new Set(demo.state.additions.map((item) => item.departmentId))] } }, select: { id: true, name: true } })).map((item) => [item.id, item.name])) : new Map<string, string>();
   const demoDietTypes = demo ? new Map((await prisma.dietType.findMany({ where: { id: { in: [...new Set(demo.state.additions.map((item) => item.dietTypeId))] } }, select: { id: true, code: true, name: true } })).map((item) => [item.id, item])) : new Map<string, { id: string; code: string; name: string }>();
   if (demo) for (const event of events) {
-    const scenario = isDemoTourScenarioMeal(demo.state, event.id);
-    if (scenario) {
-      event.reports.splice(0, event.reports.length);
-      event.deliveryReceipts.splice(0, event.deliveryReceipts.length);
-      event.additions.splice(0, event.additions.length);
-      event.evidence.splice(0, event.evidence.length);
-    }
     for (const meal of event.dietMeals) {
       const status = demo.state.dietStatuses[meal.id];
-      meal.status = (status ?? (scenario ? "PLANNED" : meal.status)) as typeof meal.status;
-      if (scenario) meal.evidence.splice(0, meal.evidence.length);
+      if (status) meal.status = status as typeof meal.status;
     }
     for (const overlay of demo.state.reports.filter((item) => item.mealEventId === event.id)) {
       const current = event.reports.findIndex((item) => item.departmentId === overlay.departmentId);
       const report = { id: `demo:${event.id}:${overlay.departmentId}`, departmentId: overlay.departmentId, submittedAt: new Date(overlay.submittedAt), submittedBy: { displayName: overlay.reportedByName }, lines: overlay.lines.flatMap((line) => { const diet = event.dietMeals.find((meal) => meal.dietType.id === line.dietTypeId)?.dietType; return diet ? [{ quantity: line.quantity, dietType: { code: diet.code, name: diet.name } }] : []; }) };
       if (current >= 0) event.reports.splice(current, 1, report); else event.reports.push(report);
-    }
-    if (scenario) for (const meal of event.dietMeals) {
-      meal.servingsPlanned = event.reports.reduce((sum, report) => sum + (report.lines.find((line) => line.dietType.code === meal.dietType.code)?.quantity ?? 0), 0);
     }
     for (const overlay of demo.state.receipts.filter((item) => item.mealEventId === event.id)) {
       const current = event.deliveryReceipts.findIndex((item) => item.departmentId === overlay.departmentId);
@@ -203,7 +192,6 @@ export async function readManagementDay(date?: string, now = new Date(), departm
       event.additions.push({ id: overlay.id, departmentId: overlay.departmentId, quantity: overlay.quantity, reason: overlay.reason, ackStatus: overlay.ackStatus, submittedAt: new Date(overlay.submittedAt), submittedBy: { displayName: overlay.submittedBy }, department: { name: departmentName }, dietType: { code: dietType.code, name: dietType.name } });
     }
   }
-  const scenarioDietMealIds = new Set(demo ? events.filter((event) => isDemoTourScenarioMeal(demo.state, event.id)).flatMap((event) => event.dietMeals.map((meal) => meal.id)) : []);
   const selectedIsToday = day.getTime() === hospitalDate(now).getTime();
   const dietMealIds = events.flatMap((event) => event.dietMeals.map((meal) => meal.id));
   const [servedLogs, inventoryCounts] = dietMealIds.length === 0 ? [[], []] : await Promise.all([
@@ -215,7 +203,6 @@ export async function readManagementDay(date?: string, now = new Date(), departm
   const kitchenTimesByDiet = new Map<string, Partial<Record<ManagementStatus, string>>>();
   const kitchenTimeSourcesByDiet = new Map<string, Partial<Record<ManagementStatus, "KITCHEN" | "ADMIN">>>();
   for (const log of servedLogs) {
-    if (scenarioDietMealIds.has(log.entityId)) continue;
     const after = log.afterJson && typeof log.afterJson === "object" && !Array.isArray(log.afterJson) ? log.afterJson as Record<string, unknown> : null;
     const value = after?.status;
     if (!MANAGEMENT_STATUSES.includes(value as ManagementStatus)) continue;

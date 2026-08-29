@@ -202,7 +202,6 @@ export function ServingForm({
                       <label>
                         <span className="sr-only">Số suất {line.name}</span>
                         <input
-                          data-demo-control="nurse-quantity"
                           type="number"
                           min="0"
                           step="1"

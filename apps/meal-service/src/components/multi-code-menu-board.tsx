@@ -535,7 +535,6 @@ export function MultiCodeMenuBoard({
           aria-label="Hai bước nghiệp vụ"
         >
           <button
-            data-demo-control="nutrition-analysis"
             type="button"
             role="tab"
             aria-selected={step === "entry"}

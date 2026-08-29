@@ -2,7 +2,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, BookOpen, ChefHat, ClipboardCheck, Download, FileSpreadsheet, FolderOpen, GitFork, GitFork as Github, HeartPulse, Home, LifeBuoy, MessageCircle, Settings2, ShieldCheck, Soup, Utensils } from "lucide-react";
 import { DemoEntry, type DemoEntryAccount } from "@/components/demo-entry";
-import { DemoLandingGuide } from "@/components/demo-landing-guide";
 
 const roles = [
   { key: "nurse", icon: ClipboardCheck, title: "Điều dưỡng của khoa", description: "Báo suất đúng chế độ, gửi bổ sung sau chốt và xác nhận khoa đã nhận đủ hay còn thiếu.", action: "Vào màn báo suất", badge: undefined, account: { label: "Điều dưỡng", email: "nurse@demo.local", password: "Demo-Nurse-2026!" } },
@@ -25,7 +24,6 @@ function RoleDialog({ role }: { role: (typeof roles)[number] }) {
 
 export default function DemoLandingPage() {
   return <main className="demo-product-home">
-    <DemoLandingGuide/>
     <header className="demo-product-header"><Link href="/demo" className="demo-product-brand"><span>SA</span><strong>Suất ăn bệnh viện miễn phí</strong></Link><nav aria-label="Điều hướng trang Demo"><a className="demo-guide-action" href="#dinh-duong" aria-label="Xem hướng dẫn dành cho dinh dưỡng viên"><BookOpen aria-hidden="true"/><span>Hướng dẫn dùng</span></a><a href="#ho-tro">Hỗ trợ</a><a className="demo-github-action" href="https://github.com/Lo75d1/bao-an-benh-vien-mien-phi/blob/main/docs/DEPLOY.md" target="_blank" rel="noreferrer" aria-label="Hướng dẫn cài đặt hệ thống dành cho IT bệnh viện"><GitFork aria-hidden="true"/><span>IT cài đặt</span></a><DemoEntry accounts={demoEntries} triggerLabel="Vào Demo" triggerClassName="demo-header-action"/></nav></header>
 
     <section className="demo-product-intro" data-landing-guide="intro" aria-labelledby="demo-title"><div><p className="demo-kicker"><ShieldCheck aria-hidden="true"/>Dự án mã nguồn mở cho bệnh viện</p><h1 id="demo-title">Một quy trình rõ ràng cho mỗi suất ăn.</h1><p>Kết nối khoa điều trị, dinh dưỡng và nhà bếp trong cùng một luồng vận hành theo thời gian thực.</p><span data-landing-guide="start"><DemoEntry accounts={demoEntries}/></span></div><aside data-landing-guide="timeline" aria-label="Quy trình sản phẩm"><span>Luồng vận hành</span><ol><li><ClipboardCheck/><strong>Khoa báo suất</strong></li><li><HeartPulse/><strong>Dinh dưỡng lên thực đơn</strong></li><li><ChefHat/><strong>Bếp chuẩn bị</strong></li><li><Utensils/><strong>Khoa xác nhận giao nhận</strong></li></ol></aside></section>

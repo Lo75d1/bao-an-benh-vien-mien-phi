@@ -2,23 +2,20 @@ import "server-only";
 import { headers } from "next/headers";
 import {
   DEMO_TIME_PARAM,
-  DEMO_TOUR_TIME_PARAM,
   pageRequestClock,
   type RequestClock,
 } from "./page-demo-time";
 
 export {
   DEMO_TIME_PARAM,
-  DEMO_TOUR_TIME_PARAM,
   pageRequestClock,
   parsePageDemoTime,
 } from "./page-demo-time";
 
 export async function readRequestClock(
   value?: unknown,
-  tourActive = false,
 ): Promise<RequestClock> {
-  return pageRequestClock(value, new Date(), undefined, tourActive);
+  return pageRequestClock(value);
 }
 
 // Server Actions receive the current page URL as referrer. Demo time is read only
@@ -29,12 +26,7 @@ export async function readActionClock(): Promise<RequestClock> {
   if (!referrer) return pageRequestClock(null);
   try {
     const url = new URL(referrer);
-    return pageRequestClock(
-      url.searchParams.get(DEMO_TIME_PARAM),
-      new Date(),
-      undefined,
-      url.searchParams.get(DEMO_TOUR_TIME_PARAM) === "1",
-    );
+    return pageRequestClock(url.searchParams.get(DEMO_TIME_PARAM));
   } catch {
     return pageRequestClock(null);
   }

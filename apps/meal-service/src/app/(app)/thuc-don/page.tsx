@@ -21,12 +21,12 @@ function thresholdsOf(code: { energyKcalMin: number | null; energyKcalMax: numbe
 
 export const dynamic = "force-dynamic";
 
-export default async function MenuPage({ searchParams }: { searchParams: Promise<{ meal?: string; saved?: string; route?: string; demoNow?: string; demoTour?: string }> }) {
+export default async function MenuPage({ searchParams }: { searchParams: Promise<{ meal?: string; saved?: string; route?: string; demoNow?: string }> }) {
   const user = await getSessionUser();
   if (!user) redirect("/");
   if (user.role !== "DIETITIAN" && user.role !== "ADMIN") redirect("/");
   const params = await searchParams;
-  const [settings, clock] = await Promise.all([readOperationalSettings(), readRequestClock(params.demoNow, params.demoTour === "1" && Boolean(user.demoSessionId))]);
+  const [settings, clock] = await Promise.all([readOperationalSettings(), readRequestClock(params.demoNow)]);
   let [meals, templates] = await Promise.all([
     prisma.dietMeal.findMany({ where: { voidedAt: null, mealEvent: { mealDate: { lte: entryWindowEnd(clock.now, settings.advanceEntryDays) } }, ...(settings.sondeEnabled ? {} : { feedingRoute: "NORMAL" }) }, orderBy: [{ mealEvent: { mealDate: "asc" } }, { mealEvent: { mealType: { sortOrder: "asc" } } }, { dietType: { sortOrder: "asc" } }], include: { mealEvent: { include: { mealType: true } }, dietType: { include: { dietCodeRef: true } } } }),
     prisma.menuTemplate.findMany({ where: { ownerId: user.id }, orderBy: { updatedAt: "desc" }, include: { items: { orderBy: { id: "asc" } } } }),
@@ -56,7 +56,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   const message = params.saved === "menus" || params.saved === "menu" ? "Đã lưu thực đơn. Hệ thống sẽ tự khóa khi tới giờ chốt." : params.saved === "template" ? "Đã lưu mẫu cá nhân." : null;
   return <AppShell user={user} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined}><main className="nutrition-menu-page">
     {message ? <p className="success-banner" role="status">{message}</p> : null}
-    <section className="nutrition-meal-context" aria-label="Bữa đang lên thực đơn" data-demo-guide="nutrition-picker">
+    <section className="nutrition-meal-context" aria-label="Bữa đang lên thực đơn">
       <div><CalendarDays aria-hidden="true"/><span><small>Bữa đang làm · {selected.feedingRoute === "SONDE" ? "Bếp Sonde" : "Bếp ăn thường"}</small><strong>{formatVnDay(selected.mealEvent.mealDate)} · {selected.mealEvent.mealType.name}</strong></span></div>
       <Dialog><DialogTrigger asChild><button type="button" className="secondary-button">Chọn bữa</button></DialogTrigger><DialogContent className="nutrition-meal-dialog"><DialogHeader><DialogTitle>Chọn ngày và bữa cần lên thực đơn</DialogTitle><DialogDescription>Hai lịch ăn thường và Sonde vận hành độc lập. Chọn một ô để chuyển bàn làm việc.</DialogDescription></DialogHeader><nav className="nutrition-route-tabs" aria-label="Chọn đường nuôi"><Link href="/thuc-don?route=NORMAL" aria-current={selected.feedingRoute === "NORMAL" ? "page" : undefined}>Bếp ăn thường</Link>{settings.sondeEnabled ? <Link href="/thuc-don?route=SONDE" aria-current={selected.feedingRoute === "SONDE" ? "page" : undefined}>Bếp Sonde</Link> : null}</nav><div className="nutrition-meal-options">{eventGroups.filter((group) => group[0].feedingRoute === selected.feedingRoute).map((group) => {
         const first = group[0];

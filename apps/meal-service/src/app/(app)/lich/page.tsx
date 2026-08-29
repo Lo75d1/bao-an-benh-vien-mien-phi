@@ -9,11 +9,11 @@ import { prisma } from "@/lib/prisma";
 import { clampDateToDataStart, readOperationalSettings } from "@/lib/settings";
 import { readRequestClock } from "@/lib/request-clock";
 
-export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ week?: string; route?: string; demoNow?: string; demoTour?: string }> }) {
+export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ week?: string; route?: string; demoNow?: string }> }) {
   const user = await getSessionUser();
   if (!user) redirect("/");
   const params = await searchParams;
-  const [settings, clock] = await Promise.all([readOperationalSettings(), readRequestClock(params.demoNow, params.demoTour === "1" && Boolean(user.demoSessionId))]);
+  const [settings, clock] = await Promise.all([readOperationalSettings(), readRequestClock(params.demoNow)]);
   const earliestWeek = parseWeek(settings.dataStartDate, clock.now);
   const parsedRequested = parseWeek(params.week ? clampDateToDataStart(params.week, settings.dataStartDate) : undefined, clock.now);
   const requested = parsedRequested < earliestWeek ? earliestWeek : parsedRequested;
