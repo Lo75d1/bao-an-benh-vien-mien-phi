@@ -23,11 +23,11 @@ function menuItems(value: unknown) {
   return (value.items as SnapshotItem[]).flatMap((item) => typeof item.itemName === "string" && item.itemName.trim() ? [{ name: item.itemName.trim(), dishName: typeof item.dishName === "string" && item.dishName.trim() ? item.dishName.trim() : "Món 1", grams: typeof item.grams === "number" && Number.isFinite(item.grams) ? item.grams : null }] : []);
 }
 
-export default async function KitchenPage({ searchParams }: { searchParams: Promise<{ updated?: string; storage?: string; meal?: string; demoNow?: string }> }) {
+export default async function KitchenPage({ searchParams }: { searchParams: Promise<{ updated?: string; storage?: string; meal?: string }> }) {
   const user = await getSessionUser();
   if (!user || user.role !== "KITCHEN") redirect("/");
   const query = await searchParams;
-  const clock = await readRequestClock(query.demoNow);
+  const clock = await readRequestClock();
   const kitchenRoute = user.kitchenRoute ?? "NORMAL";
   let [workspace, notes] = await Promise.all([readKitchenWorkspace(query.meal, kitchenRoute, clock.now), readApprovedKitchenNotes()]);
   if (!clock.simulated && workspace.selected && await materializeServingCutoffSnapshot(workspace.selected.id, user, clock.now)) workspace = await readKitchenWorkspace(query.meal, kitchenRoute, clock.now);
@@ -43,7 +43,7 @@ export default async function KitchenPage({ searchParams }: { searchParams: Prom
   const unreadNotes = notes.filter((note) => !note.acknowledged).length;
   const notifications = [...(pendingAdditions ? [{ id: "pending-additions", label: `${pendingAdditions} suất bổ sung chờ xác nhận`, detail: "Xác nhận khả năng chuẩn bị trước khi tính vào bữa" }] : []), ...(unreadNotes ? [{ id: "unread-notes", label: `${unreadNotes} ghi chú chưa đọc`, detail: "Ghi chú đã được điều dưỡng duyệt" }] : [])];
 
-  return <AppShell user={user} adminNotifications={notifications} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined} workflowStatus={serviceAt ? <KitchenHeaderStatus serviceAt={serviceAt} initialNowIso={clock.now.toISOString()} liveClock={!clock.simulated}/> : undefined}><main className="kitchen-page kitchen-v2">
+  return <AppShell user={user} adminNotifications={notifications} workflowStatus={serviceAt ? <KitchenHeaderStatus serviceAt={serviceAt} initialNowIso={clock.now.toISOString()} liveClock={!clock.simulated}/> : undefined}><main className="kitchen-page kitchen-v2">
     <LivePhaseRefresh enabled={!clock.simulated}/>
     {meal && phase ? <PhaseTransitionNotice scope={`kitchen:${kitchenRoute}`} mealName={meal.mealType.name} phase={phase}/> : null}
     <CurrentMealLifecycle role={user.role} selectedMealId={meal?.id} now={clock.now} liveClock={!clock.simulated}/>

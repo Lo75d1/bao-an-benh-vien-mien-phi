@@ -29,11 +29,11 @@ function criteria(value: unknown) {
   return value.criteria.flatMap((entry) => { if (!entry || typeof entry !== "object") return []; const row = entry as Record<string, unknown>; if (typeof row.label !== "string") return []; return [{ label: row.label, status: typeof row.status === "string" ? row.status : "MISSING", actual: typeof row.actual === "number" ? row.actual : null, target: typeof row.target === "string" ? row.target : "—" }]; });
 }
 
-export default async function ServingReportPage({ searchParams }: { searchParams: Promise<{ saved?: string; route?: string; demoNow?: string }> }) {
+export default async function ServingReportPage({ searchParams }: { searchParams: Promise<{ saved?: string; route?: string }> }) {
   const user = await getSessionUser(); if (!user) redirect("/"); if (user.role !== "NURSE") redirect("/");
   const params = await searchParams;
   const requestedRoute = params.route === "SONDE" ? "SONDE" : "NORMAL";
-  const clock = await readRequestClock(params.demoNow);
+  const clock = await readRequestClock();
   const [data, pendingNotes] = await Promise.all([readNurseServingDay(user.id, requestedRoute, clock.now), readPendingPatientNotes(user.id)]);
   const { saved } = params;
   const routeSwitch = <Tabs value={data.route} className="nurse-route-switch"><TabsList aria-label="Chọn luồng báo suất"><TabsTrigger value="NORMAL" asChild><Link href="/bao-suat?route=NORMAL">Ăn thường</Link></TabsTrigger>{data.sondeEnabled ? <TabsTrigger value="SONDE" asChild><Link href="/bao-suat?route=SONDE">Qua Sonde</Link></TabsTrigger> : null}</TabsList></Tabs>;
