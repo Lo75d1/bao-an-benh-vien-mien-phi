@@ -37,6 +37,10 @@ export function DeliveryReceiptForms({ eventId, route, expected, receipt, action
   return <div className="delivery-receipt-actions"><ReceiptForm eventId={eventId} route={route} expected={expected} kind="FULL" previous={receipt} action={action}/><ReceiptForm eventId={eventId} route={route} expected={expected} kind="SHORT" previous={receipt} action={action}/></div>;
 }
 
+export function DeliveryHandoffWaiting({ eventName }: { eventName: string }) {
+  return <section className="service-receipt-pending"><div><span>Giao nhận · {eventName}</span><strong>Chờ Bếp bàn giao</strong><small>Số suất dự kiến và nút xác nhận đủ/thiếu sẽ hiện sau khi Bếp bàn giao cho khoa.</small></div></section>;
+}
+
 export function DeliveryReceiptControl({ eventId, eventName, route, expected, receipt, action }: { eventId: string; eventName: string; route: "NORMAL" | "SONDE"; expected: number; receipt: Receipt | null; action: Action }) {
   const missing = receipt ? Math.max(0, receipt.expectedQuantity - receipt.receivedQuantity) : 0;
   const formReceipt = receipt ? { status: receipt.status, receivedQuantity: receipt.receivedQuantity, note: receipt.note } : null;

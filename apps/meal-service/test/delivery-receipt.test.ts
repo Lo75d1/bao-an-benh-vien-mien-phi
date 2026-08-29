@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { expectedQuantityFromHandoff, normalizeDeliveryReceipt, normalizeReceiptCorrectionReason } from "../src/lib/delivery-receipt";
+import { deliveryReceiptAvailability, expectedQuantityFromHandoff, normalizeDeliveryReceipt, normalizeReceiptCorrectionReason } from "../src/lib/delivery-receipt";
 
 test("nhận đủ phải khớp số suất dự kiến", () => {
   assert.deepEqual(normalizeDeliveryReceipt({ status: "FULL", expectedQuantity: 20, receivedQuantity: 20, note: "" }), { status: "FULL", receivedQuantity: 20, note: null });
@@ -17,6 +17,12 @@ test("sửa xác nhận bắt buộc lý do đủ rõ", () => {
   assert.equal(normalizeReceiptCorrectionReason("  Khoa kiểm đếm lại  "), "Khoa kiểm đếm lại");
   assert.throws(() => normalizeReceiptCorrectionReason(""));
   assert.throws(() => normalizeReceiptCorrectionReason("x".repeat(501)));
+});
+
+test("UI giao nhận chỉ sẵn sàng sau handoff và giữ snapshot khi reload", () => {
+  assert.deepEqual(deliveryReceiptAvailability(null, null), { status: "WAITING_HANDOFF", expectedQuantity: null });
+  assert.deepEqual(deliveryReceiptAvailability({ quantity: 36 }, null), { status: "READY", expectedQuantity: 36 });
+  assert.deepEqual(deliveryReceiptAvailability({ quantity: 36 }, { expectedQuantity: 36 }), { status: "CONFIRMED", expectedQuantity: 36 });
 });
 
 test("receipt bắt buộc handoff và lấy expectedQuantity từ snapshot", () => {
