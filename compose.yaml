@@ -37,6 +37,8 @@ services:
       EVIDENCE_STORAGE_DIR: "/app/uploads"
       PATIENT_NOTE_IP_SALT: "${PATIENT_NOTE_IP_SALT:?Hay dat PATIENT_NOTE_IP_SALT trong file .env}"
       AUTH_RATE_LIMIT_SALT: "${AUTH_RATE_LIMIT_SALT:?Hay dat AUTH_RATE_LIMIT_SALT trong file .env}"
+      APP_SECRET: "${APP_SECRET:?Hay dat APP_SECRET ngau nhien trong file .env}"
+      BOOTSTRAP_SETUP_TOKEN: "${BOOTSTRAP_SETUP_TOKEN:?Hay dat BOOTSTRAP_SETUP_TOKEN ngau nhien trong file .env}"
     depends_on: { seed: { condition: service_completed_successfully } }
     ports: ["3000:3000"]
     volumes: ["meal_service_uploads:/app/uploads"]
