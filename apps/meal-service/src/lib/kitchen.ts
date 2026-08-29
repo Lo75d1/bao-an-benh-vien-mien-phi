@@ -7,6 +7,14 @@ import { readApprovedKitchenNotes } from "./patient-note";
 import { readOperationalSettings } from "./settings";
 import { readDemoSession, updateDemoState } from "./demo-session";
 
+export function hasActionableKitchenWork(input: {
+  reportQuantities: number[];
+  additions: Array<{ quantity: number; ackStatus: string }>;
+}): boolean {
+  return input.reportQuantities.some((quantity) => quantity > 0)
+    || input.additions.some((addition) => addition.quantity > 0 && ["PENDING", "RECEIVED", "SUBSTITUTE"].includes(addition.ackStatus));
+}
+
 export const KITCHEN_STATUS_LABEL: Record<DietMealStatus, string> = { PLANNED: "Đã lên kế hoạch", LOCKED: "Đã chốt suất", PREPARING: "Đang chuẩn bị", PREPARED: "Đã chuẩn bị", SERVED: "Đã phục vụ", CANCELLED: "Đã hủy" };
 const NEXT_STATUS: Partial<Record<DietMealStatus, DietMealStatus>> = { PLANNED: "PREPARING", LOCKED: "PREPARING", PREPARING: "PREPARED", PREPARED: "SERVED" };
 export function nextKitchenStatus(status: DietMealStatus): DietMealStatus | null { return NEXT_STATUS[status] ?? null; }

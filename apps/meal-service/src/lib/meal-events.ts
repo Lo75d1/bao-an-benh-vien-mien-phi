@@ -177,6 +177,18 @@ export function pickLifecycleMeal<T extends LifecycleMeal>(meals: T[], now = new
   return { meal: meals[0], nextCycle: true };
 }
 
+/** Chọn bữa vận hành theo lifecycle; query cũ không được ghim Bếp ở bữa đã qua. */
+export function pickOperationalMeal<T extends LifecycleMeal & { id: string }>(
+  meals: T[],
+  requestedMealId: string | undefined,
+  now = new Date(),
+  completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES,
+): T | null {
+  const current = pickLifecycleMeal(meals, now, completionMinutes)?.meal ?? null;
+  if (!current) return null;
+  return requestedMealId === current.id ? meals.find((meal) => meal.id === requestedMealId) ?? current : current;
+}
+
 export function rollupMealEventStatus(statuses: DietMealStatus[]): DietMealStatus | null {
   if (statuses.length === 0) return null;
   const active = statuses.filter((status) => status !== "CANCELLED");

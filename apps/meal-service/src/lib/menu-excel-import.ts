@@ -16,7 +16,7 @@ export type ImportPreviewRow = {
 const aliases: Record<ImportField, string[]> = {
   dietCode: ["ma", "ma che do", "ma che do an", "diet code", "dietcode"],
   mealName: ["bua", "bua an", "meal", "meal type", "mealtype"],
-  dishName: ["kieu mon", "loai mon", "ten mon", "mon an", "dish", "dish name"],
+  dishName: ["ten mon", "ten mon an", "mon an", "dish", "dish name"],
   foodName: ["ten thuc pham", "thuc pham", "nguyen lieu", "food", "food name"],
   grams: ["gram suat", "gram sach suat", "khoi luong", "so luong g", "gram", "grams", "g suat"],
   energyKcal: ["nang luong", "nang luong kcal", "kcal", "energy", "energy kcal"],

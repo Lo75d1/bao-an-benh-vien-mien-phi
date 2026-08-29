@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { serializeFoodSearchResult } from "@/lib/menu-search-result";
 
 export async function GET(request: NextRequest) {
   const user = await getSessionUser();
@@ -16,5 +17,5 @@ export async function GET(request: NextRequest) {
     orderBy: { name: "asc" }, take: limit,
     select: { id: true, name: true, source: true, foodType: true, foodGroup: true, wastePercent: true, energyKcal: true, proteinG: true, lipidG: true, glucidG: true, sodiumMg: true, potassiumMg: true, waterG: true },
   });
-  return Response.json({ items });
+  return Response.json({ items: items.map((item) => serializeFoodSearchResult(item)) });
 }
