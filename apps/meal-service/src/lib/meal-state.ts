@@ -16,6 +16,27 @@ export type MealBusinessFacts = {
   retention24h: RetentionFact;
 };
 
+/** MealEvent/DietMeal rỗng chỉ là khung lịch, chưa phải dữ liệu nghiệp vụ. */
+export function hasMealBusinessData(input: {
+  reportCount?: number;
+  additionCount?: number;
+  receiptCount?: number;
+  inventoryEntryCount?: number;
+  plannedServings?: number | null;
+  dietStatuses?: readonly DietMealStatus[];
+  menuItemCount?: number;
+  evidenceCount?: number;
+}): boolean {
+  return (input.reportCount ?? 0) > 0
+    || (input.additionCount ?? 0) > 0
+    || (input.receiptCount ?? 0) > 0
+    || (input.inventoryEntryCount ?? 0) > 0
+    || (input.plannedServings ?? 0) > 0
+    || (input.menuItemCount ?? 0) > 0
+    || (input.evidenceCount ?? 0) > 0
+    || (input.dietStatuses ?? []).some((status) => !["PLANNED", "CANCELLED"].includes(status));
+}
+
 export function getMealBusinessFacts(input: {
   dietStatuses?: readonly DietMealStatus[];
   reportedDepartmentCount?: number;

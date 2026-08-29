@@ -3,9 +3,9 @@ import test from "node:test";
 import { detectImportColumns, parseImportRows } from "../src/lib/menu-excel-import";
 
 test("nhận diện cột Excel tiếng Việt và giữ dinh dưỡng thiếu là null", () => {
-  const mapping = detectImportColumns(["Bữa ăn", "Mã chế độ ăn", "Kiểu món", "Tên thực phẩm", "Gram sạch/suất", "Kcal", "Đạm"]);
-  assert.deepEqual(mapping, { dietCode: 1, mealName: 0, dishName: 2, foodName: 3, grams: 4, energyKcal: 5, proteinG: 6 });
-  const [row] = parseImportRows([["Trưa", "CƠM_THƯỜNG", "Món mặn", "Thịt heo", 80, 242, 27]], mapping);
+  const mapping = detectImportColumns(["Mã chế độ ăn", "Tên món ăn", "Tên thực phẩm", "Gram sạch/suất", "Kcal", "Đạm", "Bữa ăn"]);
+  assert.deepEqual(mapping, { dietCode: 0, dishName: 1, foodName: 2, grams: 3, energyKcal: 4, proteinG: 5, mealName: 6 });
+  const [row] = parseImportRows([["CƠM_THƯỜNG", "Cơm — món chính", "Thịt heo", 80, 242, 27, "Trưa"]], mapping);
   assert.equal(row.dietCode, "CƠM_THƯỜNG");
   assert.equal(row.nutrients.energyKcal, 242);
   assert.equal(row.nutrients.lipidG, null);

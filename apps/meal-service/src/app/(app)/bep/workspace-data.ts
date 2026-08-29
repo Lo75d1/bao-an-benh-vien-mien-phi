@@ -1,5 +1,5 @@
-import { buildDietMealShopping } from "@/lib/kitchen";
-import { hospitalDayKey, isKitchenPreparationOpen, pickLifecycleMeal, rollupMealEventStatus } from "@/lib/meal-events";
+import { buildDietMealShopping, hasActionableKitchenWork } from "@/lib/kitchen";
+import { hospitalDayKey, isKitchenPreparationOpen, pickOperationalMeal, rollupMealEventStatus } from "@/lib/meal-events";
 import { servingTotal } from "@/lib/late-addition";
 import { evidenceStorage } from "@/lib/evidence-storage";
 import { prisma } from "@/lib/prisma";
@@ -63,11 +63,16 @@ export async function readKitchenWorkspace(requestedMealId?: string, feedingRout
     serviceTime: event.mealType.serviceTime,
     status: rollupMealEventStatus(event.dietMeals.map((meal) => meal.status)) ?? "CANCELLED",
   }));
-  const lifecycle = pickLifecycleMeal(events.map((event) => ({ event, mealDate: event.mealDate, cutoffTime: event.mealType.cutoffTime, serviceTime: event.mealType.serviceTime, status: rollupMealEventStatus(event.dietMeals.map((meal) => meal.status)) })), now, settings.serviceCompletionMinutes);
-  const defaultEvent = lifecycle?.meal.event ?? events[0];
-  const selected = events.find((event) => event.id === requestedMealId) ?? defaultEvent ?? null;
+  const selected = pickOperationalMeal(events.map((event) => ({ ...event, cutoffTime: event.mealType.cutoffTime, serviceTime: event.mealType.serviceTime, status: rollupMealEventStatus(event.dietMeals.map((meal) => meal.status)) })), requestedMealId, now, settings.serviceCompletionMinutes);
 
-  if (!selected) return { events: summaries, selected: null, canOperate: false, foodRetention24hRequired: settings.foodRetention24hRequired };
+  if (!selected) return { events: summaries, selected: null, canOperate: false, hasActionableWork: false, foodRetention24hRequired: settings.foodRetention24hRequired };
+  const hasActionableWork = hasActionableKitchenWork({
+    reportQuantities: [
+      ...selected.dietMeals.map((meal) => meal.servingsPlanned),
+      ...selected.reports.flatMap((report) => report.lines.map((line) => line.quantity)),
+    ],
+    additions: selected.additions.map((addition) => ({ quantity: addition.quantity, ackStatus: addition.ackStatus })),
+  });
   const shopping = buildDietMealShopping(selected.dietMeals.map((meal) => ({
     id: meal.id,
     dietTypeId: meal.dietTypeId,
@@ -88,5 +93,5 @@ export async function readKitchenWorkspace(requestedMealId?: string, feedingRout
   const departmentNames = new Map([...selected.reports.map((report) => [report.departmentId, report.department.name] as const), ...selected.additions.map((addition) => [addition.departmentId, addition.department.name] as const)]);
   const existingHandoffs = new Map(selected.mealHandoffs.map((handoff) => [handoff.departmentId, handoff]));
   const handoffs = handoffSnapshots.map((snapshot) => { const existing = existingHandoffs.get(snapshot.departmentId); return { departmentId: snapshot.departmentId, departmentName: existing?.department.name ?? departmentNames.get(snapshot.departmentId) ?? "—", quantity: existing?.quantity ?? snapshot.quantity, handedOffAt: existing?.handedOffAt.toISOString() ?? null, handedOffBy: existing?.handedOffBy.displayName ?? null }; });
-  return { events: summaries, selected: { ...selected, dietMeals: selected.dietMeals.map((meal) => ({ ...meal, evidence: meal.evidence.map((item) => ({ ...item, publicUrl: evidenceStorage.publicUrl(item.storagePath) })) })), shopping, evidence, handoffs }, canOperate: isKitchenPreparationOpen(selected.mealDate, selected.mealType.cutoffTime, selected.mealType.serviceTime, now, settings.serviceCompletionMinutes), foodRetention24hRequired: settings.foodRetention24hRequired };
+  return { events: summaries, selected: { ...selected, dietMeals: selected.dietMeals.map((meal) => ({ ...meal, evidence: meal.evidence.map((item) => ({ ...item, publicUrl: evidenceStorage.publicUrl(item.storagePath) })) })), shopping, evidence, handoffs }, canOperate: hasActionableWork && isKitchenPreparationOpen(selected.mealDate, selected.mealType.cutoffTime, selected.mealType.serviceTime, now, settings.serviceCompletionMinutes), hasActionableWork, foodRetention24hRequired: settings.foodRetention24hRequired };
 }
