@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { BookOpen, Check, ClipboardCopy, FileDown, GripVertical, MoreVertical, Plus, Save, Search, Trash2 } from "lucide-react";
 import type { DietCodeThresholds } from "@suat-an/nutrition-engine";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -170,6 +170,11 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
   const [dragged, setDragged] = useState<ActiveDish | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [importMessage, setImportMessage] = useState("");
+  const commandSearchRef = useRef<HTMLInputElement>(null);
+  const dialogSearchRef = useRef<HTMLInputElement>(null);
+  const dishElements = useRef(new Map<string, HTMLElement>());
+  const [pendingDishReveal, setPendingDishReveal] = useState<string | null>(null);
+  const [pendingSearchFocus, setPendingSearchFocus] = useState<string | null>(null);
   const active = meals.find((meal) => meal.id === activeId) ?? meals[0];
   const recommendationMeal = meals.find((meal) => meal.id === recommendationId) ?? null;
 
@@ -208,6 +213,30 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
       window.localStorage.setItem(noteKey, JSON.stringify(patientNotes));
     }
   }, [hydrated, kcalTargets, menus, noteKey, patientNotes, storageKey, targetKey]);
+  useEffect(() => {
+    if (!pendingDishReveal) return;
+    const element = dishElements.current.get(pendingDishReveal);
+    if (!element) return;
+    element.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+    setPendingDishReveal(null);
+  }, [menus, pendingDishReveal]);
+  useEffect(() => {
+    if (!activeDish) return;
+    const frame = window.requestAnimationFrame(() => {
+      dialogSearchRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      dialogSearchRef.current?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeDish]);
+  useEffect(() => {
+    if (!pendingSearchFocus || pendingSearchFocus !== activeId) return;
+    const frame = window.requestAnimationFrame(() => {
+      commandSearchRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      commandSearchRef.current?.focus({ preventScroll: true });
+      setPendingSearchFocus(null);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeId, pendingSearchFocus, searchKind]);
 
   const qualities = useMemo(() => Object.fromEntries(meals.map((meal) => [meal.id, assessMenuDataQuality(menus[meal.id] ?? [])])), [meals, menus]);
   const blockedDrafts = meals.filter((meal) => !meal.approved && (menus[meal.id] ?? []).length && qualities[meal.id]?.level === "BLOCKED");
@@ -235,6 +264,11 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
     setActiveId(meal.id);
     setSearchKind("dish");
   }
+  function focusDishSearch(meal: Meal) {
+    setActiveId(meal.id);
+    setSearchKind("dish");
+    setPendingSearchFocus(meal.id);
+  }
   function addFood(food: FoodResult, target = activeDish) {
     const mealId = target?.mealId ?? active?.id;
     if (!mealId) return;
@@ -253,6 +287,7 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
       ...current,
       [active.id]: [...(current[active.id] ?? []), ...rows],
     }));
+    setPendingDishReveal(`${active.id}:${dish.name}`);
     setImportMessage(`Đã thêm món ${dish.name} vào mã ${active.code}.`);
   }
   function patchItem(mealId: string, index: number, patch: Partial<MenuItemInput>) {
@@ -285,6 +320,7 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
       ...current,
       [mealId]: [...(current[mealId] ?? []), ...copies],
     }));
+    setPendingDishReveal(`${mealId}:${name}`);
   }
   function dropDish(targetMealId: string, targetDish?: string) {
     if (!dragged) return;
@@ -306,13 +342,14 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
     });
     setDragged(null);
   }
-  function newDish() {
-    if (!active || active.approved) return;
-    const names = dishes(menus[active.id] ?? []);
+  function newDish(meal: Meal) {
+    if (meal.approved) return;
+    setActiveId(meal.id);
+    const names = dishes(menus[meal.id] ?? []);
     let name = "Món mới";
     let index = 2;
     while (names.includes(name)) name = `Món mới ${index++}`;
-    setActiveDish({ mealId: active.id, name });
+    setActiveDish({ mealId: meal.id, name });
     setSearchKind("food");
   }
   function applyTemplate(template: Template) {
@@ -566,6 +603,7 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
                       <article
                         className="nutrition-dish-card"
                         key={dish}
+                        ref={(element) => { const key = `${meal.id}:${dish}`; if (element) dishElements.current.set(key, element); else dishElements.current.delete(key); }}
                         draggable={!meal.approved}
                         onDragStart={(event: DragEvent<HTMLElement>) => {
                           event.dataTransfer.effectAllowed = dragged?.mealId === meal.id ? "move" : "copy";
@@ -615,12 +653,9 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                      <DropdownMenuItem onSelect={newDish}>Tạo món trống rồi thêm thực phẩm</DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => newDish(meal)}>Tạo món trống rồi thêm thực phẩm</DropdownMenuItem>
                       <DropdownMenuItem
-                        onSelect={() => {
-                          setSearchKind("dish");
-                          document.querySelector<HTMLInputElement>(".nutrition-menu-command input")?.focus();
-                        }}
+                        onSelect={() => focusDishSearch(meal)}
                       >
                         Tìm món có sẵn
                       </DropdownMenuItem>
@@ -744,7 +779,7 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
           </button>
           <div className="nutrition-command-search">
             <Search />
-            <MenuFoodSearch kind={searchKind} filterIconOnly onPickFood={(food) => addFood(food, null)} onPickDish={addDish} placeholder={searchKind === "dish" ? "Tìm món ăn cho mã đang chọn…" : "Tìm thực phẩm để thêm vào món…"} />
+            <MenuFoodSearch inputRef={commandSearchRef} kind={searchKind} filterIconOnly onPickFood={(food) => addFood(food, null)} onPickDish={addDish} placeholder={searchKind === "dish" ? "Tìm món ăn cho mã đang chọn…" : "Tìm thực phẩm để thêm vào món…"} />
           </div>
           <button type="button" className="primary-action" onClick={() => setStep("analysis")}>
             Chuyển sang phân tích
@@ -834,7 +869,7 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
             </div>
             <div className="nutrition-dialog-search">
               <Search />
-              <MenuFoodSearch kind="food" filterIconOnly onPickFood={(food) => addFood(food, activeDish)} placeholder="Tìm thực phẩm để thêm vào món này…" />
+              <MenuFoodSearch inputRef={dialogSearchRef} kind="food" filterIconOnly onPickFood={(food) => addFood(food, activeDish)} placeholder="Tìm thực phẩm để thêm vào món này…" />
             </div>
           </DialogContent>
         ) : null}
