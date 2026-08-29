@@ -11,6 +11,7 @@ import { saveDietType, setDietTypeStatus } from "@/lib/diet-types";
 import { saveMealType, setMealTypeStatus } from "@/lib/meal-types";
 import { readOperationalSettings, updateOperationalSettings } from "@/lib/settings";
 import { prisma } from "@/lib/prisma";
+import { actionFailure, actionSuccess, type ActionResult } from "@/lib/action-result";
 
 async function admin() {
   return requireBootstrapAdmin();
@@ -57,10 +58,26 @@ export async function setupDepartmentStatusAction(formData: FormData) {
   finish(3);
 }
 
-export async function setupAccountAction(formData: FormData) {
+async function saveSetupAccount(formData: FormData) {
   const actor = await admin();
   const input = { email: formData.get("email"), displayName: formData.get("displayName"), role: formData.get("role"), password: formData.get("password"), departmentId: formData.get("departmentId"), kitchenRoute: formData.get("kitchenRoute") };
-  try { const id = String(formData.get("userId") ?? ""); if (id) await updateAccount(id, input, actor); else await createAccount(input, actor); }
+  const id = String(formData.get("userId") ?? "");
+  if (id) await updateAccount(id, input, actor); else await createAccount(input, actor);
+  return id;
+}
+
+export async function setupAccountCreateAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
+  try {
+    const id = await saveSetupAccount(formData);
+    revalidatePath("/thiet-lap-ban-dau");
+    return actionSuccess(id ? "Đã cập nhật tài khoản." : "Đã tạo tài khoản. Danh sách đã được cập nhật.");
+  } catch (error) {
+    return actionFailure(error);
+  }
+}
+
+export async function setupAccountAction(formData: FormData) {
+  try { await saveSetupAccount(formData); }
   catch (error) { finish(4, error); }
   finish(4);
 }

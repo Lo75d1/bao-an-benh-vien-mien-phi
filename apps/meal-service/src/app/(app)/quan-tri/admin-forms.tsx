@@ -31,15 +31,23 @@ export function SettingsForm({ settings, mealTypes, action }: { settings: Omit<S
 const accountSchema = z.object({ displayName: z.string().trim().min(2, "Họ tên cần ít nhất 2 ký tự.").max(100), email: z.string().trim().email("Nhập email hợp lệ."), role: z.enum(["ADMIN", "DIETITIAN", "NURSE", "KITCHEN"]), departmentId: z.string(), password: z.string().min(10, "Mật khẩu cần ít nhất 10 ký tự.").max(256) }).superRefine((value, context) => { if (value.role === "NURSE" && !value.departmentId) context.addIssue({ code: "custom", path: ["departmentId"], message: "Chọn khoa cho điều dưỡng." }); });
 const scopedAccountSchema = accountSchema.and(z.object({ kitchenRoute: z.string() })).superRefine((value, context) => { if (value.role === "KITCHEN" && !["NORMAL", "SONDE"].includes(value.kitchenRoute)) context.addIssue({ code: "custom", path: ["kitchenRoute"], message: "Chọn phạm vi bếp." }); });
 type AccountFields = z.infer<typeof scopedAccountSchema>;
-export function AccountCreateForm({ departments, action }: { departments: { id: string; name: string }[]; action: (data: FormData) => Promise<void> }) {
- const [pending, run] = useTransition(); const { register, handleSubmit, formState: { errors } } = useForm<AccountFields>({ resolver: zodResolver(scopedAccountSchema), shouldFocusError: true, defaultValues: { displayName: "", email: "", role: "NURSE", departmentId: "", kitchenRoute: "", password: "" } });
- return <form onSubmit={handleSubmit((_values, event) => { const form = event?.currentTarget; if (form instanceof HTMLFormElement) { const data = new FormData(form); startTransition(() => run(() => action(data))); } })} noValidate className="admin-grid account-create">
+type AccountCreateFormProps = {
+ departments: { id: string; name: string }[];
+ action?: (data: FormData) => Promise<void>;
+ feedbackAction?: (previous: ActionResult, data: FormData) => Promise<ActionResult>;
+};
+const unusedFeedbackAction = async (previous: ActionResult) => previous;
+export function AccountCreateForm({ departments, action, feedbackAction }: AccountCreateFormProps) {
+ const [pending, run] = useTransition(); const [result, feedbackFormAction, feedbackPending] = useActionState(feedbackAction ?? unusedFeedbackAction, INITIAL_ACTION_RESULT); const { register, handleSubmit, formState: { errors } } = useForm<AccountFields>({ resolver: zodResolver(scopedAccountSchema), shouldFocusError: true, defaultValues: { displayName: "", email: "", role: "NURSE", departmentId: "", kitchenRoute: "", password: "" } });
+ const submitting = feedbackAction ? feedbackPending : pending;
+ return <form onSubmit={handleSubmit((_values, event) => { const form = event?.currentTarget; if (form instanceof HTMLFormElement) { const data = new FormData(form); if (feedbackAction) startTransition(() => feedbackFormAction(data)); else if (action) run(() => action(data)); } })} noValidate className="admin-grid account-create">
   <label>Họ tên<input {...register("displayName")} autoComplete="name" aria-invalid={!!errors.displayName} aria-describedby={errors.displayName ? "account-name-error" : undefined}/>{error("account-name-error", errors.displayName?.message)}</label>
   <label>Email<input type="email" {...register("email")} autoComplete="email" spellCheck={false} aria-invalid={!!errors.email} aria-describedby={errors.email ? "account-email-error" : undefined}/>{error("account-email-error", errors.email?.message)}</label>
   <label>Vai trò<select {...register("role")}><option value="ADMIN">Quản trị</option><option value="DIETITIAN">Dinh dưỡng</option><option value="NURSE">Điều dưỡng</option><option value="KITCHEN">Nhà bếp</option></select></label>
   <label>Khoa cho điều dưỡng<select {...register("departmentId")} aria-invalid={!!errors.departmentId} aria-describedby={errors.departmentId ? "account-department-error" : undefined}><option value="">—</option>{departments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>{error("account-department-error", errors.departmentId?.message)}</label>
   <label>Phạm vi cho tài khoản bếp<select {...register("kitchenRoute")} aria-invalid={!!errors.kitchenRoute}><option value="">—</option><option value="NORMAL">Bếp ăn thường</option><option value="SONDE">Bếp Sonde</option></select>{error("account-kitchen-route-error", errors.kitchenRoute?.message)}</label>
   <label>Mật khẩu ban đầu<input type="password" {...register("password")} autoComplete="new-password" aria-invalid={!!errors.password} aria-describedby={errors.password ? "account-password-error" : undefined}/>{error("account-password-error", errors.password?.message)}</label>
-  <button className="primary-action" disabled={pending}>{pending ? "Đang tạo…" : "Tạo tài khoản"}</button>
+  <ActionButton className="primary-action" pending={submitting} pendingLabel="Đang tạo…">Tạo tài khoản</ActionButton>
+  {feedbackAction ? <ActionFeedback result={result}/> : null}
  </form>;
 }
