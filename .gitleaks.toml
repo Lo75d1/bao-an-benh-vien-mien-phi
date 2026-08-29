@@ -1,0 +1,22 @@
+title = "Suat an benh vien secret scanning"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Placeholder APP_SECRET cu, runtime tu choi marker thay-bang"
+condition = "AND"
+targetRules = ["generic-api-key"]
+commits = ["234a817e7c92a2356d0410712806cf2ee35d7bbb"]
+paths = ['''^\.env\.example$''']
+regexTarget = "secret"
+regexes = ['''^thay-bang-chuoi-ky-32-ky-tu-tro-len$''']
+
+[[allowlists]]
+description = "Placeholder AUTH_RATE_LIMIT_SALT cu trong file mau"
+condition = "AND"
+targetRules = ["generic-api-key"]
+commits = ["b291b54fc2456e98febb0f3d60f05ea418b37488"]
+paths = ['''^\.env\.example$''']
+regexTarget = "secret"
+regexes = ['''^thay-bang-chuoi-ngau-nhien-khac-toi-thieu-32-ky-tu$''']
