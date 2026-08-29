@@ -6,12 +6,22 @@ import { readSetupCompletion } from "./first-time-setup";
 
 const COOKIE = "meal_service_bootstrap";
 const MAX_AGE = 60 * 60 * 2;
+const UNSAFE_SECRET_MARKERS = ["thay-bang", "change-me", "changeme", "example", "default", "placeholder"];
 type BootstrapState = { authorizedAt: string; adminId?: string };
 
+export function validateServerSecret(value: string | undefined, label: string, minimumLength = 32): string {
+  const normalized = value?.trim() ?? "";
+  const lowered = normalized.toLowerCase();
+  if (
+    normalized.length < minimumLength
+    || new Set(normalized).size < 12
+    || UNSAFE_SECRET_MARKERS.some((marker) => lowered.includes(marker))
+  ) throw new Error(`Máy chủ chưa cấu hình ${label} an toàn.`);
+  return normalized;
+}
+
 function secret() {
-  const value = process.env.APP_SECRET?.trim();
-  if (!value || value.length < 32) throw new Error("Máy chủ chưa cấu hình APP_SECRET an toàn.");
-  return value;
+  return validateServerSecret(process.env.APP_SECRET, "APP_SECRET");
 }
 
 function sign(payload: string) { return createHmac("sha256", secret()).update(payload).digest("base64url"); }
@@ -37,8 +47,7 @@ async function write(state: BootstrapState) {
 
 export async function authorizeBootstrap(token: string) {
   if (await readSetupCompletion()) throw new Error("Hệ thống đã được khởi tạo; cổng bootstrap đã khóa.");
-  const configured = process.env.BOOTSTRAP_SETUP_TOKEN?.trim();
-  if (!configured || configured.length < 16) throw new Error("Máy chủ chưa cấu hình BOOTSTRAP_SETUP_TOKEN.");
+  const configured = validateServerSecret(process.env.BOOTSTRAP_SETUP_TOKEN, "BOOTSTRAP_SETUP_TOKEN");
   const actual = Buffer.from(token);
   const expected = Buffer.from(configured);
   if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) throw new Error("Mã khởi tạo không đúng.");

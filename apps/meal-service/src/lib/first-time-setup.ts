@@ -1,4 +1,4 @@
-import type { FeedingRoute, Prisma, Role } from "@prisma/client";
+import { Prisma, type FeedingRoute, type Role } from "@prisma/client";
 import { prisma } from "./prisma";
 import { ensureEmptyMealEvents, startOfIsoWeek } from "./meal-events";
 import { readOperationalSettings } from "./settings";
@@ -7,6 +7,7 @@ import { hashPassword } from "./password";
 
 export const FIRST_TIME_SETUP_KEY = "firstTimeSetup";
 export const FIRST_TIME_SETUP_VERSION = 1;
+const FIRST_TIME_SETUP_LOCK = "meal-service:first-time-setup";
 
 export type SetupInventory = {
   adminValid: boolean;
@@ -77,7 +78,22 @@ export async function readSetupInventory(adminId?: string): Promise<SetupInvento
   };
 }
 
-export async function completeFirstTimeSetup(actor: { id: string; displayName: string; role: Role }, now = new Date()) {
+export type PreparedSetup = {
+  completion: { completedAt: string; completedById: string; version: number };
+  credentials: Array<{ userId: string; password: string }>;
+};
+
+export async function buildBeforeCommit<T>(build: () => Promise<T>, commit: () => Promise<void>): Promise<T> {
+  const artifact = await build();
+  await commit();
+  return artifact;
+}
+
+export async function completeFirstTimeSetup<T>(
+  actor: { id: string; displayName: string; role: Role },
+  buildOneTimeArtifact: (prepared: PreparedSetup) => Promise<T>,
+  now = new Date(),
+) {
   if (actor.role !== "ADMIN") throw new Error("Chỉ Admin được hoàn tất thiết lập ban đầu.");
   if (await readSetupCompletion()) throw new Error("Hệ thống đã hoàn tất khởi tạo; không thể chạy bootstrap lần nữa.");
   const inventory = await readSetupInventory(actor.id);
@@ -87,12 +103,18 @@ export async function completeFirstTimeSetup(actor: { id: string; displayName: s
   const completion = { completedAt: now.toISOString(), completedById: actor.id, version: FIRST_TIME_SETUP_VERSION };
   const auxiliaryUsers = await prisma.user.findMany({ where: { id: { not: actor.id }, status: "ACTIVE" }, select: { id: true } });
   const credentials = auxiliaryUsers.map((user) => ({ userId: user.id, password: `BV-${randomBytes(9).toString("base64url")}` }));
-  await prisma.$transaction(async (tx) => {
-    const existing = await tx.appSetting.findUnique({ where: { key: FIRST_TIME_SETUP_KEY }, select: { valueJson: true } });
-    if (parseSetupCompletion(existing?.valueJson)) throw new Error("Hệ thống đã hoàn tất khởi tạo; không thể chạy bootstrap lần nữa.");
-    for (const credential of credentials) await tx.user.update({ where: { id: credential.userId }, data: { passwordHash: hashPassword(credential.password), mustChangePassword: true } });
-    await tx.appSetting.upsert({ where: { key: FIRST_TIME_SETUP_KEY }, create: { key: FIRST_TIME_SETUP_KEY, valueJson: completion }, update: { valueJson: completion } });
-    await tx.auditLog.create({ data: { entityType: "AppSetting", entityId: FIRST_TIME_SETUP_KEY, action: existing ? "RECONFIRM_SETUP" : "COMPLETE_SETUP", actorId: actor.id, actorName: actor.displayName, beforeJson: existing?.valueJson as Prisma.InputJsonValue | undefined, afterJson: completion, reason: "Admin xác nhận hoàn tất thiết lập ban đầu" } });
-  });
-  return { completion, credentials };
+  // Build the only plaintext credential export before any irreversible DB write.
+  // If workbook generation fails, passwords and setup completion stay untouched.
+  const artifact = await buildBeforeCommit(
+    () => buildOneTimeArtifact({ completion, credentials }),
+    () => prisma.$transaction(async (tx) => {
+      await tx.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${FIRST_TIME_SETUP_LOCK}))`);
+      const existing = await tx.appSetting.findUnique({ where: { key: FIRST_TIME_SETUP_KEY }, select: { valueJson: true } });
+      if (parseSetupCompletion(existing?.valueJson)) throw new Error("Hệ thống đã hoàn tất khởi tạo; không thể chạy bootstrap lần nữa.");
+      for (const credential of credentials) await tx.user.update({ where: { id: credential.userId }, data: { passwordHash: hashPassword(credential.password), mustChangePassword: true } });
+      await tx.appSetting.create({ data: { key: FIRST_TIME_SETUP_KEY, valueJson: completion } });
+      await tx.auditLog.create({ data: { entityType: "AppSetting", entityId: FIRST_TIME_SETUP_KEY, action: "COMPLETE_SETUP", actorId: actor.id, actorName: actor.displayName, afterJson: completion, reason: "Admin xác nhận hoàn tất thiết lập ban đầu" } });
+    }),
+  );
+  return { completion, artifact };
 }

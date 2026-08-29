@@ -7,7 +7,7 @@ import { readSetupCompletion } from "./first-time-setup";
 
 export type TemporaryCredential = { userId: string; password: string };
 
-export async function readSetupHandoffData() {
+export async function readSetupHandoffData(completionOverride?: { completedAt: string; completedById: string; version: number }) {
   const [branding, settings, completion, users, departments, meals, diets] = await Promise.all([
     readBrandingSettings(), readOperationalSettings(), readSetupCompletion(),
     prisma.user.findMany({ orderBy: [{ role: "asc" }, { displayName: "asc" }], include: { memberships: { include: { department: true } } } }),
@@ -15,8 +15,9 @@ export async function readSetupHandoffData() {
     prisma.mealType.findMany({ orderBy: [{ feedingRoute: "asc" }, { sortOrder: "asc" }] }),
     prisma.dietType.findMany({ orderBy: [{ feedingRoute: "asc" }, { sortOrder: "asc" }] }),
   ]);
-  if (!completion) throw new Error("Hệ thống chưa hoàn tất khởi tạo.");
-  return { branding, settings, completion, users, departments, meals, diets };
+  const resolvedCompletion = completionOverride ?? completion;
+  if (!resolvedCompletion) throw new Error("Hệ thống chưa hoàn tất khởi tạo.");
+  return { branding, settings, completion: resolvedCompletion, users, departments, meals, diets };
 }
 
 const roleLabel = { ADMIN: "Quản trị", DIETITIAN: "Dinh dưỡng", NURSE: "Điều dưỡng", KITCHEN: "Nhà bếp" } as const;

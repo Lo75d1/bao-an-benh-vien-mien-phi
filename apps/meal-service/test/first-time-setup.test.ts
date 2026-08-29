@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseSetupCompletion, validateSetupInventory, type SetupInventory } from "../src/lib/first-time-setup";
+import { buildBeforeCommit, parseSetupCompletion, validateSetupInventory, type SetupInventory } from "../src/lib/first-time-setup";
 
 const valid: SetupInventory = {
   adminValid: true,
@@ -43,4 +43,20 @@ test("Admin không hợp lệ và giờ bữa sai bị chặn", () => {
   const result = codes({ ...valid, adminValid: false, invalidMealTimes: ["Trưa"] });
   assert.ok(result.includes("ADMIN"));
   assert.ok(result.includes("MEAL_TIME"));
+});
+
+test("XLSX phải dựng xong trước khi commit", async () => {
+  const order: string[] = [];
+  const artifact = await buildBeforeCommit(async () => { order.push("xlsx"); return Buffer.from("PK"); }, async () => { order.push("commit"); });
+  assert.equal(artifact.toString(), "PK");
+  assert.deepEqual(order, ["xlsx", "commit"]);
+});
+
+test("XLSX lỗi thì không commit setup/password", async () => {
+  let committed = false;
+  await assert.rejects(
+    buildBeforeCommit(async () => { throw new Error("xlsx failed"); }, async () => { committed = true; }),
+    /xlsx failed/,
+  );
+  assert.equal(committed, false);
 });
