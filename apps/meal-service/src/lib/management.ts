@@ -174,7 +174,11 @@ export async function readManagementDay(date?: string, now = new Date(), departm
     for (const meal of event.dietMeals) {
       const status = demo.state.dietStatuses[meal.id];
       if (status) meal.status = status as typeof meal.status;
+      const evidence = demo.state.evidence.filter((item) => item.kind === "MEAL_PHOTO" && item.dietMealId === meal.id);
+      meal.evidence.unshift(...evidence.map((item) => ({ id: `demo:${meal.id}`, kind: "MEAL_PHOTO" as const, storagePath: item.storagePath, note: item.note, uploadedAt: new Date(item.uploadedAt), uploadedBy: { displayName: item.uploadedBy } })));
     }
+    const eventEvidence = demo.state.evidence.filter((item) => item.kind === "FOOD_SAMPLE" && item.mealEventId === event.id);
+    event.evidence.unshift(...eventEvidence.map((item) => ({ id: `demo:${event.id}:sample`, kind: "FOOD_SAMPLE" as const, storagePath: item.storagePath, note: item.note, uploadedAt: new Date(item.uploadedAt), uploadedBy: { displayName: item.uploadedBy } })));
     for (const overlay of demo.state.reports.filter((item) => item.mealEventId === event.id)) {
       const current = event.reports.findIndex((item) => item.departmentId === overlay.departmentId);
       const report = { id: `demo:${event.id}:${overlay.departmentId}`, departmentId: overlay.departmentId, submittedAt: new Date(overlay.submittedAt), submittedBy: { displayName: overlay.reportedByName }, lines: overlay.lines.flatMap((line) => { const diet = event.dietMeals.find((meal) => meal.dietType.id === line.dietTypeId)?.dietType; return diet ? [{ quantity: line.quantity, dietType: { code: diet.code, name: diet.name } }] : []; }) };

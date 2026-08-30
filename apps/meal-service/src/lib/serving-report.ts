@@ -134,6 +134,8 @@ export async function readNurseServingDay(userId: string, requestedRoute: Feedin
     }
     const receipt = demo.state.receipts.find((item) => item.mealEventId === event.id && item.departmentId === departmentId);
     if (receipt) event.deliveryReceipts.splice(0, event.deliveryReceipts.length, { id: `demo-receipt:${event.id}:${departmentId}`, mealEventId: event.id, departmentId, status: receipt.status, expectedQuantity: receipt.expectedQuantity, receivedQuantity: receipt.receivedQuantity, note: receipt.note, confirmedAt: new Date(receipt.confirmedAt), updatedAt: new Date(receipt.confirmedAt), confirmedById: userId, confirmedBy: { displayName: receipt.confirmedBy } });
+    const handoff = demo.state.handoffs.find((item) => item.mealEventId === event.id && item.departmentId === departmentId);
+    if (handoff) event.mealHandoffs.splice(0, event.mealHandoffs.length, { quantity: handoff.quantity });
     for (const addition of demo.state.additions.filter((item) => item.mealEventId === event.id && item.departmentId === departmentId && item.feedingRoute === route)) { const dietType = demoDietTypes.get(addition.dietTypeId); if (dietType) event.additions.push({ id: addition.id, mealEventId: event.id, departmentId, dietTypeId: addition.dietTypeId, quantity: addition.quantity, reason: addition.reason, kind: addition.kind, ackStatus: addition.ackStatus, submittedAt: new Date(addition.submittedAt), submittedById: userId, ackById: null, ackAt: null, kitchenNote: addition.kitchenNote, dietType }); }
   }
   return { departmentId, departmentName: memberships[0]?.department.name ?? "—", events, route, sondeEnabled: settings.sondeEnabled, serviceCompletionMinutes: settings.serviceCompletionMinutes };

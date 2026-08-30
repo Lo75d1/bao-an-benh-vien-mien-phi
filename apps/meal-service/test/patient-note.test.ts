@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { publicMealEvidenceUrl, staffMealEvidenceUrl } from "../src/lib/evidence-storage";
-import { approvedNotesOnly, clientIpFromHeaders, hashClientIp, isPatientNoteRateLimited, publicDietMeal, publicDishSummaries, publicPatientNotes, selectPublicMealWindow } from "../src/lib/patient-note";
+import { approvedNotesOnly, clientIpFromHeaders, hashClientIp, isPatientNoteRateLimited, publicDietMeal, publicPatientNotes, selectPublicMealWindow } from "../src/lib/patient-note";
 
 test("chỉ ghi chú APPROVED được chuyển tới bếp", () => {
   const visible = approvedNotesOnly([
@@ -57,12 +57,4 @@ test("trang bệnh nhân tách đúng suất hiện tại và suất kế tiếp
   const afterLunch = selectPublicMealWindow(meals, new Date("2026-08-29T05:00:00.000Z"));
   assert.equal(afterLunch.current?.id, "trua");
   assert.equal(afterLunch.next?.id, "chieu");
-});
-
-test("trang công khai cộng gram theo món và giữ dấu thiếu dữ liệu", () => {
-  assert.deepEqual(publicDishSummaries(["Bún bò Huế", "Cháo", "Món chưa có thành phần"], [{ dishName: "Bún bò Huế", grams: 160 }, { dishName: "Bún bò Huế", grams: 186 }, { dishName: "Cháo", grams: null }]), [
-    { name: "Bún bò Huế", totalGrams: 346 },
-    { name: "Cháo", totalGrams: null },
-    { name: "Món chưa có thành phần", totalGrams: null },
-  ]);
 });

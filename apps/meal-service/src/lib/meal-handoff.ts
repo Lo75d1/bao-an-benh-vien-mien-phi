@@ -49,7 +49,7 @@ export async function handoffMealEvent(
     select: {
       id: true,
       mealType: { select: { feedingRoute: true } },
-      dietMeals: { where: { feedingRoute: input.feedingRoute, voidedAt: null }, select: { status: true } },
+      dietMeals: { where: { feedingRoute: input.feedingRoute, voidedAt: null }, select: { id: true, status: true } },
       reports: { where: { status: "SUBMITTED" }, select: { departmentId: true, lines: { where: { dietType: { feedingRoute: input.feedingRoute } }, select: { quantity: true } } } },
       additions: { where: { ackStatus: { in: ["RECEIVED", "SUBSTITUTE"] }, dietType: { feedingRoute: input.feedingRoute } }, select: { departmentId: true, quantity: true } },
     },

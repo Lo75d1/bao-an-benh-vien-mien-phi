@@ -25,7 +25,8 @@ export function normalizeContactName(value: unknown): string | null {
 }
 
 export function clientIpFromHeaders(forwarded: string | null, realIp: string | null): string | null {
-  const candidate = forwarded?.split(",")[0]?.trim() || realIp?.trim() || "";
+  // Reverse proxy của hệ thống ghi x-real-ip; chỉ dùng X-Forwarded-For làm phương án dự phòng.
+  const candidate = realIp?.trim() || forwarded?.split(",")[0]?.trim() || "";
   if (!candidate || candidate.length > 64 || !/^[0-9a-fA-F:.]+$/.test(candidate)) return null;
   return candidate.toLowerCase();
 }

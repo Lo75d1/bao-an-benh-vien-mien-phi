@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { readRequestClock } from "@/lib/request-clock";
 import { clampDateToDataStart, readOperationalSettings } from "@/lib/settings";
 import { synchronizeSystemTimeline } from "@/lib/system-timeline";
+import { readDemoSession } from "@/lib/demo-session";
 import { ManagementBoard } from "./management-board";
 
 const shortDate = new Intl.DateTimeFormat("vi-VN", { timeZone: "UTC", weekday: "short", day: "2-digit", month: "2-digit" });
@@ -35,10 +36,17 @@ export default async function ManagementPage({ searchParams }: { searchParams: P
     prisma.servingReport.findMany({ where: { mealEventId: { in: eventIds }, status: "SUBMITTED" }, select: { id: true, mealEvent: { select: { mealType: { select: { feedingRoute: true } } } } } }),
     prisma.mealHandoff.findMany({ where: { mealEventId: { in: eventIds } }, select: { id: true, mealEvent: { select: { mealType: { select: { feedingRoute: true } } } } } }),
   ]) : [[], [], []];
+  const demo = await readDemoSession();
+  const demoVoiceEvents = demo ? [
+    ...demo.state.additions.filter((item) => eventIds.includes(item.mealEventId) && item.ackStatus === "PENDING").map((item) => ({ key: `${item.feedingRoute}:demo:addition:${item.id}`, message: "Có báo bổ sung suất ăn mới. Vui lòng kiểm tra." })),
+    ...demo.state.reports.filter((item) => eventIds.includes(item.mealEventId)).map((item) => ({ key: `demo:report:${item.mealEventId}:${item.departmentId}`, message: "Có khoa vừa gửi báo suất ăn. Vui lòng kiểm tra." })),
+    ...demo.state.handoffs.filter((item) => eventIds.includes(item.mealEventId)).map((item) => ({ key: `demo:handoff:${item.mealEventId}:${item.departmentId}`, message: "Bếp vừa bàn giao suất ăn cho khoa. Vui lòng kiểm tra." })),
+  ] : [];
   const voiceEvents = [
     ...pendingVoiceEvents.map((item) => ({ key: `${item.mealEvent.mealType.feedingRoute}:addition:${item.id}`, message: "Có báo bổ sung suất ăn mới. Vui lòng kiểm tra." })),
     ...reportVoiceEvents.map((item) => ({ key: `${item.mealEvent.mealType.feedingRoute}:report:${item.id}`, message: "Có khoa vừa gửi báo suất ăn. Vui lòng kiểm tra." })),
     ...handoffVoiceEvents.map((item) => ({ key: `${item.mealEvent.mealType.feedingRoute}:handoff:${item.id}`, message: "Bếp vừa bàn giao suất ăn cho khoa. Vui lòng kiểm tra." })),
+    ...demoVoiceEvents,
   ];
   const notifications = dayData?.meals.flatMap((meal) => {
     const items = [];

@@ -2,6 +2,7 @@ import path from "node:path";
 import { getSessionUser } from "@/lib/auth";
 import { readStoredEvidence } from "@/lib/evidence-storage";
 import { prisma } from "@/lib/prisma";
+import { readDemoSession } from "@/lib/demo-session";
 
 const IMAGE_CONTENT_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -14,8 +15,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const user = await getSessionUser();
   if (!user) return new Response("Cần đăng nhập để xem bằng chứng.", { status: 401 });
 
-  const evidence = await prisma.mealEvidence.findUnique({
-    where: { id: (await params).id },
+  const id = (await params).id;
+  const demo = id.startsWith("demo:") ? await readDemoSession() : null;
+  const demoKey = id.slice("demo:".length).replace(/:sample$/, "");
+  const demoEvidence = demo?.state.evidence.find((item) => item.dietMealId === demoKey || item.mealEventId === demoKey);
+  const evidence = demoEvidence ?? await prisma.mealEvidence.findUnique({
+    where: { id },
     select: { storagePath: true },
   });
   if (!evidence?.storagePath) return new Response("Không tìm thấy ảnh.", { status: 404 });

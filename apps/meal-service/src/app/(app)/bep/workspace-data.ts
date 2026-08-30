@@ -120,6 +120,11 @@ export async function readKitchenWorkspace(requestedMealId?: string, feedingRout
   const handoffSnapshots = deriveHandoffSnapshots({ route: selected.mealType.feedingRoute, dietStatuses: prepared ? selected.dietMeals.map((meal) => meal.status) : [], reports: handoffReports, additions: handoffAdditions }, feedingRoute);
   const departmentNames = new Map([...selected.reports.map((report) => [report.departmentId, report.department.name] as const), ...selected.additions.map((addition) => [addition.departmentId, addition.department.name] as const)]);
   const existingHandoffs = new Map(selected.mealHandoffs.map((handoff) => [handoff.departmentId, handoff]));
-  const handoffs = handoffSnapshots.map((snapshot) => { const existing = existingHandoffs.get(snapshot.departmentId); return { departmentId: snapshot.departmentId, departmentName: existing?.department.name ?? departmentNames.get(snapshot.departmentId) ?? "—", quantity: existing?.quantity ?? snapshot.quantity, handedOffAt: existing?.handedOffAt.toISOString() ?? null, handedOffBy: existing?.handedOffBy.displayName ?? null }; });
+  const demoHandoffs = new Map((demo?.state.handoffs ?? []).filter((handoff) => handoff.mealEventId === selected.id).map((handoff) => [handoff.departmentId, handoff]));
+  const handoffs = handoffSnapshots.map((snapshot) => {
+    const existing = existingHandoffs.get(snapshot.departmentId);
+    const demoHandoff = demoHandoffs.get(snapshot.departmentId);
+    return { departmentId: snapshot.departmentId, departmentName: existing?.department.name ?? departmentNames.get(snapshot.departmentId) ?? "—", quantity: demoHandoff?.quantity ?? existing?.quantity ?? snapshot.quantity, handedOffAt: demoHandoff?.handedOffAt ?? existing?.handedOffAt.toISOString() ?? null, handedOffBy: demoHandoff?.handedOffBy ?? existing?.handedOffBy.displayName ?? null };
+  });
   return { events: summaries, selected: { ...selected, dietMeals: selected.dietMeals.map((meal) => ({ ...meal, evidence: meal.evidence.map((item) => ({ ...item, publicUrl: item.storagePath ? staffMealEvidenceUrl(item.id) : null })) })), shopping, evidence, handoffs }, canOperate: hasActionableWork && isKitchenPreparationOpen(selected.mealDate, selected.mealType.cutoffTime, selected.mealType.serviceTime, now, settings.serviceCompletionMinutes), hasActionableWork, foodRetention24hRequired: settings.foodRetention24hRequired };
 }
