@@ -129,7 +129,7 @@ export function ServingForm({
     [lines, showAll],
   );
   const submit = handleSubmit((formValues, event) => {
-    const form = event?.currentTarget;
+    const form = event?.target;
     if (!(form instanceof HTMLFormElement)) return;
     const data = new FormData(form);
     data.set("mealEventId", mealEventId);
