@@ -85,7 +85,7 @@ export function KitchenDialogs({
           <label>Ghi chú<input name="note" maxLength={500} autoComplete="off" placeholder="Nhập ghi chú nếu cần…"/></label>
           <button className="primary-action" disabled={!canOperate}>Đính kèm ảnh</button>
         </form>
-        {evidence.length === 0 ? <p className="dialog-empty">— · Chưa có bằng chứng đã lưu.</p> : <div className="evidence-dialog-list">{evidence.map((item) => <article key={item.id}>{item.publicUrl ? <img src={item.publicUrl} alt={`${EVIDENCE_LABEL[item.kind]} · ${item.dietName}`} width="112" height="76" loading="lazy"/> : <div className="evidence-unavailable">—<span>Chưa có URL</span></div>}<div><strong>{EVIDENCE_LABEL[item.kind]}</strong><span>{item.dietName}</span><p>{item.note ?? "—"}</p></div></article>)}</div>}
+        {evidence.filter((item) => item.publicUrl).length === 0 ? <p className="dialog-empty">— · Chưa có bằng chứng hợp lệ để hiển thị.</p> : <div className="evidence-dialog-list">{evidence.filter((item) => item.publicUrl).map((item) => <article key={item.id}><img src={item.publicUrl!} alt={`${EVIDENCE_LABEL[item.kind]} · ${item.dietName}`} width="112" height="76" loading="lazy"/><div><strong>{EVIDENCE_LABEL[item.kind]}</strong><span>{item.dietName}</span><p>{item.note ?? "—"}</p></div></article>)}</div>}
       </DialogContent>
     </Dialog>
 

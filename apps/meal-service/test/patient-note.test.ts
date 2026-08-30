@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { publicMealEvidenceUrl } from "../src/lib/evidence-storage";
+import { publicMealEvidenceUrl, staffMealEvidenceUrl } from "../src/lib/evidence-storage";
 import { approvedNotesOnly, clientIpFromHeaders, hashClientIp, isPatientNoteRateLimited, publicDietMeal, publicDishSummaries, publicPatientNotes, selectPublicMealWindow } from "../src/lib/patient-note";
 
 test("chỉ ghi chú APPROVED được chuyển tới bếp", () => {
@@ -42,6 +42,7 @@ test("ipHash không lưu IP thô và rate-limit theo cửa sổ một giờ", ()
 test("ưu tiên IP do reverse proxy xác nhận và ảnh dùng URL cùng origin", () => {
   assert.equal(clientIpFromHeaders("198.51.100.9", "203.0.113.7"), "203.0.113.7");
   assert.equal(publicMealEvidenceUrl("ảnh có khoảng trắng"), "/api/public/evidence/%E1%BA%A3nh%20c%C3%B3%20kho%E1%BA%A3ng%20tr%E1%BA%AFng");
+  assert.equal(staffMealEvidenceUrl("ảnh có khoảng trắng"), "/api/evidence/%E1%BA%A3nh%20c%C3%B3%20kho%E1%BA%A3ng%20tr%E1%BA%AFng");
 });
 
 test("trang bệnh nhân tách đúng suất hiện tại và suất kế tiếp", () => {

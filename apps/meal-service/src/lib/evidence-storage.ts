@@ -38,3 +38,8 @@ export const evidenceStorage: EvidenceStorage = new LocalEvidenceStorage();
 export function publicMealEvidenceUrl(id: string): string {
   return `/api/public/evidence/${encodeURIComponent(id)}`;
 }
+
+/** URL cùng origin cho bằng chứng nghiệp vụ; endpoint đích tự kiểm tra phiên nhân viên. */
+export function staffMealEvidenceUrl(id: string): string {
+  return `/api/evidence/${encodeURIComponent(id)}`;
+}

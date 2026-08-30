@@ -1,7 +1,7 @@
 import { buildDietMealShopping, hasActionableKitchenWork } from "@/lib/kitchen";
 import { hospitalDayKey, isKitchenPreparationOpen, pickOperationalMeal, rollupMealEventStatus } from "@/lib/meal-events";
 import { servingTotal } from "@/lib/late-addition";
-import { evidenceStorage } from "@/lib/evidence-storage";
+import { staffMealEvidenceUrl } from "@/lib/evidence-storage";
 import { prisma } from "@/lib/prisma";
 import { readOperationalSettings } from "@/lib/settings";
 import { foodRetentionLabel } from "@/lib/food-retention";
@@ -83,8 +83,8 @@ export async function readKitchenWorkspace(requestedMealId?: string, feedingRout
   const evidence = [...selected.dietMeals.flatMap((meal) => meal.evidence.map((item) => ({
     ...item,
     dietName: meal.dietType.name,
-    publicUrl: evidenceStorage.publicUrl(item.storagePath),
-  }))), ...selected.evidence.map((item) => ({ ...item, dietName: `Toàn bữa · ${foodRetentionLabel(item.uploadedAt, now)}`, publicUrl: evidenceStorage.publicUrl(item.storagePath) }))];
+    publicUrl: item.storagePath ? staffMealEvidenceUrl(item.id) : null,
+  }))), ...selected.evidence.map((item) => ({ ...item, dietName: `Toàn bữa · ${foodRetentionLabel(item.uploadedAt, now)}`, publicUrl: item.storagePath ? staffMealEvidenceUrl(item.id) : null }))];
   const prepared = selected.dietMeals.length > 0 && selected.dietMeals.every((meal) => meal.status === "PREPARED");
   const handoffReports = selected.reports.map((report) => ({ departmentId: report.departmentId, quantities: report.lines.map((line) => line.quantity) }));
   const handoffAdditions = selected.additions.filter((addition) => addition.ackStatus === "RECEIVED" || addition.ackStatus === "SUBSTITUTE").map((addition) => ({ departmentId: addition.departmentId, quantity: addition.quantity }));
@@ -92,5 +92,5 @@ export async function readKitchenWorkspace(requestedMealId?: string, feedingRout
   const departmentNames = new Map([...selected.reports.map((report) => [report.departmentId, report.department.name] as const), ...selected.additions.map((addition) => [addition.departmentId, addition.department.name] as const)]);
   const existingHandoffs = new Map(selected.mealHandoffs.map((handoff) => [handoff.departmentId, handoff]));
   const handoffs = handoffSnapshots.map((snapshot) => { const existing = existingHandoffs.get(snapshot.departmentId); return { departmentId: snapshot.departmentId, departmentName: existing?.department.name ?? departmentNames.get(snapshot.departmentId) ?? "—", quantity: existing?.quantity ?? snapshot.quantity, handedOffAt: existing?.handedOffAt.toISOString() ?? null, handedOffBy: existing?.handedOffBy.displayName ?? null }; });
-  return { events: summaries, selected: { ...selected, dietMeals: selected.dietMeals.map((meal) => ({ ...meal, evidence: meal.evidence.map((item) => ({ ...item, publicUrl: evidenceStorage.publicUrl(item.storagePath) })) })), shopping, evidence, handoffs }, canOperate: hasActionableWork && isKitchenPreparationOpen(selected.mealDate, selected.mealType.cutoffTime, selected.mealType.serviceTime, now, settings.serviceCompletionMinutes), hasActionableWork, foodRetention24hRequired: settings.foodRetention24hRequired };
+  return { events: summaries, selected: { ...selected, dietMeals: selected.dietMeals.map((meal) => ({ ...meal, evidence: meal.evidence.map((item) => ({ ...item, publicUrl: item.storagePath ? staffMealEvidenceUrl(item.id) : null })) })), shopping, evidence, handoffs }, canOperate: hasActionableWork && isKitchenPreparationOpen(selected.mealDate, selected.mealType.cutoffTime, selected.mealType.serviceTime, now, settings.serviceCompletionMinutes), hasActionableWork, foodRetention24hRequired: settings.foodRetention24hRequired };
 }

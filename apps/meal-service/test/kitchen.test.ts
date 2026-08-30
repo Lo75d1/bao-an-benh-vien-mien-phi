@@ -1,8 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assertKitchenTransition, buildDietMealShopping, missingMealPhotoIds, nextKitchenStatus } from "../src/lib/kitchen";
+import { assertKitchenTransition, buildDietMealShopping, mealPhotoUploadCooldownRemaining, missingMealPhotoIds, nextKitchenStatus } from "../src/lib/kitchen";
 
 test("shopping tính Cá 600g thành 750g và giữ Muối thiếu là —", () => { const result = buildDietMealShopping([{ id: "meal-1", dietTypeId: "diet-1", dietName: "Cơm thường", servingsPlanned: 3, menuSnapshotJson: { version: 1, items: [{ foodId: "fish", itemName: "Cá", grams: 200, wastePercent: 20 }, { foodId: "salt", itemName: "Muối", grams: 2, wastePercent: null }] } }]); const fish = result.items.find((item) => item.foodId === "fish"); const salt = result.items.find((item) => item.foodId === "salt"); assert.equal(fish?.edibleGrams, 600); assert.equal(fish?.rawGrams, 750); assert.equal(salt?.rawGrams, null); assert.ok(result.incomplete.some((item) => item.reason.includes("Muối") && item.reason.includes("—"))); });
 test("shopping không đoán khi thiếu liên kết thực phẩm hoặc số suất", () => { const result = buildDietMealShopping([{ id: "meal-1", dietTypeId: "diet-1", dietName: "Cháo", servingsPlanned: 0, menuSnapshotJson: { version: 1, items: [{ foodId: null, itemName: "Gạo", grams: 100, wastePercent: 1 }] } }]); assert.equal(result.items.length, 0); assert.ok(result.incomplete.some((item) => item.reason.includes("thiếu số suất"))); });
 test("state machine chỉ cho tiến tuần tự đến SERVED", () => { assert.equal(nextKitchenStatus("PREPARING"), "PREPARED"); assert.equal(nextKitchenStatus("PREPARED"), "SERVED"); assert.equal(nextKitchenStatus("SERVED"), null); assert.doesNotThrow(() => assertKitchenTransition("PREPARING", "PREPARED")); assert.throws(() => assertKitchenTransition("PREPARING", "SERVED")); assert.throws(() => assertKitchenTransition("SERVED", "PREPARING")); });
 test("ảnh món đã lưu được dùng lại và ảnh mới chỉ thay đúng mã", () => { assert.deepEqual(missingMealPhotoIds(["a", "b"], ["a"], ["b"]), []); assert.deepEqual(missingMealPhotoIds(["a", "b"], ["a"], []), ["b"]); });
+test("khóa gửi lại ảnh cùng người và cùng mã trong 60 giây", () => {
+  const now = new Date("2026-08-30T01:00:00.000Z");
+  assert.equal(mealPhotoUploadCooldownRemaining({ uploadedAt: new Date("2026-08-30T00:59:30.000Z"), uploadedById: "bep-1" }, "bep-1", now), 30_000);
+  assert.equal(mealPhotoUploadCooldownRemaining({ uploadedAt: new Date("2026-08-30T00:58:59.000Z"), uploadedById: "bep-1" }, "bep-1", now), 0);
+  assert.equal(mealPhotoUploadCooldownRemaining({ uploadedAt: new Date("2026-08-30T00:59:59.000Z"), uploadedById: "bep-2" }, "bep-1", now), 0);
+});

@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element -- blob URL cục bộ và URL bằng chứng do hệ thống cấp */
 import { Camera, CheckCircle2, ImageIcon, RotateCcw, Upload } from "lucide-react";
 import { useActionState, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ActionButton, ActionFeedback } from "@/components/action-feedback";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { INITIAL_ACTION_RESULT } from "@/lib/action-result";
@@ -93,21 +94,32 @@ export function FoodRetentionControl({ eventId, evidence, canOperate }: { eventI
 
 export function KitchenCompletionDialog({ eventId, meals, prepared, canOperate }: { eventId: string; meals: Array<{ id: string; code: string; name: string; evidence: Evidence }>; prepared: boolean; canOperate: boolean }) {
   const [result, formAction, pending] = useActionState(completeKitchenEventAction, INITIAL_ACTION_RESULT);
+  const [open, setOpen] = useState(false);
+  const router = useRouter();
   const imageSubmit = useOptimizedImageSubmit();
   const busy = pending || imageSubmit.optimizing;
+  useEffect(() => {
+    if (result.status !== "success") return;
+    queueMicrotask(() => {
+      setOpen(false);
+      router.refresh();
+    });
+  }, [result.status, router]);
   return <div className="kitchen-completion-area">
     {prepared ? <div className="kitchen-completed-action"><span><CheckCircle2/> Đã xác nhận sẵn sàng giao</span><form action={reopenKitchenEventAction}><input type="hidden" name="eventId" value={eventId}/><button className="kitchen-reopen" disabled={!canOperate}><RotateCcw/> Quay lại chuẩn bị</button></form></div> : null}
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild><button type="button" className="kitchen-complete" disabled={!canOperate || busy}><Camera/> {prepared ? "Xem / thay ảnh món" : canOperate ? "Ảnh món & xác nhận sẵn sàng" : "Chưa tới giờ chuẩn bị"}</button></DialogTrigger>
-      <DialogContent className="kitchen-finish-dialog max-h-[92dvh] max-w-4xl overflow-y-auto">
+      <DialogContent className="kitchen-finish-dialog max-h-[calc(100dvh-1rem)] max-w-4xl overflow-y-auto sm:max-h-[92dvh]">
         <DialogHeader><DialogTitle>Ảnh món theo mã chế độ ăn</DialogTitle><DialogDescription>Chụp hoặc chọn ảnh cho từng mã. Ảnh đã lưu được dùng lại; chọn ảnh mới nếu cần thay. Mẫu lưu 24 giờ được ghi riêng trong checklist Bếp.</DialogDescription></DialogHeader>
         <form action={formAction} onSubmit={imageSubmit.onSubmit}>
           <input type="hidden" name="eventId" value={eventId}/>
-          <div className="kitchen-proof-list">{meals.map((meal) => <ProofField key={meal.id} meal={meal}/>)}</div>
-          {imageSubmit.optimizationError ? <p role="alert" className="action-feedback action-feedback-error">{imageSubmit.optimizationError}</p> : null}
-          <ActionFeedback result={result}/>
+          <div className="kitchen-finish-scroll">
+            <div className="kitchen-proof-list">{meals.map((meal) => <ProofField key={meal.id} meal={meal}/>)}</div>
+            {imageSubmit.optimizationError ? <p role="alert" className="action-feedback action-feedback-error">{imageSubmit.optimizationError}</p> : null}
+            <ActionFeedback result={result}/>
+          </div>
           <div className="kitchen-finish-actions">
-            <DialogTrigger asChild><button type="button" className="secondary-button" disabled={busy}><RotateCcw/> Quay lại</button></DialogTrigger>
+            <button type="button" className="secondary-button" disabled={busy} onClick={() => setOpen(false)}><RotateCcw/> Quay lại</button>
             <ActionButton type="submit" className="primary-action" disabled={!canOperate} pending={busy} pendingLabel={imageSubmit.optimizing ? "Đang tối ưu ảnh…" : "Đang lưu ảnh…"}><CheckCircle2/> {prepared ? "Lưu ảnh thay đổi" : "Xác nhận sẵn sàng giao"}</ActionButton>
           </div>
         </form>
