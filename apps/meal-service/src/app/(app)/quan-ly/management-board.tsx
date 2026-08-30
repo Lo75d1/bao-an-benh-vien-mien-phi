@@ -9,13 +9,28 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { MealLifecycleStrip } from "@/components/meal-lifecycle-strip";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import type { ManagementDay, ManagementDiet, ManagementMeal } from "@/lib/management";
-import { hospitalDayKey, mealTimePhase } from "@/lib/meal-events";
+import { hospitalDayKey, mealTimePhase, pickLifecycleMeal, rollupMealEventStatus } from "@/lib/meal-events";
 import { createAdminAdditionAction } from "./actions";
 
 const number = new Intl.NumberFormat("vi-VN");
 const dateTime = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" });
 const ACK = { PENDING: "Chờ bếp", RECEIVED: "Đã nhận", INSUFFICIENT: "Không đủ", SUBSTITUTE: "Thay thế" } as const;
 type ViewMode = "department" | "diet";
+
+function pickCurrentManagementMeal(meals: ManagementMeal[], date: string, now: Date, serviceCompletionMinutes: number) {
+  const mealDate = new Date(`${date}T00:00:00.000Z`);
+  return pickLifecycleMeal(
+    meals.map((meal) => ({
+      meal,
+      mealDate,
+      cutoffTime: meal.cutoffTime,
+      serviceTime: meal.serviceTime,
+      status: rollupMealEventStatus(meal.diets.map((diet) => diet.status)),
+    })),
+    now,
+    serviceCompletionMinutes,
+  )?.meal.meal;
+}
 
 function AddIncident({ meal }: { meal: ManagementMeal }) {
   return <Dialog><DialogTrigger asChild><button type="button" className="admin-add-incident"><ClipboardPlus/> Bổ sung phát sinh</button></DialogTrigger><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Bổ sung phát sinh thay khoa</DialogTitle><DialogDescription>Nội dung được ghi AuditLog và chuyển tới bếp ở trạng thái chờ xác nhận.</DialogDescription></DialogHeader><form action={createAdminAdditionAction} className="admin-incident-form"><input type="hidden" name="mealEventId" value={meal.id}/><label>Khoa<select name="departmentId" required>{meal.departments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Mã chế độ ăn<select name="dietMealId" required>{meal.diets.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.name}</option>)}</select></label><label>Số suất<input type="number" name="quantity" min="1" step="1" required/></label><label>Lý do<textarea name="reason" minLength={3} maxLength={500} required/></label><button className="primary-action">Lưu và chuyển bếp xác nhận</button></form></DialogContent></Dialog>;
@@ -36,7 +51,9 @@ function ReviewSchedule({ dates, meals, serviceCompletionMinutes, nowIso }: { da
   const searchParams = useSearchParams();
   const activeDate = dates.find((date) => date.active);
   const now = new Date(nowIso);
-  const selectedMeal = meals.find((meal) => meal.serviceTime === searchParams.get("meal")) ?? meals.find((meal) => meal.serviceAt && new Date(meal.serviceAt).getTime() >= now.getTime()) ?? meals.at(-1);
+  const selectedMeal = meals.find((meal) => meal.serviceTime === searchParams.get("meal"))
+    ?? (activeDate ? pickCurrentManagementMeal(meals, activeDate.value, now, serviceCompletionMinutes) : undefined)
+    ?? meals.at(-1);
   const selectedMealTime = selectedMeal?.serviceTime ?? "";
   const today = hospitalDayKey(now);
   return <Dialog><DialogTrigger asChild><button type="button" className="admin-review-trigger"><CalendarDays/><span><strong>Xem lại ngày/bữa</strong><small>{activeDate?.label ?? "—"} · {selectedMeal?.name ?? "—"}</small></span></button></DialogTrigger><DialogContent className="max-w-5xl"><DialogHeader><DialogTitle>Đang xem: {activeDate?.label ?? "—"} · {selectedMeal?.name ?? "—"}</DialogTitle><DialogDescription>Chọn trực tiếp một ô ngày và bữa. Xám là đã qua, xanh là đang diễn ra, nền sáng là tương lai.</DialogDescription></DialogHeader><div className="admin-review-legend"><span className="past">Đã qua</span><span className="current">Hiện tại</span><span className="future">Tương lai</span></div><div className="admin-review-calendar"><table><thead><tr><th>Bữa</th>{dates.map((date) => { const dayTone = date.value < today ? "past" : date.value === today ? "current" : "future"; return <th className={`${dayTone} ${date.active ? "selected" : ""}`} key={date.value}>{date.label}{date.active ? <small>Đang xem</small> : null}</th>; })}</tr></thead><tbody>{meals.map((meal) => <tr key={meal.serviceTime}><th><strong>{meal.name}</strong><small>{meal.serviceTime}</small></th>{dates.map((date) => { const phase = mealTimePhase(new Date(`${date.value}T00:00:00.000Z`), meal.cutoffTime, meal.serviceTime, now, serviceCompletionMinutes); const tone = phase === "PASSED" ? "past" : phase === "PREPARING" || phase === "SERVING" ? "current" : "future"; const selected = date.active && meal.serviceTime === selectedMealTime; return <td key={date.value}><Link className={`${tone} ${selected ? "selected" : ""}`} aria-current={selected ? "true" : undefined} href={`?date=${date.value}&meal=${encodeURIComponent(meal.serviceTime)}`}><Utensils/><span>{meal.name}</span>{tone === "current" ? <small>Hiện tại</small> : null}</Link></td>; })}</tr>)}</tbody></table></div></DialogContent></Dialog>;
@@ -45,8 +62,10 @@ function ReviewSchedule({ dates, meals, serviceCompletionMinutes, nowIso }: { da
 export function ManagementBoard({ data, dates, initialMealTime, role, liveClock = true }: { data: ManagementDay; dates: Array<{ value: string; label: string; active: boolean }>; initialMealTime?: string; role: Role; liveClock?: boolean }) {
   const router = useRouter();
   useEffect(() => { if (!liveClock) return; const timer = window.setInterval(() => router.refresh(), 60_000); return () => window.clearInterval(timer); }, [liveClock, router]);
-  const [mealId, setMealId] = useState(data.meals.find((meal) => meal.serviceTime === initialMealTime)?.id ?? data.meals.find((meal) => meal.serviceAt && new Date(meal.serviceAt).getTime() >= new Date(data.generatedAt).getTime())?.id ?? data.meals.at(-1)?.id ?? "");
-  const [mode, setMode] = useState<ViewMode>("department"); const meal = data.meals.find((item) => item.id === mealId) ?? data.meals[0];
+  const [mode, setMode] = useState<ViewMode>("department");
+  const meal = data.meals.find((item) => item.serviceTime === initialMealTime)
+    ?? pickCurrentManagementMeal(data.meals, data.date, new Date(data.generatedAt), data.serviceCompletionMinutes)
+    ?? data.meals[0];
   const firstId = mode === "department" ? meal?.departments[0]?.id : meal?.diets[0]?.id; const [selectedId, setSelectedId] = useState(""); const activeId = selectedId || firstId || "";
   const totals = useMemo(() => ({ servings: meal?.reportedServings ?? null, additions: meal?.additions.reduce((sum, item) => sum + item.quantity, 0) ?? 0 }), [meal]);
   if (!meal) return <p>— · Chưa có bữa ăn trong ngày này.</p>;

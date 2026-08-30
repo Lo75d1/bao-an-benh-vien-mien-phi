@@ -125,10 +125,10 @@ export function pickReportingMeal<T extends ReportingMeal>(meals: T[], now = new
   if (meals.length === 0) return null;
   const serving = meals.find((meal) => mealTimePhase(meal.mealDate, meal.cutoffTime, meal.serviceTime, now, completionMinutes) === "SERVING");
   if (serving) return serving;
-  const receiving = meals.find((meal) => mealTimePhase(meal.mealDate, meal.cutoffTime, meal.serviceTime, now, completionMinutes) === "BEFORE_CUTOFF");
-  if (receiving) return receiving;
   const preparing = meals.find((meal) => mealTimePhase(meal.mealDate, meal.cutoffTime, meal.serviceTime, now, completionMinutes) === "PREPARING");
-  return preparing ?? meals.at(-1) ?? null;
+  if (preparing) return preparing;
+  const receiving = meals.find((meal) => mealTimePhase(meal.mealDate, meal.cutoffTime, meal.serviceTime, now, completionMinutes) === "BEFORE_CUTOFF");
+  return receiving ?? meals.at(-1) ?? null;
 }
 
 export function nextReportingCutoff<T extends ReportingMeal>(meals: T[], now = new Date()): { meal: T; at: Date } | null {
@@ -175,6 +175,18 @@ export function pickLifecycleMeal<T extends LifecycleMeal>(meals: T[], now = new
   const upcoming = meals.find((meal) => { const key = stateOf(meal)?.key; return key === "REPORTING" || key === "UPCOMING"; });
   if (upcoming) return { meal: upcoming, nextCycle: false };
   return { meal: meals[0], nextCycle: true };
+}
+
+/** Chọn bữa vận hành theo lifecycle; query cũ không được ghim Bếp ở bữa đã qua. */
+export function pickOperationalMeal<T extends LifecycleMeal & { id: string }>(
+  meals: T[],
+  requestedMealId: string | undefined,
+  now = new Date(),
+  completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES,
+): T | null {
+  const current = pickLifecycleMeal(meals, now, completionMinutes)?.meal ?? null;
+  if (!current) return null;
+  return requestedMealId === current.id ? meals.find((meal) => meal.id === requestedMealId) ?? current : current;
 }
 
 export function rollupMealEventStatus(statuses: DietMealStatus[]): DietMealStatus | null {

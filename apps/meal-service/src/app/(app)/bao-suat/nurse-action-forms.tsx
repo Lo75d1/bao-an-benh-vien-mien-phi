@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Check, Clock3, Pencil, Utensils } from "lucide-react";
+import { AlertTriangle, Check, Pencil, Utensils } from "lucide-react";
 import { useActionState } from "react";
 import { ActionButton, ActionFeedback } from "@/components/action-feedback";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -38,7 +38,7 @@ export function DeliveryReceiptForms({ eventId, route, expected, receipt, action
 }
 
 export function DeliveryHandoffWaiting({ eventName }: { eventName: string }) {
-  return <section className="service-receipt-pending is-waiting-handoff"><div><span>Nhiệm vụ chính</span><strong>Chờ Bếp bàn giao {eventName}</strong><small>Chỉ xác nhận nhận đủ/thiếu sau khi Bếp xác nhận sẵn sàng giao.</small></div><Clock3 aria-hidden="true"/></section>;
+  return <section className="service-receipt-pending"><div><span>Giao nhận · {eventName}</span><strong>Chờ Bếp bàn giao</strong><small>Số suất dự kiến và nút xác nhận đủ/thiếu sẽ hiện sau khi Bếp bàn giao cho khoa.</small></div></section>;
 }
 
 export function DeliveryReceiptControl({ eventId, eventName, route, expected, receipt, action }: { eventId: string; eventName: string; route: "NORMAL" | "SONDE"; expected: number; receipt: Receipt | null; action: Action }) {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isKitchenPreparationOpen, mealTimeMilestones, mealTimePhase, nextMealTimelineEvent, nextReportingCutoff, pickReportingMeal } from "../src/lib/meal-events";
+import { isKitchenPreparationOpen, mealTimeMilestones, mealTimePhase, nextMealTimelineEvent, nextReportingCutoff, pickLifecycleMeal, pickReportingMeal } from "../src/lib/meal-events";
 
 // Chuyển từ test/nurse-workflow.test.ts cũ: sau khi gộp, mốc giờ của điều dưỡng
 // dùng chung `mealTimePhase` với bếp / lịch / admin.
@@ -32,6 +32,27 @@ test("điều dưỡng giữ bữa đang phục vụ, hết giờ mới chuyển
   const next = nextReportingCutoff(meals, afterServing);
   assert.equal(next?.meal.id, "chieu");
   assert.equal(next?.at.toISOString(), "2026-08-23T07:00:00.000Z");
+});
+
+test("điều dưỡng giữ bữa sáng đang chuẩn bị thay vì nhảy sang bữa trưa còn nhận báo", () => {
+  const meals = [
+    { id: "sang", mealDate: day, cutoffTime: "05:00", serviceTime: "06:30" },
+    { id: "trua", mealDate: day, cutoffTime: "09:00", serviceTime: "11:30" },
+  ];
+  const preparingBreakfast = new Date("2026-08-22T22:25:00.000Z"); // 05:25 VN
+  assert.equal(mealTimePhase(day, "05:00", "06:30", preparingBreakfast), "PREPARING");
+  assert.equal(mealTimePhase(day, "09:00", "11:30", preparingBreakfast), "BEFORE_CUTOFF");
+  assert.equal(pickReportingMeal(meals, preparingBreakfast)?.id, "sang");
+});
+
+test("bếp và admin giữ bữa sáng trong suốt cửa sổ chuẩn bị và phục vụ", () => {
+  const meals = [
+    { id: "sang", mealDate: day, cutoffTime: "05:00", serviceTime: "06:30", status: "PLANNED" as const },
+    { id: "trua", mealDate: day, cutoffTime: "09:00", serviceTime: "11:30", status: "PLANNED" as const },
+  ];
+  assert.equal(pickLifecycleMeal(meals, new Date("2026-08-22T22:25:00.000Z"))?.meal.id, "sang"); // 05:25 VN
+  assert.equal(pickLifecycleMeal(meals, new Date("2026-08-22T23:45:00.000Z"))?.meal.id, "sang"); // 06:45 VN
+  assert.equal(pickLifecycleMeal(meals, new Date("2026-08-23T01:00:00.000Z"))?.meal.id, "trua"); // 08:00 VN
 });
 
 test("sự kiện tiếp theo ưu tiên phục vụ chiều nay trước giờ chốt sáng mai", () => {

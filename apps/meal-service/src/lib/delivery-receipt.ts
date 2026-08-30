@@ -1,4 +1,4 @@
-import type { DeliveryReceiptStatus, DietMealStatus, FeedingRoute, Prisma, Role } from "@prisma/client";
+import type { DeliveryReceiptStatus, FeedingRoute, Prisma, Role } from "@prisma/client";
 import { mealTimePhase } from "./meal-events";
 import { prisma } from "./prisma";
 import { readOperationalSettings } from "./settings";
@@ -25,13 +25,18 @@ export function normalizeReceiptCorrectionReason(value: unknown) {
   return reason;
 }
 
-export function isKitchenHandoffReady(statuses: readonly DietMealStatus[]): boolean {
-  return statuses.length > 0 && statuses.every((status) => status === "PREPARED" || status === "SERVED");
+export function expectedQuantityFromHandoff(handoff: { quantity: number } | null | undefined) {
+  if (!handoff) throw new Error("Bếp chưa bàn giao suất ăn cho khoa này.");
+  if (!Number.isInteger(handoff.quantity) || handoff.quantity <= 0) throw new Error("Số suất bàn giao không hợp lệ.");
+  return handoff.quantity;
 }
 
-export function deliveryReceiptAvailability(statuses: readonly DietMealStatus[], receipt: { expectedQuantity: number } | null | undefined) {
-  if (!isKitchenHandoffReady(statuses)) return { status: "WAITING_HANDOFF" as const, expectedQuantity: null };
-  return { status: receipt ? "CONFIRMED" as const : "READY" as const };
+export function deliveryReceiptAvailability(
+  handoff: { quantity: number } | null | undefined,
+  receipt: { expectedQuantity: number } | null | undefined,
+) {
+  if (!handoff) return { status: "WAITING_HANDOFF" as const, expectedQuantity: null };
+  return { status: receipt ? "CONFIRMED" as const : "READY" as const, expectedQuantity: handoff.quantity };
 }
 
 export async function confirmMealDelivery(
@@ -42,36 +47,17 @@ export async function confirmMealDelivery(
   if (actor.role !== "NURSE") throw new Error("Chỉ điều dưỡng được xác nhận giao nhận của khoa.");
   const [membership, event, settings] = await Promise.all([
     prisma.departmentMembership.findUnique({ where: { userId_departmentId: { userId: actor.id, departmentId: input.departmentId } }, select: { id: true } }),
-    prisma.mealEvent.findUnique({
-      where: { id: input.mealEventId },
-      select: {
-        id: true,
-        mealDate: true,
-        mealType: { select: { cutoffTime: true, serviceTime: true } },
-        dietMeals: { where: { feedingRoute: input.feedingRoute, voidedAt: null }, select: { id: true, status: true } },
-        reports: {
-          where: { departmentId: input.departmentId, status: "SUBMITTED" },
-          select: { lines: { select: { dietTypeId: true, quantity: true, dietType: { select: { feedingRoute: true } } } } },
-        },
-        additions: {
-          where: { departmentId: input.departmentId, ackStatus: { in: ["RECEIVED", "SUBSTITUTE"] }, dietType: { feedingRoute: input.feedingRoute } },
-          select: { quantity: true },
-        },
-      },
-    }),
+    prisma.mealEvent.findUnique({ where: { id: input.mealEventId }, select: { id: true, mealDate: true, mealType: { select: { cutoffTime: true, serviceTime: true, feedingRoute: true } }, mealHandoffs: { where: { departmentId: input.departmentId }, select: { quantity: true }, take: 1 } } }),
     readOperationalSettings(),
   ]);
   if (!membership) throw new Error("Bạn không có quyền xác nhận giao nhận cho khoa này.");
   if (!event) throw new Error("Không tìm thấy bữa ăn cần xác nhận.");
+  if (event.mealType.feedingRoute !== input.feedingRoute) throw new Error("Luá»“ng giao nháº­n khÃ´ng khá»›p vá»›i bá»¯a Äƒn.");
   const phase = mealTimePhase(event.mealDate, event.mealType.cutoffTime, event.mealType.serviceTime, now, settings.serviceCompletionMinutes);
   if (phase !== "SERVING" && phase !== "PASSED") throw new Error("Chưa tới giờ phục vụ nên chưa thể xác nhận giao nhận.");
   const demo = actor.demoSessionId ? await readDemoSession() : null;
-  const routeStatuses = event.dietMeals.map((meal) => (demo?.state.dietStatuses[meal.id] ?? meal.status) as DietMealStatus);
-  if (!isKitchenHandoffReady(routeStatuses)) throw new Error("Bếp chưa bàn giao suất ăn cho khoa này.");
-  const demoReport = demo?.state.reports.find((item) => item.mealEventId === input.mealEventId && item.departmentId === input.departmentId);
-  const reportLines = demoReport ? demoReport.lines : event.reports.flatMap((report) => report.lines).filter((line) => line.dietType.feedingRoute === input.feedingRoute);
-  if (reportLines.length === 0) throw new Error("Khoa chưa có báo suất đã chốt cho bữa này.");
-  const expectedQuantity = reportLines.reduce((sum, line) => sum + line.quantity, 0) + event.additions.reduce((sum, item) => sum + item.quantity, 0);
+  const demoHandoff = demo?.state.handoffs.find((item) => item.mealEventId === input.mealEventId && item.departmentId === input.departmentId);
+  const expectedQuantity = expectedQuantityFromHandoff(demoHandoff ?? event.mealHandoffs[0]);
   const normalized = normalizeDeliveryReceipt({ ...input, expectedQuantity });
   if (actor.demoSessionId) {
     const existing = demo?.state.receipts.find((item) => item.mealEventId === input.mealEventId && item.departmentId === input.departmentId);

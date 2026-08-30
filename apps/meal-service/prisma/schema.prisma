@@ -118,6 +118,7 @@ model User {
   voidedMeals           DietMeal[]             @relation("DietMealVoider")
   servingReports        ServingReport[]
   deliveryReceipts      MealDeliveryReceipt[]
+  mealHandoffs          MealHandoff[]
   additions             LateMealAddition[]     @relation("AdditionSubmitter")
   acknowledgedAdditions LateMealAddition[]     @relation("AdditionAcknowledger")
   evidence              MealEvidence[]
@@ -160,6 +161,7 @@ model Department {
   memberships DepartmentMembership[]
   reports     ServingReport[]
   deliveryReceipts MealDeliveryReceipt[]
+  mealHandoffs MealHandoff[]
   additions   LateMealAddition[]
   notes       PatientNote[]
 }
@@ -214,6 +216,7 @@ model MealEvent {
   dietMeals  DietMeal[]
   reports    ServingReport[]
   deliveryReceipts MealDeliveryReceipt[]
+  mealHandoffs MealHandoff[]
   additions  LateMealAddition[]
   evidence   MealEvidence[]
 
@@ -296,6 +299,22 @@ model MealDeliveryReceipt {
 
   @@unique([departmentId, mealEventId])
   @@index([mealEventId, status])
+}
+
+model MealHandoff {
+  id            String     @id @default(cuid())
+  mealEventId   String
+  departmentId  String
+  quantity      Int
+  handedOffAt   DateTime   @default(now())
+  handedOffById String
+  updatedAt     DateTime   @updatedAt
+  mealEvent     MealEvent  @relation(fields: [mealEventId], references: [id])
+  department    Department @relation(fields: [departmentId], references: [id])
+  handedOffBy   User       @relation(fields: [handedOffById], references: [id])
+
+  @@unique([mealEventId, departmentId])
+  @@index([departmentId, handedOffAt])
 }
 
 model LateMealAddition {

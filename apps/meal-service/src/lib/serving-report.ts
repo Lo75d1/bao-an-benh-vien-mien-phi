@@ -121,7 +121,7 @@ export async function readNurseServingDay(userId: string, requestedRoute: Feedin
   const day = hospitalDate(now);
   const events = await prisma.mealEvent.findMany({
     where: { mealDate: day, mealType: { feedingRoute: route } }, orderBy: { mealType: { sortOrder: "asc" } },
-    include: { mealType: true, dietMeals: { where: { voidedAt: null, feedingRoute: route }, orderBy: { dietType: { sortOrder: "asc" } }, include: { dietType: true } }, reports: { where: { departmentId }, include: { lines: true } }, additions: { where: { departmentId, dietType: { feedingRoute: route } }, orderBy: { submittedAt: "desc" }, include: { dietType: true } }, deliveryReceipts: { where: { departmentId }, take: 1, include: { confirmedBy: { select: { displayName: true } } } } },
+    include: { mealType: true, dietMeals: { where: { voidedAt: null, feedingRoute: route }, orderBy: { dietType: { sortOrder: "asc" } }, include: { dietType: true } }, reports: { where: { departmentId }, include: { lines: true } }, additions: { where: { departmentId, dietType: { feedingRoute: route } }, orderBy: { submittedAt: "desc" }, include: { dietType: true } }, mealHandoffs: { where: { departmentId }, take: 1, select: { quantity: true } }, deliveryReceipts: { where: { departmentId }, take: 1, include: { confirmedBy: { select: { displayName: true } } } } },
   });
   const demo = await readDemoSession();
   const demoDietTypes = demo ? new Map((await prisma.dietType.findMany({ where: { id: { in: demo.state.additions.map((item) => item.dietTypeId) } } })).map((item) => [item.id, item])) : new Map();
@@ -134,6 +134,8 @@ export async function readNurseServingDay(userId: string, requestedRoute: Feedin
     }
     const receipt = demo.state.receipts.find((item) => item.mealEventId === event.id && item.departmentId === departmentId);
     if (receipt) event.deliveryReceipts.splice(0, event.deliveryReceipts.length, { id: `demo-receipt:${event.id}:${departmentId}`, mealEventId: event.id, departmentId, status: receipt.status, expectedQuantity: receipt.expectedQuantity, receivedQuantity: receipt.receivedQuantity, note: receipt.note, confirmedAt: new Date(receipt.confirmedAt), updatedAt: new Date(receipt.confirmedAt), confirmedById: userId, confirmedBy: { displayName: receipt.confirmedBy } });
+    const handoff = demo.state.handoffs.find((item) => item.mealEventId === event.id && item.departmentId === departmentId);
+    if (handoff) event.mealHandoffs.splice(0, event.mealHandoffs.length, { quantity: handoff.quantity });
     for (const addition of demo.state.additions.filter((item) => item.mealEventId === event.id && item.departmentId === departmentId && item.feedingRoute === route)) { const dietType = demoDietTypes.get(addition.dietTypeId); if (dietType) event.additions.push({ id: addition.id, mealEventId: event.id, departmentId, dietTypeId: addition.dietTypeId, quantity: addition.quantity, reason: addition.reason, kind: addition.kind, ackStatus: addition.ackStatus, submittedAt: new Date(addition.submittedAt), submittedById: userId, ackById: null, ackAt: null, kitchenNote: addition.kitchenNote, dietType }); }
   }
   return { departmentId, departmentName: memberships[0]?.department.name ?? "—", events, route, sondeEnabled: settings.sondeEnabled, serviceCompletionMinutes: settings.serviceCompletionMinutes };

@@ -17,6 +17,7 @@ import { LivePhaseRefresh } from "@/components/live-phase-refresh";
 import { readKitchenWorkspace } from "./workspace-data";
 import { PhaseTransitionNotice } from "@/components/phase-transition-notice";
 import { materializeServingCutoffSnapshot } from "@/lib/serving-report";
+import { VoiceNotificationControl } from "@/components/voice-notification-control";
 
 type SnapshotItem = { itemName?: unknown; dishName?: unknown; grams?: unknown };
 function menuItems(value: unknown) {
@@ -34,23 +35,29 @@ export default async function KitchenPage({ searchParams }: { searchParams: Prom
   if (!clock.simulated && workspace.selected && await materializeServingCutoffSnapshot(workspace.selected.id, user, clock.now)) workspace = await readKitchenWorkspace(query.meal, kitchenRoute, clock.now);
   if (!clock.simulated && workspace.selected && await lockExpiredMealEvent(workspace.selected.id, user, clock.now, kitchenRoute) > 0) workspace = await readKitchenWorkspace(query.meal, kitchenRoute, clock.now);
   const meal = workspace.selected;
+  const hasActionableWork = workspace.hasActionableWork;
   const routeSummary = meal ? (["NORMAL", "SONDE"] as const).flatMap((route) => { const routeMeals = meal.dietMeals.filter((item) => item.feedingRoute === route); if (!routeMeals.length) return []; const hasData = routeMeals.some((item) => item.servingsPlanned > 0); const total = routeMeals.reduce((sum, item) => { const additions = meal.additions.filter((addition) => addition.dietTypeId === item.dietTypeId && addition.ackStatus === "RECEIVED"); return sum + servingTotal(item.servingsPlanned, additions).total; }, 0); return [`${route === "SONDE" ? "Qua sonde" : "Ăn đường miệng"}: ${hasData ? `${total} suất` : "—"}`]; }).join(" · ") : "";
   const updateMessage = query.updated === "prepared" ? "Đã lưu ảnh món và xác nhận bữa sẵn sàng giao." : query.updated === "reopened" ? "Đã quay lại trạng thái đang chuẩn bị." : "Đã ghi nhận xử lý của bếp.";
 
-  const tools = meal ? <KitchenDialogs eventId={meal.id} canOperate={workspace.canOperate} additions={meal.additions} evidence={meal.evidence} dietMeals={meal.dietMeals.map((item) => ({ id: item.id, name: `${item.dietType.code} · ${item.dietType.name}` }))} patientNotes={notes.map((note) => ({ id: note.id, note: note.note, departmentName: note.department.name, mealDateLabel: hospitalDayKey(note.mealDate), acknowledged: note.acknowledged }))}/> : null;
+  const tools = meal && hasActionableWork ? <KitchenDialogs eventId={meal.id} canOperate={workspace.canOperate} additions={meal.additions} evidence={meal.evidence} dietMeals={meal.dietMeals.map((item) => ({ id: item.id, name: `${item.dietType.code} · ${item.dietType.name}` }))} patientNotes={notes.map((note) => ({ id: note.id, note: note.note, departmentName: note.department.name, mealDateLabel: hospitalDayKey(note.mealDate), acknowledged: note.acknowledged }))}/> : null;
   const serviceAt = meal ? `${hospitalDayKey(meal.mealDate)}T${meal.mealType.serviceTime}:00+07:00` : null;
   const phase = meal ? mealTimePhase(meal.mealDate, meal.mealType.cutoffTime, meal.mealType.serviceTime, clock.now) : null;
   const pendingAdditions = meal?.additions.filter((item) => item.ackStatus === "PENDING").length ?? 0;
   const unreadNotes = notes.filter((note) => !note.acknowledged).length;
   const notifications = [...(pendingAdditions ? [{ id: "pending-additions", label: `${pendingAdditions} suất bổ sung chờ xác nhận`, detail: "Xác nhận khả năng chuẩn bị trước khi tính vào bữa" }] : []), ...(unreadNotes ? [{ id: "unread-notes", label: `${unreadNotes} ghi chú chưa đọc`, detail: "Ghi chú đã được điều dưỡng duyệt" }] : [])];
+  const voiceEvents = [
+    ...(meal && hasActionableWork && phase === "PREPARING" ? [{ key: `phase:${hospitalDayKey(meal.mealDate)}:${meal.id}:${kitchenRoute}:PREPARING`, message: "Đã đến thời gian chuẩn bị suất ăn. Vui lòng kiểm tra số lượng.", announceOnEnable: true }] : []),
+    ...(meal?.additions.filter((item) => item.ackStatus === "PENDING").map((item) => ({ key: `addition:${hospitalDayKey(meal.mealDate)}:${meal.id}:${kitchenRoute}:${item.id}`, message: "Có báo bổ sung suất ăn mới. Vui lòng kiểm tra." })) ?? []),
+  ];
+  const voiceControl = <VoiceNotificationControl workspace="kitchen" scope={kitchenRoute} events={voiceEvents}/>;
 
-  return <AppShell user={user} adminNotifications={notifications} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined} workflowStatus={serviceAt ? <KitchenHeaderStatus serviceAt={serviceAt} initialNowIso={clock.now.toISOString()} liveClock={!clock.simulated}/> : undefined}><main className="kitchen-page kitchen-v2">
+  return <AppShell user={user} adminNotifications={notifications} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined} workflowStatus={<div className="workspace-voice-status">{serviceAt ? <KitchenHeaderStatus serviceAt={serviceAt} initialNowIso={clock.now.toISOString()} liveClock={!clock.simulated}/> : null}{voiceControl}</div>}><main className="kitchen-page kitchen-v2">
     <LivePhaseRefresh enabled={!clock.simulated}/>
     {meal && phase ? <PhaseTransitionNotice scope={`kitchen:${kitchenRoute}`} mealName={meal.mealType.name} phase={phase}/> : null}
     <CurrentMealLifecycle role={user.role} selectedMealId={meal?.id} now={clock.now} liveClock={!clock.simulated}/>
     {query.updated && <p className="success-banner" role="status">{updateMessage}</p>}
     {query.storage === "unavailable" && <p className="storage-notice" role="alert">Máy chủ chưa cấu hình nơi lưu ảnh nên chưa thể hoàn tất bữa.</p>}
-    {!meal ? <EmptyState icon={ChefHat} title="Chưa có bữa cần chuẩn bị" description="Hệ thống không tự tạo bữa hoặc đoán số suất."/> : <>
+    {!meal || !hasActionableWork ? <EmptyState icon={ChefHat} title="Chưa có suất cần chuẩn bị" description="Bữa này chưa có suất báo hoặc phát sinh cần xử lý; Bếp không cần thực hiện checklist."/> : <>
       <KitchenBoard eventId={meal.id} mealName={`${meal.mealType.name}${routeSummary ? ` · ${routeSummary}` : ""}`} canOperate={workspace.canOperate} tools={tools} meals={meal.dietMeals.map((item) => {
         const additions = meal.additions.filter((addition) => addition.dietTypeId === item.dietTypeId && addition.ackStatus === "RECEIVED");
         const totals = servingTotal(item.servingsPlanned, additions);
@@ -58,7 +65,7 @@ export default async function KitchenPage({ searchParams }: { searchParams: Prom
         const departments = [...departmentIds].map((departmentId) => { const report = meal.reports.find((value) => value.departmentId === departmentId); const original = report?.lines.find((line) => line.dietTypeId === item.dietTypeId)?.quantity ?? null; const extra = additions.filter((addition) => addition.departmentId === departmentId).reduce((sum, addition) => sum + addition.quantity, 0); return { id: departmentId, name: report?.department.name ?? additions.find((addition) => addition.departmentId === departmentId)?.department.name ?? "—", original, additions: extra || null, total: original === null && !extra ? null : (original ?? 0) + extra }; });
         const photo = item.evidence.find((value) => value.kind === "MEAL_PHOTO");
         return { id: item.id, code: item.dietType.code, name: `${item.dietType.name} · ${item.feedingRoute === "SONDE" ? "Qua sonde" : "Đường miệng"}`, planned: item.servingsPlanned > 0 ? item.servingsPlanned : null, additions: totals.additions > 0 ? totals.additions : null, total: item.servingsPlanned > 0 ? totals.total : null, items: menuItems(item.menuSnapshotJson), status: item.status, departments, evidence: photo?.publicUrl ? { publicUrl: photo.publicUrl, note: photo.note, uploadedAt: photo.uploadedAt.toISOString() } : null };
-      })} shopping={meal.shopping.items.map((item) => ({ foodId: item.foodId, foodName: item.foodName, edible: formatMass(item.edibleGrams), waste: item.wastePercent === null ? "—" : `${item.wastePercent}%`, raw: formatMass(item.rawGrams) }))} foodRetention24hRequired={workspace.foodRetention24hRequired} retentionEvidence={(() => { const evidence = meal.evidence.find((item) => item.kind === "FOOD_SAMPLE" && item.publicUrl); return evidence?.publicUrl ? { publicUrl: evidence.publicUrl, note: evidence.note, uploadedAt: evidence.uploadedAt.toISOString() } : null; })()} reportedDepartmentCount={meal.reports.length} deliveryReceiptCount={meal.deliveryReceipts.length}/>
+      })} shopping={meal.shopping.items.map((item) => ({ foodId: item.foodId, foodName: item.foodName, edible: formatMass(item.edibleGrams), waste: item.wastePercent === null ? "—" : `${item.wastePercent}%`, raw: formatMass(item.rawGrams) }))} foodRetention24hRequired={workspace.foodRetention24hRequired} retentionEvidence={(() => { const evidence = meal.evidence.find((item) => item.kind === "FOOD_SAMPLE" && item.publicUrl); return evidence?.publicUrl ? { publicUrl: evidence.publicUrl, note: evidence.note, uploadedAt: evidence.uploadedAt.toISOString() } : null; })()} reportedDepartmentCount={meal.reports.length} deliveryReceiptCount={meal.deliveryReceipts.length} handoffs={meal.handoffs}/>
     </>}
   </main></AppShell>;
 }

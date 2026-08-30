@@ -1,29 +1,33 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { deliveryReceiptAvailability, isKitchenHandoffReady, normalizeDeliveryReceipt, normalizeReceiptCorrectionReason } from "../src/lib/delivery-receipt";
+import { deliveryReceiptAvailability, expectedQuantityFromHandoff, normalizeDeliveryReceipt, normalizeReceiptCorrectionReason } from "../src/lib/delivery-receipt";
 
-test("nhan du phai khop so suat du kien", () => {
+test("nhận đủ phải khớp số suất dự kiến", () => {
   assert.deepEqual(normalizeDeliveryReceipt({ status: "FULL", expectedQuantity: 20, receivedQuantity: 20, note: "" }), { status: "FULL", receivedQuantity: 20, note: null });
   assert.throws(() => normalizeDeliveryReceipt({ status: "FULL", expectedQuantity: 20, receivedQuantity: 19, note: "" }));
 });
 
-test("nhan thieu bat buoc so thuc nhan nho hon va co ly do", () => {
-  assert.deepEqual(normalizeDeliveryReceipt({ status: "SHORT", expectedQuantity: 20, receivedQuantity: 18, note: "Thieu 2 suat" }), { status: "SHORT", receivedQuantity: 18, note: "Thieu 2 suat" });
-  assert.throws(() => normalizeDeliveryReceipt({ status: "SHORT", expectedQuantity: 20, receivedQuantity: 20, note: "Du" }));
+test("nhận thiếu bắt buộc số thực nhận nhỏ hơn và có lý do", () => {
+  assert.deepEqual(normalizeDeliveryReceipt({ status: "SHORT", expectedQuantity: 20, receivedQuantity: 18, note: "Thiếu 2 suất" }), { status: "SHORT", receivedQuantity: 18, note: "Thiếu 2 suất" });
+  assert.throws(() => normalizeDeliveryReceipt({ status: "SHORT", expectedQuantity: 20, receivedQuantity: 20, note: "Đủ" }));
   assert.throws(() => normalizeDeliveryReceipt({ status: "SHORT", expectedQuantity: 20, receivedQuantity: 18, note: "" }));
 });
 
-test("sua xac nhan bat buoc ly do du ro", () => {
-  assert.equal(normalizeReceiptCorrectionReason("  Khoa kiem dem lai  "), "Khoa kiem dem lai");
+test("sửa xác nhận bắt buộc lý do đủ rõ", () => {
+  assert.equal(normalizeReceiptCorrectionReason("  Khoa kiểm đếm lại  "), "Khoa kiểm đếm lại");
   assert.throws(() => normalizeReceiptCorrectionReason(""));
   assert.throws(() => normalizeReceiptCorrectionReason("x".repeat(501)));
 });
 
-test("chi cho xac nhan giao nhan sau khi Bep da ban giao route hien hanh", () => {
-  assert.equal(isKitchenHandoffReady([]), false);
-  assert.equal(isKitchenHandoffReady(["PLANNED"]), false);
-  assert.equal(isKitchenHandoffReady(["PREPARED", "SERVED"]), true);
-  assert.deepEqual(deliveryReceiptAvailability(["PREPARING"], null), { status: "WAITING_HANDOFF", expectedQuantity: null });
-  assert.deepEqual(deliveryReceiptAvailability(["PREPARED"], null), { status: "READY" });
-  assert.deepEqual(deliveryReceiptAvailability(["PREPARED"], { expectedQuantity: 12 }), { status: "CONFIRMED" });
+test("UI giao nhận chỉ sẵn sàng sau handoff và giữ snapshot khi reload", () => {
+  assert.deepEqual(deliveryReceiptAvailability(null, null), { status: "WAITING_HANDOFF", expectedQuantity: null });
+  assert.deepEqual(deliveryReceiptAvailability({ quantity: 36 }, null), { status: "READY", expectedQuantity: 36 });
+  assert.deepEqual(deliveryReceiptAvailability({ quantity: 36 }, { expectedQuantity: 36 }), { status: "CONFIRMED", expectedQuantity: 36 });
+});
+
+test("receipt bắt buộc handoff và lấy expectedQuantity từ snapshot", () => {
+  assert.throws(() => expectedQuantityFromHandoff(null));
+  assert.equal(expectedQuantityFromHandoff({ quantity: 36 }), 36);
+  assert.deepEqual(normalizeDeliveryReceipt({ status: "FULL", expectedQuantity: expectedQuantityFromHandoff({ quantity: 36 }), receivedQuantity: 36, note: "" }), { status: "FULL", receivedQuantity: 36, note: null });
+  assert.deepEqual(normalizeDeliveryReceipt({ status: "SHORT", expectedQuantity: expectedQuantityFromHandoff({ quantity: 36 }), receivedQuantity: 34, note: "Thiếu 2 suất" }), { status: "SHORT", receivedQuantity: 34, note: "Thiếu 2 suất" });
 });

@@ -18,14 +18,14 @@ const schema = z.object({ currentPassword: z.string().min(10, "Mật khẩu hi�
 });
 type Fields = z.infer<typeof schema>;
 
-export function PasswordForm({ role }: { role: WorkspaceRole }) {
+export function PasswordForm({ required = false, role }: { required?: boolean; role: WorkspaceRole }) {
   const [state, formAction, pending] = useActionState(changePasswordAction, initialState);
   const formRef = useRef<HTMLFormElement>(null);
   const { register, handleSubmit, reset, formState: { errors } } = useForm<Fields>({ resolver: zodResolver(schema), shouldFocusError: true });
 
   useEffect(() => {
-    if (state.status === "success") { formRef.current?.reset(); reset(); window.location.assign(workspaceForRole(role)); }
-  }, [reset, role, state.status]);
+    if (state.status === "success") { formRef.current?.reset(); reset(); if (required) window.location.assign(workspaceForRole(role)); }
+  }, [required, reset, role, state.status]);
 
   const submit = handleSubmit((_values, event) => { const form = event?.currentTarget; if (form instanceof HTMLFormElement) { const data = new FormData(form); startTransition(() => formAction(data)); } });
 
