@@ -25,10 +25,10 @@ EXPOSE 3000
 CMD ["node", "apps/meal-service/server.js"]
 
 FROM builder AS migrate
-CMD ["npm", "run", "db:migrate", "-w", "@suat-an/meal-service"]
+CMD ["sh", "-c", "npm run db:generate -w @suat-an/meal-service && npm run db:migrate -w @suat-an/meal-service"]
 
 FROM builder AS seed
-CMD ["npm", "run", "db:seed", "-w", "@suat-an/meal-service"]
+CMD ["sh", "-c", "npm run db:generate -w @suat-an/meal-service && npm run db:seed -w @suat-an/meal-service"]
 
 FROM builder AS data_sync_worker
-CMD ["npm", "run", "data-sync:worker", "-w", "@suat-an/meal-service"]
+CMD ["sh", "-c", "npm run db:generate -w @suat-an/meal-service && npm run data-sync:worker -w @suat-an/meal-service"]
