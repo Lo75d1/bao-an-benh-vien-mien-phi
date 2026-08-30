@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- public evidence URL comes from configured storage */
 import Image from "next/image";
+import Link from "next/link";
 import type { CSSProperties } from "react";
 import { Clock3, ImageOff, LogIn, MessageSquareText, Utensils } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -10,6 +11,7 @@ import { blendHex, readBrandingSettings, readableForeground } from "@/lib/brandi
 import { readPublicDietMenu } from "@/lib/patient-note";
 import { readPublicViewStats } from "@/lib/public-page-views";
 import { PublicViewTracker } from "@/components/public-view-tracker";
+import { DemoEntry } from "@/components/demo-entry";
 import { submitPublicPatientNoteAction } from "@/app/patient-note-actions";
 
 const DEMO_ACCOUNTS = process.env.DEMO_LOGIN_BUTTONS === "1" ? [
@@ -35,11 +37,11 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   return <main className="public-menu-home" style={publicStyle}>
     <PublicViewTracker/>
-    <header className="public-menu-header"><a href="#public-menu-browser" className="public-menu-brand">{branding.logoDataUrl ? <Image src={branding.logoDataUrl} alt={`Logo ${branding.organizationName}`} width={40} height={40} unoptimized/> : <span>{branding.shortName}</span>}<strong>{branding.organizationName}</strong></a><Dialog><DialogTrigger asChild><button type="button" className="staff-login-trigger"><LogIn aria-hidden="true"/>Đăng nhập nhân viên</button></DialogTrigger><DialogContent className="max-h-[92vh] max-w-md overflow-y-auto"><DialogHeader><DialogTitle>Đăng nhập nhân viên</DialogTitle><DialogDescription>Dùng tài khoản do bệnh viện cấp để vào khu vực làm việc.</DialogDescription></DialogHeader><LoginForm demoAccounts={DEMO_ACCOUNTS}/></DialogContent></Dialog></header>
+    <header className="public-menu-header"><a href="#public-menu-browser" className="public-menu-brand">{branding.logoDataUrl ? <Image src={branding.logoDataUrl} alt={`Logo ${branding.organizationName}`} width={40} height={40} unoptimized/> : <span>{branding.shortName}</span>}<strong>{branding.organizationName}</strong></a><nav className="public-menu-nav" aria-label="Điều hướng trang bệnh nhân">{demoMode ? <><Link aria-current="page" href="/?patient=1">Bệnh nhân</Link><DemoEntry accounts={[]} compactAccount={{ key: "nurse", label: "Điều dưỡng", description: "Vào demo Điều dưỡng" }}/><DemoEntry accounts={[]} compactAccount={{ key: "dietitian", label: "Dinh dưỡng", description: "Vào demo Dinh dưỡng" }}/><DemoEntry accounts={[]} compactAccount={{ key: "kitchen", label: "Bếp", description: "Vào demo Bếp ăn thường" }}/><DemoEntry accounts={[]} compactAccount={{ key: "sonde", label: "Sonde", description: "Vào demo Bếp Sonde" }}/><DemoEntry accounts={[]} compactAccount={{ key: "admin", label: "Admin", description: "Vào demo quản trị" }}/></> : <><a href="#public-menu-browser">Thực đơn</a><a href="#public-meal-timeline">Suất ăn</a><a href="#gui-ghi-chu">Ghi chú</a></>}</nav><Dialog><DialogTrigger asChild><button type="button" className="staff-login-trigger"><LogIn aria-hidden="true"/>Đăng nhập nhân viên</button></DialogTrigger><DialogContent className="max-h-[92vh] max-w-md overflow-y-auto"><DialogHeader><DialogTitle>Đăng nhập nhân viên</DialogTitle><DialogDescription>Dùng tài khoản do bệnh viện cấp để vào khu vực làm việc.</DialogDescription></DialogHeader><LoginForm demoAccounts={DEMO_ACCOUNTS}/></DialogContent></Dialog></header>
 
     <section className={branding.publicHeroEnabled ? "public-menu-hero public-menu-hero-compact has-public-hero" : "public-menu-hero public-menu-hero-compact"} style={heroStyle} id="public-menu-browser" aria-labelledby="public-menu-title"><div className="public-menu-copy"><p className="eyebrow">Thực đơn dành cho người bệnh</p><h1 id="public-menu-title">Xem thực đơn theo chế độ ăn</h1><p>Chọn mã chế độ ăn và ngày. Hệ thống chỉ hiển thị thực đơn đã được dinh dưỡng lưu.</p></div><form method="get" className="public-menu-filter">{demoMode ? <input type="hidden" name="patient" value="1"/> : null}<label>Mã chế độ ăn<select name="diet" defaultValue={menu.selectedDiet?.code ?? ""}>{menu.diets.map((diet) => <option key={diet.id} value={diet.code}>{diet.code} · {diet.name}{diet.feedingRoute === "SONDE" ? " · Qua sonde" : ""}</option>)}</select></label><label>Ngày xem<input type="date" name="date" min={menu.minDate} max={menu.maxDate} defaultValue={menu.selectedDate}/></label><button type="submit">Xem thực đơn</button><small>Xem trước tối đa {menu.advanceEntryDays} ngày theo cấu hình bệnh viện.</small></form></section>
 
-    <section className="public-meal-timeline" aria-label="Suất ăn hiện tại và suất kế tiếp">
+    <section className="public-meal-timeline" id="public-meal-timeline" aria-label="Suất ăn hiện tại và suất kế tiếp">
       <article><Clock3 aria-hidden="true"/><div><span>Suất hiện tại</span>{menu.currentMeal ? <><strong>{menu.currentMeal.mealType.name} · {menu.currentMeal.mealType.serviceTime}</strong><small>{menu.currentMeal.dishes.length ? menu.currentMeal.dishes.join(" · ") : "— · Chưa có tên món"}</small></> : <><strong>—</strong><small>Chưa đến suất đầu tiên trong ngày.</small></>}</div></article>
       <article className="is-next"><Clock3 aria-hidden="true"/><div><span>Suất kế tiếp</span>{menu.nextMeal ? <><strong>{menu.nextMeal.mealType.name} · {menu.nextMeal.mealType.serviceTime}</strong><small>{dateLabel.format(menu.nextMeal.mealDate)} · {menu.nextMeal.dishes.length ? menu.nextMeal.dishes.join(" · ") : "Chưa có tên món"}</small></> : <><strong>—</strong><small>Chưa có thực đơn kế tiếp trong cửa sổ công khai.</small></>}</div></article>
     </section>
