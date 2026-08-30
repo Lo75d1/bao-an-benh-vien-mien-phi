@@ -1,14 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { approvedNotesOnly, clientIpFromHeaders, hashClientIp, isPatientNoteRateLimited, publicDietMeal, publicPatientNotes, selectPublicMealWindow } from "../src/lib/patient-note";
+import { publicMealEvidenceUrl, staffMealEvidenceUrl } from "../src/lib/evidence-storage";
+import { approvedNotesOnly, clientIpFromHeaders, hashClientIp, isPatientNoteRateLimited, publicDietMeal, publicDishSummaries, publicPatientNotes, selectPublicMealWindow } from "../src/lib/patient-note";
 
 test("chỉ ghi chú APPROVED được chuyển tới bếp", () => {
   const visible = approvedNotesOnly([
     { status: "RECEIVED" as const, note: "đang chờ" },
-    { status: "APPROVED" as const, note: "đã duyệt" },
+    { status: "APPROVED" as const, note: "đã xác nhận" },
     { status: "REJECTED" as const, note: "đã từ chối" },
   ]);
-  assert.deepEqual(visible, [{ note: "đã duyệt" }]);
+  assert.deepEqual(visible, [{ note: "đã xác nhận" }]);
 });
 
 test("projection công khai không chứa internalNote", () => {
@@ -38,6 +39,12 @@ test("ipHash không lưu IP thô và rate-limit theo cửa sổ một giờ", ()
   assert.equal(isPatientNoteRateLimited([new Date("2026-08-21T07:10:00Z"), new Date("2026-08-21T07:20:00Z"), new Date("2026-08-21T07:30:00Z")], now), true);
 });
 
+test("ưu tiên IP do reverse proxy xác nhận và ảnh dùng URL cùng origin", () => {
+  assert.equal(clientIpFromHeaders("198.51.100.9", "203.0.113.7"), "203.0.113.7");
+  assert.equal(publicMealEvidenceUrl("ảnh có khoảng trắng"), "/api/public/evidence/%E1%BA%A3nh%20c%C3%B3%20kho%E1%BA%A3ng%20tr%E1%BA%AFng");
+  assert.equal(staffMealEvidenceUrl("ảnh có khoảng trắng"), "/api/evidence/%E1%BA%A3nh%20c%C3%B3%20kho%E1%BA%A3ng%20tr%E1%BA%AFng");
+});
+
 test("trang bệnh nhân tách đúng suất hiện tại và suất kế tiếp", () => {
   const meals = [
     { id: "sang", at: new Date("2026-08-28T23:30:00.000Z") },
@@ -50,4 +57,12 @@ test("trang bệnh nhân tách đúng suất hiện tại và suất kế tiếp
   const afterLunch = selectPublicMealWindow(meals, new Date("2026-08-29T05:00:00.000Z"));
   assert.equal(afterLunch.current?.id, "trua");
   assert.equal(afterLunch.next?.id, "chieu");
+});
+
+test("trang công khai cộng gram theo món và giữ dấu thiếu dữ liệu", () => {
+  assert.deepEqual(publicDishSummaries(["Bún bò Huế", "Cháo", "Món chưa có thành phần"], [{ dishName: "Bún bò Huế", grams: 160 }, { dishName: "Bún bò Huế", grams: 186 }, { dishName: "Cháo", grams: null }]), [
+    { name: "Bún bò Huế", totalGrams: 346 },
+    { name: "Cháo", totalGrams: null },
+    { name: "Món chưa có thành phần", totalGrams: null },
+  ]);
 });

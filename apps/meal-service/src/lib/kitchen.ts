@@ -64,14 +64,38 @@ export function missingMealPhotoIds(mealIds: string[], existingIds: string[], up
   return mealIds.filter((id) => !available.has(id));
 }
 
+export const MEAL_PHOTO_UPLOAD_COOLDOWN_MS = 60_000;
+
+export function mealPhotoUploadCooldownRemaining(
+  latestUpload: { uploadedAt: Date; uploadedById: string } | null | undefined,
+  actorId: string,
+  now = new Date(),
+) {
+  if (!latestUpload || latestUpload.uploadedById !== actorId) return 0;
+  return Math.max(0, MEAL_PHOTO_UPLOAD_COOLDOWN_MS - (now.getTime() - latestUpload.uploadedAt.getTime()));
+}
+
 export async function completeKitchenEvent(input: { eventId: string; feedingRoute: "NORMAL" | "SONDE"; dietMealIds: string[]; files: Array<{ dietMealId: string; file: File; note: string | null }> }, actor: { id: string; displayName: string; demoSessionId?: string }) {
-  const meals = await prisma.dietMeal.findMany({ where: { mealEventId: input.eventId, feedingRoute: input.feedingRoute, voidedAt: null }, select: { id: true, status: true, evidence: { where: { kind: "MEAL_PHOTO" }, select: { id: true }, take: 1 } } });
+  const now = new Date();
+  const meals = await prisma.dietMeal.findMany({ where: { mealEventId: input.eventId, feedingRoute: input.feedingRoute, voidedAt: null }, select: { id: true, status: true, evidence: { where: { kind: "MEAL_PHOTO" }, orderBy: { uploadedAt: "desc" }, select: { id: true, uploadedAt: true, uploadedById: true }, take: 1 } } });
   if (!meals.length || meals.length !== input.dietMealIds.length || meals.some((meal) => !input.dietMealIds.includes(meal.id))) throw new Error("Danh sách mã chế độ ăn không hợp lệ.");
   const demo = actor.demoSessionId ? await readDemoSession() : null;
   const demoEvidenceIds = demo?.state.evidence.filter((item) => item.kind === "MEAL_PHOTO" && item.dietMealId).map((item) => item.dietMealId!) ?? [];
   const missing = missingMealPhotoIds(meals.map((meal) => meal.id), [...meals.filter((meal) => meal.evidence.length).map((meal) => meal.id), ...demoEvidenceIds], input.files.map((item) => item.dietMealId));
   if (missing.length) throw new Error("Cần ảnh món thực tế cho tất cả mã chế độ ăn.");
   if (meals.some((meal) => !["PLANNED", "LOCKED", "PREPARING", "PREPARED"].includes(meal.status))) throw new Error("Bữa ăn không còn ở giai đoạn chuẩn bị.");
+  for (const item of input.files) {
+    const latest = meals.find((meal) => meal.id === item.dietMealId)?.evidence[0];
+    const productionRemaining = mealPhotoUploadCooldownRemaining(latest, actor.id, now);
+    const latestDemo = demo?.state.evidence
+      .filter((value) => value.kind === "MEAL_PHOTO" && value.dietMealId === item.dietMealId && value.uploadedBy === actor.displayName)
+      .sort((left, right) => Date.parse(right.uploadedAt) - Date.parse(left.uploadedAt))[0];
+    const demoRemaining = latestDemo
+      ? Math.max(0, MEAL_PHOTO_UPLOAD_COOLDOWN_MS - (now.getTime() - Date.parse(latestDemo.uploadedAt)))
+      : 0;
+    const remaining = Math.max(productionRemaining, demoRemaining);
+    if (remaining > 0) throw new Error(`Ảnh của mã này vừa được gửi. Vui lòng chờ ${Math.ceil(remaining / 1000)} giây trước khi gửi lại.`);
+  }
   const stored = [] as Array<{ dietMealId: string; storagePath: string; note: string | null }>;
   for (const item of input.files) {
     if (!item.file.type.startsWith("image/") || item.file.size <= 0 || item.file.size > 10 * 1024 * 1024) throw new Error("Mỗi mã cần một ảnh hợp lệ, tối đa 10 MB.");
