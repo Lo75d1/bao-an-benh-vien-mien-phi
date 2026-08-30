@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, BookOpen, ChefHat, ClipboardCheck, Download, FileSpreadsheet, FolderOpen, GitFork, GitFork as Github, HeartPulse, Home, LifeBuoy, MessageCircle, Settings2, ShieldCheck, Soup, Utensils } from "lucide-react";
 import { DemoEntry, type DemoEntryAccount } from "@/components/demo-entry";
+import { DemoSystemIntro } from "@/components/demo-system-intro";
 
 const roles = [
   { key: "nurse", icon: ClipboardCheck, title: "Điều dưỡng của khoa", description: "Báo suất đúng chế độ, gửi bổ sung sau chốt và xác nhận khoa đã nhận đủ hay còn thiếu.", action: "Vào màn báo suất", badge: undefined, account: { label: "Điều dưỡng", email: "nurse@demo.local", password: "Demo-Nurse-2026!" } },
@@ -35,6 +36,8 @@ export default function DemoLandingPage() {
         <figcaption><span>Luồng hai chiều giúp mỗi bên biết dữ liệu mình nhận, việc mình cần làm và kết quả phải bàn giao.</span><small>Trên điện thoại, vuốt ngang để xem rõ toàn bộ sơ đồ.</small></figcaption>
       </figure>
     </section>
+
+    <DemoSystemIntro />
 
     <section id="huong-dan" className="demo-guide-section" aria-labelledby="guide-title"><header><p>Hướng dẫn trải nghiệm</p><h2 id="guide-title">Đi qua hệ thống theo đúng người thực hiện</h2><span>Bắt đầu ở trang bệnh nhân, sau đó thử năm vị trí làm việc. Mỗi tài khoản có dữ liệu và hướng dẫn riêng.</span></header>
       <div className="demo-home-step"><div><Home aria-hidden="true"/><span>Điểm bắt đầu</span></div><div><h3>Trang chủ dành cho bệnh nhân</h3><p>Xem thực đơn theo mã chế độ ăn và ngày bệnh viện cho phép công khai. Không cần đăng nhập và không yêu cầu mã khoa.</p><Link href="/?patient=1">Mở trang bệnh nhân<ArrowRight aria-hidden="true"/></Link></div></div>
