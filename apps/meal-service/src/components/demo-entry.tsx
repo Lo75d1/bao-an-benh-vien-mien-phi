@@ -6,7 +6,7 @@ import type { DemoWorkspace } from "@/lib/demo-session";
 
 export type DemoEntryAccount = { key: string; label: string; description: string; email?: string; password?: string; href?: string };
 const WORKSPACE: Record<string, DemoWorkspace> = { nurse: "NURSE", dietitian: "DIETITIAN", kitchen: "KITCHEN_NORMAL", admin: "ADMIN", sonde: "KITCHEN_SONDE" };
-export const demoDestination = (key: string) => ({ nurse: "/bao-suat", dietitian: "/thuc-don", kitchen: "/bep", sonde: "/bep", admin: "/quan-ly" })[key] ?? "/bao-suat";
+export const demoDestination = (key: string) => ({ patient: "/?patient=1", nurse: "/bao-suat", dietitian: "/thuc-don", kitchen: "/bep", sonde: "/bep", admin: "/quan-ly" })[key] ?? "/bao-suat";
 
 async function enterDemo(account?: DemoEntryAccount) {
   if (account?.href) { window.location.assign(account.href); return; }

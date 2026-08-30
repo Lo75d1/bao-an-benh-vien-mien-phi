@@ -5,6 +5,7 @@ import { DemoEntry, type DemoEntryAccount } from "@/components/demo-entry";
 import { DemoSystemIntro } from "@/components/demo-system-intro";
 
 const roles = [
+  { key: "patient", icon: Home, title: "Trang chủ bệnh nhân", description: "Xem thực đơn công khai theo mã chế độ ăn, suất hiện tại/suất kế tiếp và gửi ghi chú cho khoa mà không cần đăng nhập.", action: "Mở trang bệnh nhân", badge: "Không cần đăng nhập", account: { label: "Bệnh nhân", href: "/?patient=1" } },
   { key: "nurse", icon: ClipboardCheck, title: "Điều dưỡng của khoa", description: "Báo suất đúng chế độ, gửi bổ sung sau chốt và xác nhận khoa đã nhận đủ hay còn thiếu.", action: "Vào màn báo suất", badge: undefined, account: { label: "Điều dưỡng", email: "nurse@demo.local", password: "Demo-Nurse-2026!" } },
   { key: "dietitian", icon: HeartPulse, title: "Dinh dưỡng viên", description: "Lên thực đơn nhiều mã, tìm món và thực phẩm, phân tích khẩu phần hoặc nhập nhanh từ tệp Excel.", action: "Thử lên thực đơn", badge: "Có nhập Excel", account: { label: "Dinh dưỡng", email: "dietitian@demo.local", password: "Demo-Dietitian-2026!" } },
   { key: "kitchen", icon: ChefHat, title: "Bếp ăn thường", description: "Nắm số suất từng khoa, nguyên liệu cần dùng, phát sinh và bằng chứng chuẩn bị bữa ăn.", action: "Vào bếp ăn thường", badge: undefined, account: { label: "Bếp ăn thường", email: "kitchen@demo.local", password: "Demo-Kitchen-2026!" } },
@@ -13,8 +14,7 @@ const roles = [
 ] as const;
 
 const demoEntries: DemoEntryAccount[] = [
-  { key: "patient", label: "Trang bệnh nhân", description: "Xem thực đơn công khai", href: "/?patient=1" },
-  ...roles.map((role) => ({ key: role.key, label: role.title, description: role.badge ?? role.action, email: role.account.email, password: role.account.password })),
+  ...roles.map((role) => ({ key: role.key, label: role.title, description: role.badge ?? role.action, ...("href" in role.account ? { href: role.account.href } : { email: role.account.email, password: role.account.password }) })),
 ];
 
 function RoleDialog({ role }: { role: (typeof roles)[number] }) {

@@ -43,7 +43,13 @@ export function DemoWorkspaceSwitcher({ active }: { active: DemoWorkspace }) {
     window.location.assign("/demo");
   }
 
+  function openPatientHome() {
+    setPending("PATIENT");
+    window.location.assign(workspaceHrefWithDemoTime("/?patient=1", searchParams.get("demoNow")));
+  }
+
   return <div className="demo-workspace-switcher" aria-label="Chuyển khu vực Demo">
+    <button type="button" disabled={pending !== null} onClick={openPatientHome}>{pending === "PATIENT" ? "…" : "Bệnh nhân"}</button>
     {ITEMS.map((item) => <button key={item.value} type="button" aria-current={item.value === active ? "page" : undefined} disabled={pending !== null} onClick={() => action("switch", item.value)}>{pending === item.value ? "…" : item.label}</button>)}
     <button type="button" title="Đặt lại dữ liệu phiên Demo" disabled={pending !== null} onClick={() => action("reset")}><RotateCcw/><span>Reset</span></button>
     <button type="button" title="Thoát Demo" disabled={pending !== null} onClick={exit}><X/><span>Thoát</span></button>
