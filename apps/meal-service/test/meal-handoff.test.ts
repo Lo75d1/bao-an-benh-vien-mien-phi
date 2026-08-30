@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildHandoffSnapshots, deriveHandoffSnapshots, handoffPersistenceDecision } from "../src/lib/meal-handoff";
+import { buildHandoffSnapshots, deriveHandoffSnapshots, handoffPersistenceDecision, mergeHandoffReports } from "../src/lib/meal-handoff";
 
 const source = {
   route: "NORMAL" as const,
@@ -46,4 +46,41 @@ test("handoff lặp cùng quantity không tạo thay đổi", () => {
   assert.equal(handoffPersistenceDecision(null, 27), "CREATE");
   assert.equal(handoffPersistenceDecision(27, 27), "UNCHANGED");
   assert.equal(handoffPersistenceDecision(27, 28), "UPDATE");
+});
+
+test("Demo handoff dùng DB reports làm baseline và giữ Nội 33 Ngoại 42", () => {
+  const reports = mergeHandoffReports([
+    { departmentId: "khoa-noi", lines: [{ dietTypeId: "normal-com", quantity: 33 }] },
+    { departmentId: "khoa-ngoai", lines: [{ dietTypeId: "normal-com", quantity: 42 }] },
+  ], [], new Set(["normal-com"]));
+
+  assert.deepEqual(buildHandoffSnapshots({
+    route: "NORMAL",
+    dietStatuses: ["PREPARED"],
+    reports,
+    additions: [],
+  }, "NORMAL"), [
+    { departmentId: "khoa-ngoai", quantity: 42 },
+    { departmentId: "khoa-noi", quantity: 33 },
+  ]);
+  assert.equal(reports.reduce((sum, report) => sum + report.quantities.reduce((inner, quantity) => inner + quantity, 0), 0), 75);
+});
+
+test("Demo handoff overlay theo khoa nhưng không lẫn NORMAL và Sonde", () => {
+  const reports = mergeHandoffReports([
+    { departmentId: "khoa-noi", lines: [{ dietTypeId: "normal-com", quantity: 33 }] },
+    { departmentId: "khoa-ngoai", lines: [{ dietTypeId: "normal-com", quantity: 42 }] },
+  ], [
+    { departmentId: "khoa-noi", lines: [{ dietTypeId: "normal-com", quantity: 30 }, { dietTypeId: "sonde-chao", quantity: 99 }] },
+  ], new Set(["normal-com"]));
+
+  assert.deepEqual(buildHandoffSnapshots({
+    route: "NORMAL",
+    dietStatuses: ["PREPARED"],
+    reports,
+    additions: [],
+  }, "NORMAL"), [
+    { departmentId: "khoa-ngoai", quantity: 42 },
+    { departmentId: "khoa-noi", quantity: 30 },
+  ]);
 });

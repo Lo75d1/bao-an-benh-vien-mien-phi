@@ -16,6 +16,24 @@ type HandoffSource = {
   additions: ReadonlyArray<{ departmentId: string; quantity: number }>;
 };
 
+export type HandoffReportSource = { departmentId: string; lines: ReadonlyArray<{ dietTypeId: string; quantity: number }> };
+
+export function mergeHandoffReports(
+  persistedReports: ReadonlyArray<HandoffReportSource>,
+  demoReports: ReadonlyArray<HandoffReportSource>,
+  activeDietTypeIds: ReadonlySet<string>,
+) {
+  const reports = new Map<string, HandoffReportSource>();
+  for (const report of persistedReports) reports.set(report.departmentId, report);
+  for (const report of demoReports) reports.set(report.departmentId, report);
+  return [...reports.values()].map((report) => ({
+    departmentId: report.departmentId,
+    quantities: report.lines
+      .filter((line) => activeDietTypeIds.has(line.dietTypeId))
+      .map((line) => line.quantity),
+  }));
+}
+
 export function deriveHandoffSnapshots(source: HandoffSource, kitchenRoute: FeedingRoute): HandoffSnapshot[] {
   if (source.route !== kitchenRoute) return [];
   if (source.dietStatuses.length === 0 || source.dietStatuses.some((status) => status !== "PREPARED")) return [];
@@ -49,8 +67,8 @@ export async function handoffMealEvent(
     select: {
       id: true,
       mealType: { select: { feedingRoute: true } },
-      dietMeals: { where: { feedingRoute: input.feedingRoute, voidedAt: null }, select: { id: true, status: true } },
-      reports: { where: { status: "SUBMITTED" }, select: { departmentId: true, lines: { where: { dietType: { feedingRoute: input.feedingRoute } }, select: { quantity: true } } } },
+      dietMeals: { where: { feedingRoute: input.feedingRoute, voidedAt: null }, select: { id: true, dietTypeId: true, status: true } },
+      reports: { where: { status: "SUBMITTED" }, select: { departmentId: true, lines: { where: { dietType: { feedingRoute: input.feedingRoute } }, select: { dietTypeId: true, quantity: true } } } },
       additions: { where: { ackStatus: { in: ["RECEIVED", "SUBSTITUTE"] }, dietType: { feedingRoute: input.feedingRoute } }, select: { departmentId: true, quantity: true } },
     },
   });
@@ -58,12 +76,13 @@ export async function handoffMealEvent(
   if (actor.demoSessionId) {
     const demo = await readDemoSession();
     if (!demo || demo.id !== actor.demoSessionId) throw new Error("Phiên Demo đã hết hạn.");
+    const activeDietTypeIds = new Set(event.dietMeals.map((meal) => meal.dietTypeId));
     const demoReports = demo.state.reports.filter((report) => report.mealEventId === event.id);
     const demoAdditions = demo.state.additions.filter((addition) => addition.mealEventId === event.id && addition.feedingRoute === input.feedingRoute && ["RECEIVED", "SUBSTITUTE"].includes(addition.ackStatus));
     const demoSnapshots = buildHandoffSnapshots({
       route: event.mealType.feedingRoute,
       dietStatuses: event.dietMeals.map((meal) => (demo.state.dietStatuses[meal.id] ?? meal.status) as DietMealStatus),
-      reports: demoReports.map((report) => ({ departmentId: report.departmentId, quantities: report.lines.map((line) => line.quantity) })),
+      reports: mergeHandoffReports(event.reports, demoReports, activeDietTypeIds),
       additions: demoAdditions,
     }, input.feedingRoute);
     const handedOffAt = now.toISOString();
