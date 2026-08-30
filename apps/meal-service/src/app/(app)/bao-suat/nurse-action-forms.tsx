@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Check, Pencil, Utensils } from "lucide-react";
+import { AlertTriangle, Check, Clock3, Pencil, Utensils } from "lucide-react";
 import { useActionState } from "react";
 import { ActionButton, ActionFeedback } from "@/components/action-feedback";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -12,7 +12,7 @@ const dateTime = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh"
 
 export function LateAdditionForm({ eventId, route, diets, action }: { eventId: string; route: "NORMAL" | "SONDE"; diets: Array<{ id: string; code: string; name: string }>; action: Action }) {
   const [result, formAction, pending] = useActionState(action, INITIAL_ACTION_RESULT);
-  return <form action={formAction} className="nurse-late-addition-form">
+  return <form action={formAction} className="nurse-late-addition-form" onSubmit={(event) => event.stopPropagation()}>
     <input type="hidden" name="mealEventId" value={eventId}/><input type="hidden" name="route" value={route}/>
     <label>Mã chế độ ăn<select name="dietTypeId" required defaultValue=""><option value="" disabled>Chọn mã chế độ</option>{diets.map((diet) => <option key={diet.id} value={diet.id}>{diet.code} · {diet.name}</option>)}</select></label>
     <label>Số suất<input type="number" name="quantity" min="1" step="1" inputMode="numeric" required/></label>
@@ -24,7 +24,7 @@ export function LateAdditionForm({ eventId, route, diets, action }: { eventId: s
 
 function ReceiptForm({ eventId, route, expected, kind, previous, action }: { eventId: string; route: "NORMAL" | "SONDE"; expected: number; kind: "FULL" | "SHORT"; previous?: { status: "FULL" | "SHORT"; receivedQuantity: number; note: string | null } | null; action: Action }) {
   const [result, formAction, pending] = useActionState(action, INITIAL_ACTION_RESULT);
-  return <form action={formAction} className={kind === "SHORT" ? "delivery-short-form" : undefined}>
+  return <form action={formAction} className={kind === "SHORT" ? "delivery-short-form" : undefined} onSubmit={(event) => event.stopPropagation()}>
     <input type="hidden" name="mealEventId" value={eventId}/><input type="hidden" name="route" value={route}/><input type="hidden" name="status" value={kind}/>
     {kind === "FULL" ? <input type="hidden" name="receivedQuantity" value={expected}/> : <><label>Số suất thực nhận<input name="receivedQuantity" type="number" min="0" max={Math.max(0, expected - 1)} step="1" defaultValue={previous?.status === "SHORT" ? previous.receivedQuantity : ""} required/></label><label>Lý do thiếu<textarea name="note" minLength={3} maxLength={500} defaultValue={previous?.status === "SHORT" ? previous.note ?? "" : ""} required/></label></>}
     {previous ? <label>Lý do điều chỉnh xác nhận<input name="correctionReason" minLength={3} maxLength={500} required placeholder="Ví dụ: Khoa kiểm đếm lại số suất"/></label> : null}
@@ -35,6 +35,10 @@ function ReceiptForm({ eventId, route, expected, kind, previous, action }: { eve
 
 export function DeliveryReceiptForms({ eventId, route, expected, receipt, action }: { eventId: string; route: "NORMAL" | "SONDE"; expected: number; receipt: { status: "FULL" | "SHORT"; receivedQuantity: number; note: string | null } | null; action: Action }) {
   return <div className="delivery-receipt-actions"><ReceiptForm eventId={eventId} route={route} expected={expected} kind="FULL" previous={receipt} action={action}/><ReceiptForm eventId={eventId} route={route} expected={expected} kind="SHORT" previous={receipt} action={action}/></div>;
+}
+
+export function DeliveryHandoffWaiting({ eventName }: { eventName: string }) {
+  return <section className="service-receipt-pending is-waiting-handoff"><div><span>Nhiệm vụ chính</span><strong>Chờ Bếp bàn giao {eventName}</strong><small>Chỉ xác nhận nhận đủ/thiếu sau khi Bếp xác nhận sẵn sàng giao.</small></div><Clock3 aria-hidden="true"/></section>;
 }
 
 export function DeliveryReceiptControl({ eventId, eventName, route, expected, receipt, action }: { eventId: string; eventName: string; route: "NORMAL" | "SONDE"; expected: number; receipt: Receipt | null; action: Action }) {

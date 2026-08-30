@@ -1,4 +1,4 @@
-import type { DeliveryReceiptStatus, Prisma, Role } from "@prisma/client";
+import type { DeliveryReceiptStatus, DietMealStatus, FeedingRoute, Prisma, Role } from "@prisma/client";
 import { mealTimePhase } from "./meal-events";
 import { prisma } from "./prisma";
 import { readOperationalSettings } from "./settings";
@@ -25,15 +25,40 @@ export function normalizeReceiptCorrectionReason(value: unknown) {
   return reason;
 }
 
+export function isKitchenHandoffReady(statuses: readonly DietMealStatus[]): boolean {
+  return statuses.length > 0 && statuses.every((status) => status === "PREPARED" || status === "SERVED");
+}
+
+export function deliveryReceiptAvailability(statuses: readonly DietMealStatus[], receipt: { expectedQuantity: number } | null | undefined) {
+  if (!isKitchenHandoffReady(statuses)) return { status: "WAITING_HANDOFF" as const, expectedQuantity: null };
+  return { status: receipt ? "CONFIRMED" as const : "READY" as const };
+}
+
 export async function confirmMealDelivery(
-  input: { mealEventId: string; departmentId: string; status: unknown; receivedQuantity: unknown; note: unknown; correctionReason?: unknown },
+  input: { mealEventId: string; departmentId: string; feedingRoute: FeedingRoute; status: unknown; receivedQuantity: unknown; note: unknown; correctionReason?: unknown },
   actor: { id: string; displayName: string; role: Role; demoSessionId?: string },
   now = new Date(),
 ) {
   if (actor.role !== "NURSE") throw new Error("Chỉ điều dưỡng được xác nhận giao nhận của khoa.");
   const [membership, event, settings] = await Promise.all([
     prisma.departmentMembership.findUnique({ where: { userId_departmentId: { userId: actor.id, departmentId: input.departmentId } }, select: { id: true } }),
-    prisma.mealEvent.findUnique({ where: { id: input.mealEventId }, select: { id: true, mealDate: true, mealType: { select: { cutoffTime: true, serviceTime: true } }, reports: { where: { departmentId: input.departmentId, status: "SUBMITTED" }, select: { lines: { select: { quantity: true } } } }, additions: { where: { departmentId: input.departmentId, ackStatus: { in: ["RECEIVED", "SUBSTITUTE"] } }, select: { quantity: true } } } }),
+    prisma.mealEvent.findUnique({
+      where: { id: input.mealEventId },
+      select: {
+        id: true,
+        mealDate: true,
+        mealType: { select: { cutoffTime: true, serviceTime: true } },
+        dietMeals: { where: { feedingRoute: input.feedingRoute, voidedAt: null }, select: { id: true, status: true } },
+        reports: {
+          where: { departmentId: input.departmentId, status: "SUBMITTED" },
+          select: { lines: { select: { dietTypeId: true, quantity: true, dietType: { select: { feedingRoute: true } } } } },
+        },
+        additions: {
+          where: { departmentId: input.departmentId, ackStatus: { in: ["RECEIVED", "SUBSTITUTE"] }, dietType: { feedingRoute: input.feedingRoute } },
+          select: { quantity: true },
+        },
+      },
+    }),
     readOperationalSettings(),
   ]);
   if (!membership) throw new Error("Bạn không có quyền xác nhận giao nhận cho khoa này.");
@@ -41,9 +66,12 @@ export async function confirmMealDelivery(
   const phase = mealTimePhase(event.mealDate, event.mealType.cutoffTime, event.mealType.serviceTime, now, settings.serviceCompletionMinutes);
   if (phase !== "SERVING" && phase !== "PASSED") throw new Error("Chưa tới giờ phục vụ nên chưa thể xác nhận giao nhận.");
   const demo = actor.demoSessionId ? await readDemoSession() : null;
+  const routeStatuses = event.dietMeals.map((meal) => (demo?.state.dietStatuses[meal.id] ?? meal.status) as DietMealStatus);
+  if (!isKitchenHandoffReady(routeStatuses)) throw new Error("Bếp chưa bàn giao suất ăn cho khoa này.");
   const demoReport = demo?.state.reports.find((item) => item.mealEventId === input.mealEventId && item.departmentId === input.departmentId);
-  if (event.reports.length === 0 && !demoReport) throw new Error("Khoa chưa có báo suất đã chốt cho bữa này.");
-  const expectedQuantity = (demoReport ? demoReport.lines : event.reports.flatMap((report) => report.lines)).reduce((sum, line) => sum + line.quantity, 0) + event.additions.reduce((sum, item) => sum + item.quantity, 0);
+  const reportLines = demoReport ? demoReport.lines : event.reports.flatMap((report) => report.lines).filter((line) => line.dietType.feedingRoute === input.feedingRoute);
+  if (reportLines.length === 0) throw new Error("Khoa chưa có báo suất đã chốt cho bữa này.");
+  const expectedQuantity = reportLines.reduce((sum, line) => sum + line.quantity, 0) + event.additions.reduce((sum, item) => sum + item.quantity, 0);
   const normalized = normalizeDeliveryReceipt({ ...input, expectedQuantity });
   if (actor.demoSessionId) {
     const existing = demo?.state.receipts.find((item) => item.mealEventId === input.mealEventId && item.departmentId === input.departmentId);

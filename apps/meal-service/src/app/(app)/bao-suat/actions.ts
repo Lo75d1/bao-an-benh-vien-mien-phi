@@ -67,7 +67,7 @@ async function confirmDeliveryReceipt(formData: FormData) {
   const memberships = await prisma.departmentMembership.findMany({ where: { userId: user.id }, select: { departmentId: true } });
   const departmentId = requireNurseDepartment(user.role, memberships.map((item) => item.departmentId));
   const clock = await readActionClock();
-  await confirmMealDelivery({ mealEventId: String(formData.get("mealEventId") ?? ""), departmentId, status: formData.get("status"), receivedQuantity: formData.get("receivedQuantity"), note: formData.get("note"), correctionReason: formData.get("correctionReason") }, user, clock.now);
+  await confirmMealDelivery({ mealEventId: String(formData.get("mealEventId") ?? ""), departmentId, feedingRoute: formData.get("route") === "SONDE" ? "SONDE" : "NORMAL", status: formData.get("status"), receivedQuantity: formData.get("receivedQuantity"), note: formData.get("note"), correctionReason: formData.get("correctionReason") }, user, clock.now);
   revalidatePath("/bao-suat");
   revalidatePath("/quan-ly");
   revalidatePath("/lich");
