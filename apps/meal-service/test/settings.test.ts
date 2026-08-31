@@ -7,6 +7,7 @@ import { validateMealTypeInput } from "../src/lib/meal-types";
 import { blendHex, parseBrandingSettings, readableForeground, validateBrandingSettings } from "../src/lib/branding";
 import manifest from "../src/app/manifest";
 import { publicMealTypeName, publicT, resolvePublicLanguage } from "../src/lib/public-i18n";
+import { buildDepartmentQrUrl, normalizeQrTargetUrl } from "../src/lib/patient-qr";
 
 test("nhận diện bệnh viện giữ giá trị hợp lệ và tự chọn màu chữ tương phản", () => {
   const branding = parseBrandingSettings({ organizationName: "Bệnh viện An Bình", shortName: "AB", primaryColor: "#F3E8C8" });
@@ -60,6 +61,13 @@ test("PWA manifest dùng tên sản phẩm tiếng Việt", () => {
   assert.equal(data.short_name, "Suất ăn BV");
   assert.equal(data.display, "standalone");
   assert.equal(data.start_url, "/");
+});
+
+test("QR nhận link dán tay và link theo khoa nhưng không hard-code domain demo", () => {
+  assert.equal(normalizeQrTargetUrl("https://benhvien.example.vn/menu"), "https://benhvien.example.vn/menu");
+  assert.equal(normalizeQrTargetUrl("ftp://benhvien.example.vn/menu"), "");
+  assert.equal(normalizeQrTargetUrl("javascript:alert(1)"), "");
+  assert.equal(buildDepartmentQrUrl("https://suatan.benhvien-a.vn", "khoa-noi"), "https://suatan.benhvien-a.vn/k/khoa-noi");
 });
 
 test("setting giờ chốt chỉ nhận HH:mm hợp lệ", () => {
