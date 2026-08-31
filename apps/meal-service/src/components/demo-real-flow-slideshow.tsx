@@ -1,6 +1,6 @@
 import Image from "next/image";
 
-const realFlowSlides = [
+export const realFlowSlides = [
   {
     image: "real-flow-01.jpg",
     position: "Vị trí 01",
