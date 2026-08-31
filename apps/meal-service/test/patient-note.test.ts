@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { publicMealEvidenceUrl, staffMealEvidenceUrl } from "../src/lib/evidence-storage";
-import { approvedNotesOnly, clientIpFromHeaders, hashClientIp, isPatientNoteRateLimited, publicDietMeal, publicDishSummaries, publicPatientNotes, selectPublicMealWindow } from "../src/lib/patient-note";
+import { approvedNotesOnly, clientIpFromHeaders, hashClientIp, isPatientNoteRateLimited, kitchenForwardedNotesOnly, normalizeSubmissionType, patientSubmissionSpamHash, publicDietMeal, publicDishSummaries, publicPatientNotes, selectPublicMealWindow } from "../src/lib/patient-note";
 
 test("chỉ ghi chú APPROVED được chuyển tới bếp", () => {
   const visible = approvedNotesOnly([
@@ -65,4 +65,26 @@ test("trang công khai cộng gram theo món và giữ dấu thiếu dữ liệu
     { name: "Cháo", totalGrams: null },
     { name: "Món chưa có thành phần", totalGrams: null },
   ]);
+});
+
+
+test("ph?n ?nh public m?c ??nh t?ch kh?i ghi ch? B?p", () => {
+  assert.equal(normalizeSubmissionType("FEEDBACK"), "FEEDBACK");
+  assert.equal(normalizeSubmissionType("KITCHEN_NOTE"), "KITCHEN_NOTE");
+  assert.equal(normalizeSubmissionType(null), "KITCHEN_NOTE");
+});
+
+test("thi?u IP ho?c salt kh?ng ch?n submit, ch? b? qua rate-limit hash", () => {
+  assert.equal(patientSubmissionSpamHash(null, "a-private-test-salt"), null);
+  assert.equal(patientSubmissionSpamHash("203.0.113.7", undefined), null);
+  assert.equal(typeof patientSubmissionSpamHash("203.0.113.7", "a-private-test-salt"), "string");
+});
+
+test("B?p ch? th?y ghi ch? B?p ?? ???c chuy?n, kh?ng th?y ph?n ?nh", () => {
+  const visible = kitchenForwardedNotesOnly([
+    { type: "FEEDBACK" as const, status: "APPROVED" as const, note: "ph?n ?nh ?? x? l?" },
+    { type: "KITCHEN_NOTE" as const, status: "RECEIVED" as const, note: "ghi ch? ch?a chuy?n" },
+    { type: "KITCHEN_NOTE" as const, status: "APPROVED" as const, note: "ghi ch? ?? chuy?n" },
+  ]);
+  assert.deepEqual(visible, [{ note: "ghi ch? ?? chuy?n" }]);
 });

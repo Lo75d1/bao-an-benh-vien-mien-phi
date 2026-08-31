@@ -69,6 +69,11 @@ enum PatientNoteStatus {
   REJECTED
 }
 
+enum PatientSubmissionType {
+  FEEDBACK
+  KITCHEN_NOTE
+}
+
 enum WarehouseKind {
   GENERAL
   KITCHEN
@@ -110,6 +115,7 @@ model User {
   mustChangePassword    Boolean                @default(true)
   role                  Role
   kitchenRoute          FeedingRoute?
+  language              String                 @default("vi")
   status                ActiveStatus           @default(ACTIVE)
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
@@ -357,8 +363,10 @@ model PatientNote {
   id           String            @id @default(cuid())
   departmentId String
   mealDate     DateTime          @db.Date
+  type         PatientSubmissionType @default(KITCHEN_NOTE)
   note         String
   contactName  String?
+  contactInfo  String?
   status       PatientNoteStatus @default(RECEIVED)
   reviewedById String?
   reviewedAt   DateTime?
@@ -369,6 +377,7 @@ model PatientNote {
   reviewedBy   User?             @relation(fields: [reviewedById], references: [id])
 
   @@index([departmentId, status, createdAt])
+  @@index([type, status, createdAt])
   @@index([departmentId, ipHash, createdAt])
 }
 

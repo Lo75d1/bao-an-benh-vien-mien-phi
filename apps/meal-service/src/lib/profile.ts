@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { getSessionUser, hashToken, SESSION_COOKIE } from "./auth";
 import { hashPassword } from "./password";
+import { normalizeLanguage, type Language } from "./i18n";
 import { PasswordChangeError, validatePasswordChange, type PasswordChangeInput } from "./profile-rules";
 import { prisma } from "./prisma";
 
@@ -31,4 +32,13 @@ export async function changeOwnPassword(input: PasswordChangeInput) {
       },
     });
   });
+}
+
+export async function changeOwnLanguage(value: unknown): Promise<Language> {
+  const actor = await getSessionUser({ allowPasswordChange: true });
+  if (!actor) throw new Error("Phi?n ??ng nh?p ?? h?t h?n. Vui l?ng ??ng nh?p l?i.");
+  const language = normalizeLanguage(value);
+  await prisma.user.update({ where: { id: actor.id }, data: { language } });
+  await prisma.auditLog.create({ data: { entityType: "User", entityId: actor.id, action: "CHANGE_LANGUAGE", actorId: actor.id, actorName: actor.displayName, afterJson: { language }, reason: "Ng??i d?ng ??i ng?n ng? giao di?n" } });
+  return language;
 }

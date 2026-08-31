@@ -2,6 +2,13 @@
 
 Hệ thống mã nguồn mở hỗ trợ bệnh viện quản lý một luồng thống nhất: dinh dưỡng lên thực đơn, khoa báo suất, bếp chuẩn bị và lưu bằng chứng, giao nhận, kho và báo cáo.
 
+## Huong dan nhanh
+
+- [Huong dan su dung](docs/HUONG-DAN-SU-DUNG.md)
+- [Huong dan trien khai](docs/DEPLOY.md)
+- Trang cong khai ho tro Phan anh / Ghi chu Bep va tieng Viet / English.
+
+
 ## Chức năng chính
 
 - Thực đơn nhiều mã chế độ ăn, nhập Excel, phân tích dinh dưỡng và tự khóa theo giờ.

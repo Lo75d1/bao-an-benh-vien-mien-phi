@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { Building2, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { PasswordForm } from "./password-form";
+import { LanguageForm } from "./language-form";
+import { changeLanguageAction } from "./actions";
 import { AppShell } from "@/components/app-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSessionUser } from "@/lib/auth";
@@ -27,7 +29,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
 
   const profile = await prisma.user.findUnique({
     where: { id: sessionUser.id },
-    select: { email: true, displayName: true, role: true, memberships: { select: { department: { select: { name: true } } } } },
+    select: { email: true, displayName: true, role: true, language: true, memberships: { select: { department: { select: { name: true } } } } },
   });
   if (!profile) redirect("/");
 

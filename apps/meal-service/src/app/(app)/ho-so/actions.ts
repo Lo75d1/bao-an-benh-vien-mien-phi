@@ -1,6 +1,7 @@
 "use server";
 
-import { changeOwnPassword } from "@/lib/profile";
+import { revalidatePath } from "next/cache";
+import { changeOwnLanguage, changeOwnPassword } from "@/lib/profile";
 import { PasswordChangeError } from "@/lib/profile-rules";
 
 export type ChangePasswordState = { status: "idle" | "success" | "error"; message: string };
@@ -20,4 +21,9 @@ export async function changePasswordAction(
     if (error instanceof PasswordChangeError) return { status: "error", message: error.message };
     return { status: "error", message: "Không thể đổi mật khẩu lúc này. Vui lòng thử lại." };
   }
+}
+
+export async function changeLanguageAction(formData: FormData) {
+  await changeOwnLanguage(formData.get("language"));
+  revalidatePath("/ho-so");
 }

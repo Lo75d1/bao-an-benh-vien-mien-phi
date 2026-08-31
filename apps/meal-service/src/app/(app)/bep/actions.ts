@@ -216,7 +216,7 @@ export async function acknowledgeKitchenNoteAction(formData: FormData) {
     eventId: String(formData.get("eventId") ?? ""),
   }, user.kitchenRoute!);
   const note = await prisma.patientNote.findFirst({
-    where: { id: noteId, status: "APPROVED" },
+    where: { id: noteId, type: "KITCHEN_NOTE", status: "APPROVED" },
     select: { id: true },
   });
   if (!note) throw new Error("Không tìm thấy ghi chú đã duyệt.");

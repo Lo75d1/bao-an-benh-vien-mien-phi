@@ -10,25 +10,28 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useBranding } from "@/components/branding-context";
+import { getTranslations } from "@/lib/i18n";
 
 const ROLE_LABEL = { ADMIN: "Quản trị", DIETITIAN: "Dinh dưỡng", NURSE: "Điều dưỡng", KITCHEN: "Nhà bếp" } as const;
 type NavItem = { href: string; label: string };
 const NAVIGATION: Record<SessionUser["role"], NavItem[]> = {
-  ADMIN: [{ href: "/quan-ly", label: "Điều hành" }, { href: "/thuc-don", label: "Thực đơn" }, { href: "/lich", label: "Lịch tuần" }, { href: "/kho", label: "Kho" }, { href: "/bao-cao", label: "Báo cáo" }, { href: "/quan-tri", label: "Quản trị" }],
-  DIETITIAN: [{ href: "/quan-ly", label: "Vận hành" }, { href: "/thuc-don", label: "Thực đơn" }, { href: "/lich", label: "Lịch tuần" }, { href: "/kho", label: "Kho" }, { href: "/bao-cao", label: "Báo cáo" }],
+  ADMIN: [{ href: "/phan-anh", label: "Ph?n ?nh" }, { href: "/quan-ly", label: "Điều hành" }, { href: "/thuc-don", label: "Thực đơn" }, { href: "/lich", label: "Lịch tuần" }, { href: "/kho", label: "Kho" }, { href: "/bao-cao", label: "Báo cáo" }, { href: "/quan-tri", label: "Quản trị" }],
+  DIETITIAN: [{ href: "/phan-anh", label: "Ph?n ?nh" }, { href: "/quan-ly", label: "Vận hành" }, { href: "/thuc-don", label: "Thực đơn" }, { href: "/lich", label: "Lịch tuần" }, { href: "/kho", label: "Kho" }, { href: "/bao-cao", label: "Báo cáo" }],
   NURSE: [{ href: "/bao-suat", label: "Báo suất" }, { href: "/lich", label: "Lịch tuần" }, { href: "/bao-cao", label: "Báo cáo" }],
   KITCHEN: [{ href: "/bep", label: "Bếp" }, { href: "/lich", label: "Lịch tuần" }, { href: "/kho", label: "Kho" }, { href: "/bao-cao", label: "Báo cáo" }],
 };
 
 function AccountMenu({ user }: { user: SessionUser }) {
   const [leaving, setLeaving] = useState(false);
+  const t = getTranslations(user.language);
   async function logout() { setLeaving(true); await fetch("/api/auth/session", { method: "DELETE" }); window.location.assign("/"); }
-  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" aria-label={`Mở menu tài khoản của ${user.displayName}`} className="top-account"><Avatar className="size-8 rounded-md"><AvatarFallback className="rounded-md bg-white font-semibold text-[#085041]">{user.displayName.trim().charAt(0).toUpperCase()}</AvatarFallback></Avatar><span><strong>{user.displayName}</strong><small>{ROLE_LABEL[user.role]}</small></span><ChevronDown aria-hidden="true" className="size-4"/></Button></DropdownMenuTrigger><DropdownMenuContent side="bottom" align="end" className="w-64"><DropdownMenuLabel className="grid gap-0.5 font-normal"><span className="truncate font-medium">{user.displayName}</span><span className="text-xs text-muted-foreground">{ROLE_LABEL[user.role]}</span></DropdownMenuLabel><DropdownMenuSeparator/><DropdownMenuItem asChild><Link href="/ho-so"><UserRound className="size-4"/>Hồ sơ của tôi</Link></DropdownMenuItem><DropdownMenuItem asChild><Link href="/ho-so"><KeyRound className="size-4"/>Đổi mật khẩu</Link></DropdownMenuItem><DropdownMenuSeparator/><DropdownMenuItem disabled={leaving} onSelect={logout} className="text-destructive focus:text-destructive"><LogOut className="size-4"/>{leaving ? "Đang đăng xuất…" : "Đăng xuất"}</DropdownMenuItem></DropdownMenuContent></DropdownMenu>;
+  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" aria-label={`Mở menu tài khoản của ${user.displayName}`} className="top-account"><Avatar className="size-8 rounded-md"><AvatarFallback className="rounded-md bg-white font-semibold text-[#085041]">{user.displayName.trim().charAt(0).toUpperCase()}</AvatarFallback></Avatar><span><strong>{user.displayName}</strong><small>{t.role[user.role]}</small></span><ChevronDown aria-hidden="true" className="size-4"/></Button></DropdownMenuTrigger><DropdownMenuContent side="bottom" align="end" className="w-64"><DropdownMenuLabel className="grid gap-0.5 font-normal"><span className="truncate font-medium">{user.displayName}</span><span className="text-xs text-muted-foreground">{t.role[user.role]}</span></DropdownMenuLabel><DropdownMenuSeparator/><DropdownMenuItem asChild><Link href="/ho-so"><UserRound className="size-4"/>Hồ sơ của tôi</Link></DropdownMenuItem><DropdownMenuItem asChild><Link href="/ho-so"><KeyRound className="size-4"/>Đổi mật khẩu</Link></DropdownMenuItem><DropdownMenuSeparator/><DropdownMenuItem disabled={leaving} onSelect={logout} className="text-destructive focus:text-destructive"><LogOut className="size-4"/>{leaving ? "Đang đăng xuất…" : "Đăng xuất"}</DropdownMenuItem></DropdownMenuContent></DropdownMenu>;
 }
 
 export function AppShell({ user, children, workflowStatus, adminNotifications = [] }: { user: SessionUser; children: ReactNode; workflowStatus?: ReactNode; adminNotifications?: Array<{ id: string; label: string; detail: string }> }) {
   const pathname = usePathname();
   const branding = useBranding();
+  const t = getTranslations(user.language);
   useEffect(() => {
     if (user.mustChangePassword && pathname !== "/ho-so") window.location.replace("/ho-so?first=1");
   }, [pathname, user.mustChangePassword]);

@@ -2,7 +2,8 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { clientIpFromHeaders, submitPatientNote } from "@/lib/patient-note";
+import { clientIpFromHeaders, normalizeSubmissionType, submitPatientSubmission } from "@/lib/patient-note";
+import { normalizeLanguage } from "@/lib/i18n";
 
 function safeReturnValue(value: FormDataEntryValue | null): string {
   return typeof value === "string" && /^[A-Za-z0-9_-]{0,80}$/.test(value) ? value : "";
@@ -11,19 +12,21 @@ function safeReturnValue(value: FormDataEntryValue | null): string {
 export async function submitPublicPatientNoteAction(formData: FormData) {
   const token = safeReturnValue(formData.get("departmentToken"));
   const diet = safeReturnValue(formData.get("returnDiet"));
+  const lang = normalizeLanguage(formData.get("returnLang"));
   const date = typeof formData.get("returnDate") === "string" && /^\d{4}-\d{2}-\d{2}$/.test(String(formData.get("returnDate"))) ? String(formData.get("returnDate")) : "";
   const requestHeaders = await headers();
   const ip = clientIpFromHeaders(requestHeaders.get("x-forwarded-for"), requestHeaders.get("x-real-ip"));
-  const params = new URLSearchParams({ patient: "1" });
+  const params = new URLSearchParams({ patient: "1", lang });
   if (diet) params.set("diet", diet);
   if (date) params.set("date", date);
 
   try {
-    await submitPatientNote({ token, note: formData.get("note"), contactName: formData.get("contactName"), ip });
-    params.set("note", "sent");
+    const type = normalizeSubmissionType(formData.get("type"));
+    await submitPatientSubmission({ token, type, note: formData.get("note"), contactName: formData.get("contactName"), contactInfo: formData.get("contactInfo"), ip });
+    params.set("note", type === "KITCHEN_NOTE" ? "sent-kitchen" : "sent-feedback");
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Không thể gửi ghi chú.";
-    params.set("note", message.includes("quá nhiều") ? "limited" : message.includes("3 đến 500") ? "invalid" : "unavailable");
+    const message = error instanceof Error ? error.message : "Kh?ng th? g?i n?i dung.";
+    params.set("note", message.includes("qu? nhi?u") ? "limited" : message.includes("3 ??n 500") ? "invalid" : "unavailable");
   }
   redirect(`/?${params.toString()}#gui-ghi-chu`);
 }
