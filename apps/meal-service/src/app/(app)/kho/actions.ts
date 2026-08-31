@@ -3,7 +3,9 @@
 import type { DocumentKind, InventoryType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { actionFailure, actionSuccess, type ActionResult } from "@/lib/action-result";
 import { getSessionUser } from "@/lib/auth";
+import { validateInvoiceUploadFile } from "@/lib/invoice-upload";
 import { attachInventoryDocument, createInventoryTransaction, saveWarehouseInvoice, updateInventoryTransaction, voidInventoryTransaction, type TransactionLineInput } from "@/lib/warehouse";
 
 async function requireActor() {
@@ -54,13 +56,20 @@ export async function cancelTransactionAction(formData: FormData) {
 }
 
 const DOCUMENT_KINDS = new Set<DocumentKind>(["BILL", "INVOICE", "PHOTO", "OTHER"]);
-export async function saveInvoiceAction(formData: FormData) {
-  const actor = await requireActor();
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0 || file.size > 10 * 1024 * 1024 || !["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type)) throw new Error("Chỉ nhận ảnh hoặc PDF hóa đơn tối đa 10 MB.");
-  const result = await saveWarehouseInvoice({ warehouseId: String(formData.get("warehouseId") ?? ""), occurredAt: occurredAt(formData.get("occurredAt")), file, note: String(formData.get("note") ?? "") || null }, actor);
-  revalidatePath("/kho");
-  redirect(result.stored ? "/kho?updated=invoice" : "/kho?storage=unavailable");
+export async function saveInvoiceAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
+  try {
+    const actor = await requireActor();
+    const file = formData.get("file");
+    if (!(file instanceof File)) throw new Error("Tep khong hop le.");
+    const fileError = validateInvoiceUploadFile(file);
+    if (fileError) throw new Error(fileError);
+    const result = await saveWarehouseInvoice({ warehouseId: String(formData.get("warehouseId") ?? ""), occurredAt: occurredAt(formData.get("occurredAt")), file, note: String(formData.get("note") ?? "") || null }, actor);
+    if (!result.stored) throw new Error("Chua the luu tep hoa don. Vui long kiem tra dung luong, dinh dang hoac thu muc upload.");
+    revalidatePath("/kho");
+    return actionSuccess("Da luu hoa don va ghi nhat ky.");
+  } catch (error) {
+    return actionFailure(error);
+  }
 }
 export async function uploadDocumentAction(formData: FormData) {
   const actor = await requireActor();

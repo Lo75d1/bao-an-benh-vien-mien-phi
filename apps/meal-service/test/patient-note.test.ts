@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { publicMealEvidenceUrl, staffMealEvidenceUrl } from "../src/lib/evidence-storage";
-import { approvedNotesOnly, clientIpFromHeaders, hashClientIp, isPatientNoteRateLimited, kitchenForwardedNotesOnly, normalizeSubmissionType, publicDietMeal, publicPatientNotes, selectPublicMealWindow } from "../src/lib/patient-note";
+import { approvedNotesOnly, clientIpFromHeaders, hashClientIp, isPatientNoteRateLimited, kitchenForwardedNotesOnly, normalizeSubmissionType, patientSubmissionSpamHash, publicDietMeal, publicPatientNotes, selectPublicMealWindow } from "../src/lib/patient-note";
 
 test("chỉ ghi chú APPROVED được chuyển tới bếp", () => {
   const visible = approvedNotesOnly([
@@ -68,4 +68,11 @@ test("trang bệnh nhân tách đúng suất hiện tại và suất kế tiếp
   const afterLunch = selectPublicMealWindow(meals, new Date("2026-08-29T05:00:00.000Z"));
   assert.equal(afterLunch.current?.id, "trua");
   assert.equal(afterLunch.next?.id, "chieu");
+});
+
+test("public submission khong chan gui khi proxy hoac salt chong spam chua san sang", () => {
+  assert.equal(patientSubmissionSpamHash(null, "a-private-test-salt"), null);
+  assert.equal(patientSubmissionSpamHash("203.0.113.7", ""), null);
+  assert.equal(patientSubmissionSpamHash("203.0.113.7", undefined), null);
+  assert.equal(typeof patientSubmissionSpamHash("203.0.113.7", "a-private-test-salt"), "string");
 });

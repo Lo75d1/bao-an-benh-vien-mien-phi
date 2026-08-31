@@ -48,6 +48,12 @@ export function hashClientIp(ip: string, salt: string): string {
   return createHmac("sha256", salt).update(ip).digest("base64url");
 }
 
+export function patientSubmissionSpamHash(ip: string | null, salt: string | undefined | null): string | null {
+  const cleanSalt = salt?.trim();
+  if (!ip || !cleanSalt) return null;
+  return hashClientIp(ip, cleanSalt);
+}
+
 export function isPatientNoteRateLimited(createdAt: Date[], now = new Date()): boolean {
   const threshold = now.getTime() - PATIENT_NOTE_WINDOW_MS;
   return createdAt.filter((date) => date.getTime() >= threshold).length >= PATIENT_NOTE_LIMIT;
@@ -77,9 +83,7 @@ export function publicPatientNotes(dietitianNote: string | null, departmentNote:
 }
 
 export async function submitPatientSubmission(input: { token: string; type: unknown; note: unknown; contactName: unknown; contactInfo?: unknown; mealDate?: unknown; mealEventId?: unknown; ip: string | null }, now = new Date()) {
-  const salt = process.env.PATIENT_NOTE_IP_SALT?.trim();
-  if (!input.ip || !salt) throw new Error("Không thể xác minh yêu cầu chống spam lúc này.");
-  const ipHash = hashClientIp(input.ip, salt);
+  const ipHash = patientSubmissionSpamHash(input.ip, process.env.PATIENT_NOTE_IP_SALT);
   const type = normalizeSubmissionType(input.type);
   const note = normalizePatientNote(input.note);
   const contactName = normalizeContactName(input.contactName);
@@ -90,8 +94,10 @@ export async function submitPatientSubmission(input: { token: string; type: unkn
   const requestedDate = typeof input.mealDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.mealDate) ? new Date(`${input.mealDate}T00:00:00.000Z`) : null;
   const since = new Date(now.getTime() - PATIENT_NOTE_WINDOW_MS);
   return prisma.$transaction(async (tx) => {
-    const recent = await tx.patientNote.count({ where: { departmentId: department.id, ipHash, createdAt: { gte: since } } });
-    if (recent >= PATIENT_NOTE_LIMIT) throw new Error("Bạn đã gửi quá nhiều nội dung. Vui lòng thử lại sau.");
+    if (ipHash) {
+      const recent = await tx.patientNote.count({ where: { departmentId: department.id, ipHash, createdAt: { gte: since } } });
+      if (recent >= PATIENT_NOTE_LIMIT) throw new Error("Ban da gui qua nhieu noi dung. Vui long thu lai sau.");
+    }
     const mealEvent = mealEventId ? await tx.mealEvent.findUnique({ where: { id: mealEventId }, select: { id: true, mealDate: true } }) : null;
     if (mealEventId && !mealEvent) throw new Error("Bữa liên quan không hợp lệ.");
     return tx.patientNote.create({ data: { departmentId: department.id, mealEventId: mealEvent?.id ?? null, mealDate: mealEvent?.mealDate ?? requestedDate ?? hospitalDate(now), type, note, contactName, contactInfo, ipHash, status: "RECEIVED", submissionStatus: "NEW" } });
