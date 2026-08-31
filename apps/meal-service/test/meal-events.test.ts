@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildCalendarScope, displayMealState, restrictWeekForRole, rollupMealEventStatus, startOfIsoWeek, toDateKey } from "../src/lib/meal-events";
 
-test("NURSE chỉ lấy báo suất thuộc khoa được gán", () => {
+test("NURSE chi lay bao suat thuoc khoa duoc gan", () => {
   assert.deepEqual(buildCalendarScope("NURSE", ["dept-noi"]), {
     departmentIds: ["dept-noi"],
     reportWhere: { departmentId: { in: ["dept-noi"] } },
@@ -10,14 +10,20 @@ test("NURSE chỉ lấy báo suất thuộc khoa được gán", () => {
   assert.deepEqual(buildCalendarScope("ADMIN", ["dept-noi"]), { departmentIds: [] });
 });
 
-test("rollup MealEvent dùng trạng thái sớm nhất còn hoạt động", () => {
+test("rollup MealEvent dung trang thai muon nhat con hoat dong", () => {
   assert.equal(rollupMealEventStatus([]), null);
-  assert.equal(rollupMealEventStatus(["SERVED", "PREPARING", "PREPARED"]), "PREPARING");
+  assert.equal(rollupMealEventStatus(["PLANNED", "LOCKED"]), "LOCKED");
+  assert.equal(rollupMealEventStatus(["LOCKED", "PREPARING"]), "PREPARING");
+  assert.equal(rollupMealEventStatus(["PREPARING", "PREPARED"]), "PREPARED");
+  assert.equal(rollupMealEventStatus(["PREPARED", "SERVED"]), "SERVED");
+  assert.equal(rollupMealEventStatus(["PLANNED", "SERVED"]), "SERVED");
+  assert.equal(rollupMealEventStatus(["CANCELLED", "PLANNED"]), "PLANNED");
+  assert.equal(rollupMealEventStatus(["CANCELLED", "PREPARED"]), "PREPARED");
   assert.equal(rollupMealEventStatus(["CANCELLED", "SERVED"]), "SERVED");
-  assert.equal(rollupMealEventStatus(["CANCELLED"]), "CANCELLED");
+  assert.equal(rollupMealEventStatus(["CANCELLED", "CANCELLED"]), "CANCELLED");
 });
 
-test("role thường chỉ được xem tuần này hoặc tuần sau", () => {
+test("role thuong chi duoc xem tuan nay hoac tuan sau", () => {
   const now = new Date("2026-08-21T00:00:00.000Z");
   assert.equal(toDateKey(startOfIsoWeek(now)), "2026-08-17");
   assert.equal(toDateKey(restrictWeekForRole("NURSE", new Date("2026-09-07T00:00:00.000Z"), now)), "2026-08-17");
@@ -26,7 +32,7 @@ test("role thường chỉ được xem tuần này hoặc tuần sau", () => {
   assert.equal(toDateKey(restrictWeekForRole("ADMIN", new Date("2026-09-07T00:00:00.000Z"), now)), "2026-09-07");
 });
 
-test("trạng thái lịch kết hợp giờ Việt Nam và trạng thái đã lưu", () => {
+test("trang thai lich ket hop gio Viet Nam va trang thai da luu", () => {
   const day = new Date("2026-08-23T00:00:00.000Z");
   assert.equal(displayMealState(day, "05:00", "06:30", "PLANNED", new Date("2026-08-22T21:30:00.000Z"))?.key, "REPORTING");
   assert.equal(displayMealState(day, "05:00", "06:30", "PLANNED", new Date("2026-08-22T22:00:00.000Z"))?.key, "PREPARATION");

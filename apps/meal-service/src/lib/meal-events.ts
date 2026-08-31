@@ -193,8 +193,8 @@ export function rollupMealEventStatus(statuses: DietMealStatus[]): DietMealStatu
   if (statuses.length === 0) return null;
   const active = statuses.filter((status) => status !== "CANCELLED");
   if (active.length === 0) return "CANCELLED";
-  return active.reduce((earliest, status) =>
-    STATUS_ORDER.indexOf(status) < STATUS_ORDER.indexOf(earliest) ? status : earliest,
+  return active.reduce((latest, status) =>
+    STATUS_ORDER.indexOf(status) > STATUS_ORDER.indexOf(latest) ? status : latest,
   );
 }
 
