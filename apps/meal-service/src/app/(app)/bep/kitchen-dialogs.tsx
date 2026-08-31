@@ -39,6 +39,7 @@ type Evidence = {
 };
 
 type PatientNote = { id: string; note: string; departmentName: string; mealDateLabel: string; acknowledged: boolean };
+type PatientSubmission = PatientNote & { attachmentPath?: string | null };
 
 const ACK_LABEL = { RECEIVED: "Đã nhận", INSUFFICIENT: "Không đủ", SUBSTITUTE: "Cần thay thế" } as const;
 
@@ -79,7 +80,7 @@ export function KitchenDialogs({
   additions: Addition[];
   evidence: Evidence[];
   dietMeals: Array<{ id: string; name: string }>;
-  patientNotes: PatientNote[];
+  patientNotes: PatientSubmission[];
 }) {
   const pendingCount = additions.filter((item) => item.ackStatus === "PENDING").length;
   const visibleEvidence = evidence.filter((item) => item.publicUrl);
@@ -237,6 +238,7 @@ export function KitchenDialogs({
               {patientNotes.map((note) => (
                 <article key={note.id}>
                   <strong>{note.note}</strong>
+                  {note.attachmentPath ? <a href={`/api/patient-submission-attachments/${encodeURIComponent(note.id)}`} target="_blank" rel="noreferrer">Xem ảnh đính kèm</a> : null}
                   <span>{note.departmentName} · {note.mealDateLabel}</span>
                   {note.acknowledged ? (
                     <button type="button" disabled>

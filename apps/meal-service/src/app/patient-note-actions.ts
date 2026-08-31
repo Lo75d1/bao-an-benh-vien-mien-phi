@@ -22,7 +22,12 @@ export async function submitPublicPatientNoteAction(formData: FormData) {
 
   try {
     const type = normalizeSubmissionType(formData.get("type"));
-    await submitPatientSubmission({ token, type, note: formData.get("note"), contactName: formData.get("contactName"), contactInfo: formData.get("contactInfo"), ip });
+    const attachment = formData.get("attachment");
+    if (attachment instanceof File && attachment.size > 0) {
+      if (!["image/jpeg", "image/png", "image/webp"].includes(attachment.type)) throw new Error("Tệp đính kèm không hợp lệ.");
+      if (attachment.size > 10 * 1024 * 1024) throw new Error("Tệp đính kèm tối đa 10 MB.");
+    }
+    await submitPatientSubmission({ token, type, note: formData.get("note"), contactName: formData.get("contactName"), contactInfo: formData.get("contactInfo"), attachment: attachment instanceof File ? attachment : null, ip });
     params.set("note", type === "KITCHEN_NOTE" ? "sent-kitchen" : "sent-feedback");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Không thể gửi nội dung.";

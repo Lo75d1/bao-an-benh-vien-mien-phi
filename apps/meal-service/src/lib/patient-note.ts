@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { Prisma, type PatientNoteStatus, type PatientSubmissionType, type Role } from "@prisma/client";
 import { publicMealEvidenceUrl } from "./evidence-storage";
+import { readSubmissionAttachment, storeSubmissionAttachment } from "./submission-attachment-storage";
 import { parseMenuItems } from "./menu-logic";
 import { prisma } from "./prisma";
 import { hospitalDate } from "./serving-report";
@@ -71,6 +72,10 @@ export function publicDietMeal<T extends { patientVisibleNote: string | null; in
   return { patientVisibleNote: meal.patientVisibleNote };
 }
 
+export function publicSubmissionAttachmentUrl(id: string) {
+  return `/api/patient-submission-attachments/${encodeURIComponent(id)}`;
+}
+
 export type PublicPatientNote = { source: "DIETITIAN" | "DEPARTMENT"; text: string };
 
 export function publicPatientNotes(dietitianNote: string | null, departmentNote: string | null): PublicPatientNote[] {
@@ -82,7 +87,7 @@ export function publicPatientNotes(dietitianNote: string | null, departmentNote:
   return notes;
 }
 
-export async function submitPatientSubmission(input: { token: string; type: unknown; note: unknown; contactName: unknown; contactInfo?: unknown; ip: string | null }, now = new Date()) {
+export async function submitPatientSubmission(input: { token: string; type: unknown; note: unknown; contactName: unknown; contactInfo?: unknown; attachment?: File | null; ip: string | null }, now = new Date()) {
   const type = normalizeSubmissionType(input.type);
   const ipHash = patientSubmissionSpamHash(input.ip, process.env.PATIENT_NOTE_IP_SALT);
   const note = normalizePatientNote(input.note);
@@ -96,7 +101,8 @@ export async function submitPatientSubmission(input: { token: string; type: unkn
       const recent = await tx.patientNote.count({ where: { departmentId: department.id, ipHash, createdAt: { gte: since } } });
       if (recent >= PATIENT_NOTE_LIMIT) throw new Error("Bạn đã gửi quá nhiều nội dung. Vui lòng thử lại sau.");
     }
-    return tx.patientNote.create({ data: { departmentId: department.id, mealDate: hospitalDate(now), type, note, contactName, contactInfo, ipHash, status: "RECEIVED" } });
+    const attachment = input.attachment && input.attachment.size > 0 ? await storeSubmissionAttachment(input.attachment) : null;
+    return tx.patientNote.create({ data: { departmentId: department.id, mealDate: hospitalDate(now), type, note, contactName, contactInfo, attachmentPath: attachment?.storagePath ?? null, attachmentMimeType: attachment?.mimeType ?? null, attachmentSize: attachment?.size ?? null, ipHash, status: "RECEIVED" } });
   }, { isolationLevel: "Serializable" });
 }
 
@@ -106,7 +112,7 @@ export async function submitPatientNote(input: { token: string; note: unknown; c
 export async function readPendingPatientNotes(userId: string) {
   const memberships = await prisma.departmentMembership.findMany({ where: { userId, department: { status: "ACTIVE" } }, select: { departmentId: true } });
   const departmentIds = memberships.map((item) => item.departmentId);
-  return prisma.patientNote.findMany({ where: { departmentId: { in: departmentIds }, type: "KITCHEN_NOTE", status: "RECEIVED" }, orderBy: { createdAt: "asc" }, select: { id: true, type: true, note: true, contactName: true, contactInfo: true, mealDate: true, createdAt: true, department: { select: { name: true } } } });
+  return prisma.patientNote.findMany({ where: { departmentId: { in: departmentIds }, type: "KITCHEN_NOTE", status: "RECEIVED" }, orderBy: { createdAt: "asc" }, select: { id: true, type: true, note: true, contactName: true, contactInfo: true, attachmentPath: true, attachmentMimeType: true, attachmentSize: true, mealDate: true, createdAt: true, department: { select: { name: true } } } });
 }
 
 export async function reviewPatientNote(input: { id: string; status: "APPROVED" | "REJECTED"; reviewNote: unknown }, actor: { id: string; displayName: string; role: Role }, now = new Date()) {
@@ -122,7 +128,7 @@ export async function reviewPatientNote(input: { id: string; status: "APPROVED" 
 }
 
 export async function readApprovedKitchenNotes() {
-  const notes = await prisma.patientNote.findMany({ where: { type: "KITCHEN_NOTE", status: "APPROVED" }, orderBy: { reviewedAt: "desc" }, take: 30, select: { id: true, note: true, mealDate: true, reviewedAt: true, department: { select: { name: true } } } });
+  const notes = await prisma.patientNote.findMany({ where: { type: "KITCHEN_NOTE", status: "APPROVED" }, orderBy: { reviewedAt: "desc" }, take: 30, select: { id: true, note: true, attachmentPath: true, attachmentMimeType: true, attachmentSize: true, mealDate: true, reviewedAt: true, department: { select: { name: true } } } });
   const read = await prisma.auditLog.findMany({ where: { entityType: "PatientNote", entityId: { in: notes.map((note) => note.id) }, action: "KITCHEN_READ" }, select: { entityId: true } });
   const readIds = new Set(read.map((item) => item.entityId));
   return notes.map((note) => ({ ...note, acknowledged: readIds.has(note.id) }));
@@ -164,7 +170,7 @@ export async function readPatientSubmissions(input: { type?: PatientSubmissionTy
     },
     orderBy: { createdAt: "desc" },
     take: input.limit ?? 100,
-    select: { id: true, type: true, status: true, note: true, contactName: true, contactInfo: true, mealDate: true, createdAt: true, reviewedAt: true, reviewNote: true, department: { select: { id: true, name: true } }, reviewedBy: { select: { displayName: true } } },
+    select: { id: true, type: true, status: true, note: true, contactName: true, contactInfo: true, attachmentPath: true, attachmentMimeType: true, attachmentSize: true, mealDate: true, createdAt: true, reviewedAt: true, reviewNote: true, department: { select: { id: true, name: true } }, reviewedBy: { select: { displayName: true } } },
   });
 }
 

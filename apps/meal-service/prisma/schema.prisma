@@ -367,6 +367,9 @@ model PatientNote {
   note         String
   contactName  String?
   contactInfo  String?
+  attachmentPath String?
+  attachmentMimeType String?
+  attachmentSize Int?
   status       PatientNoteStatus @default(RECEIVED)
   reviewedById String?
   reviewedAt   DateTime?
