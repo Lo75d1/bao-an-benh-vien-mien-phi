@@ -127,6 +127,107 @@ docker compose up -d --force-recreate app
 
 Sau do copy token vua in ra de nhap vao man hinh `/thiet-lap-ban-dau`.
 
+## 6.1. Phan biet ma khoi tao server va tai khoan Admin
+
+Khi vao `/thiet-lap-ban-dau`, he thong hoi theo 2 lop:
+
+1. **Ma khoi tao server**
+   - Lay tu bien `BOOTSTRAP_SETUP_TOKEN`.
+   - Dung de mo cong thiet lap ban dau.
+
+2. **Xac nhan Admin dau tien**
+   - Email lay tu `BOOTSTRAP_ADMIN_EMAIL`.
+   - Mat khau lay tu `BOOTSTRAP_ADMIN_PASSWORD`.
+
+Vi du:
+
+```env
+BOOTSTRAP_SETUP_TOKEN=ma-khoi-tao-server-rieng
+BOOTSTRAP_ADMIN_EMAIL=admin@setup.local
+BOOTSTRAP_ADMIN_PASSWORD=mat-khau-admin-bootstrap
+BOOTSTRAP_ADMIN_NAME=Quan tri he thong
+```
+
+Man hinh "Ma khoi tao server" **khong** dung `BOOTSTRAP_ADMIN_PASSWORD`.
+
+## 6.2. Neu xac nhan Admin khong duoc
+
+Truong hop thuong gap:
+
+- DB/volume vua duoc tao lai nhung seed chua tao Admin.
+- Admin da ton tai trong DB voi password hash cu.
+- `.env` da doi `BOOTSTRAP_ADMIN_PASSWORD` sau khi seed chay.
+- Container `migrate` khong nhan truc tiep cac bien `BOOTSTRAP_ADMIN_*`.
+
+Kiem tra gia tri bootstrap trong `.env`:
+
+```bash
+cd /opt/bao-an-benh-vien-mien-phi
+grep "BOOTSTRAP_ADMIN" .env
+grep "BOOTSTRAP_SETUP_TOKEN" .env
+```
+
+Kiem tra danh sach user hien co:
+
+```bash
+cd /opt/bao-an-benh-vien-mien-phi
+docker compose exec db psql -U meal_service -d meal_service -c 'select email, role, status, "mustChangePassword" from "User";'
+```
+
+Neu khong co Admin, hoac Admin co nhung mat khau bootstrap khong khop, co the tao/reset Admin theo `.env` hien tai:
+
+```bash
+cd /opt/bao-an-benh-vien-mien-phi && \
+ADMIN_EMAIL="$(grep '^BOOTSTRAP_ADMIN_EMAIL=' .env | cut -d= -f2-)" && \
+ADMIN_PASSWORD="$(grep '^BOOTSTRAP_ADMIN_PASSWORD=' .env | cut -d= -f2-)" && \
+ADMIN_NAME="$(grep '^BOOTSTRAP_ADMIN_NAME=' .env | cut -d= -f2-)" && \
+docker compose run --rm \
+  -e BOOTSTRAP_ADMIN_EMAIL="$ADMIN_EMAIL" \
+  -e BOOTSTRAP_ADMIN_PASSWORD="$ADMIN_PASSWORD" \
+  -e BOOTSTRAP_ADMIN_NAME="$ADMIN_NAME" \
+  migrate sh -lc 'node --input-type=module -e '"'"'
+import { randomBytes, scryptSync } from "node:crypto";
+import { PrismaClient, Role } from "@prisma/client";
+
+const prisma = new PrismaClient();
+const email = process.env.BOOTSTRAP_ADMIN_EMAIL.trim().toLowerCase();
+const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
+const name = process.env.BOOTSTRAP_ADMIN_NAME || "Quan tri he thong";
+
+const salt = randomBytes(16);
+const hash = `scrypt$${salt.toString("base64url")}$${scryptSync(password, salt, 64).toString("base64url")}`;
+
+await prisma.user.upsert({
+  where: { email },
+  create: {
+    email,
+    displayName: name,
+    role: Role.ADMIN,
+    status: "ACTIVE",
+    passwordHash: hash,
+    mustChangePassword: true
+  },
+  update: {
+    displayName: name,
+    role: Role.ADMIN,
+    status: "ACTIVE",
+    passwordHash: hash,
+    mustChangePassword: true
+  }
+});
+
+await prisma.$disconnect();
+console.log(`Admin bootstrap da san sang: ${email}`);
+'"'"''
+```
+
+Sau do quay lai buoc "Xac nhan Admin dau tien" va nhap:
+
+- Email: gia tri `BOOTSTRAP_ADMIN_EMAIL`
+- Mat khau: gia tri `BOOTSTRAP_ADMIN_PASSWORD`
+
+Neu dang mo trang tren dien thoai, nen refresh lai trang sau khi reset Admin.
+
 ## 7. Khoi dong database
 
 ```bash
