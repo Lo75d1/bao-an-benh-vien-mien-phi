@@ -10,6 +10,28 @@ import { actionFailure, actionSuccess, type ActionResult } from "@/lib/action-re
 import { readRequestClock } from "@/lib/request-clock";
 import { reviewPatientNote } from "@/lib/patient-note";
 import { normalizeReporterName, normalizeServingNote, requireNurseDepartment, saveServingReport, type ServingLineInput } from "@/lib/serving-report";
+import type { Language } from "@/lib/i18n";
+
+const TEXT = {
+  vi: {
+    invalidCount: "Cần nhập số suất nguyên không âm cho mọi chế độ.",
+    invalidAddition: "Số suất bổ sung phải là số nguyên dương.",
+    invalidReviewStatus: "Trạng thái duyệt không hợp lệ.",
+    savedReport: "Đã lưu và gửi báo suất cho bếp.",
+    sentAddition: "Đã gửi báo bổ sung cho bếp.",
+    shortReceipt: "Đã ghi nhận số suất nhận thiếu.",
+    fullReceipt: "Đã xác nhận khoa nhận đủ suất.",
+  },
+  en: {
+    invalidCount: "Enter a non-negative whole number for every diet code.",
+    invalidAddition: "Late additions must be a positive whole number.",
+    invalidReviewStatus: "Invalid review status.",
+    savedReport: "Meal report saved and sent to the kitchen.",
+    sentAddition: "Late addition sent to the kitchen.",
+    shortReceipt: "Short receipt recorded.",
+    fullReceipt: "Department confirmed full receipt.",
+  },
+} as const;
 
 function nurseRedirect(formData: FormData, saved: string) {
   const route = formData.get("route") === "SONDE" ? "SONDE" : "NORMAL";
@@ -19,13 +41,14 @@ function nurseRedirect(formData: FormData, saved: string) {
 async function saveServingReportSubmission(formData: FormData) {
   const user = await getSessionUser();
   if (!user) redirect("/");
+  const t = TEXT[user.language as Language] ?? TEXT.vi;
   const memberships = await prisma.departmentMembership.findMany({ where: { userId: user.id }, select: { departmentId: true } });
   const departmentId = requireNurseDepartment(user.role, memberships.map((item) => item.departmentId));
   const mealEventId = String(formData.get("mealEventId") ?? "");
   const dietTypeIds = formData.getAll("dietTypeId").map(String);
   const lines: ServingLineInput[] = dietTypeIds.map((dietTypeId) => {
     const raw = String(formData.get(`quantity:${dietTypeId}`) ?? "").trim();
-    if (!/^\d+$/.test(raw)) throw new Error("Cần nhập số suất nguyên không âm cho mọi chế độ.");
+    if (!/^\d+$/.test(raw)) throw new Error(t.invalidCount);
     return { dietTypeId, quantity: Number(raw), internalNote: normalizeServingNote(formData.get(`internalNote:${dietTypeId}`)), patientVisibleNote: normalizeServingNote(formData.get(`patientVisibleNote:${dietTypeId}`)) };
   });
   const clock = await readRequestClock();
@@ -37,11 +60,12 @@ async function saveServingReportSubmission(formData: FormData) {
 async function addLateMeal(formData: FormData) {
   const user = await getSessionUser();
   if (!user) redirect("/");
+  const t = TEXT[user.language as Language] ?? TEXT.vi;
   const memberships = await prisma.departmentMembership.findMany({ where: { userId: user.id }, select: { departmentId: true } });
   const departmentId = requireNurseDepartment(user.role, memberships.map((item) => item.departmentId));
   const rawQuantity = String(formData.get("quantity") ?? "").trim();
   const feedingRoute = formData.get("route") === "SONDE" ? "SONDE" : "NORMAL";
-  if (!/^\d+$/.test(rawQuantity) || Number(rawQuantity) <= 0) throw new Error("Số suất bổ sung phải là số nguyên dương.");
+  if (!/^\d+$/.test(rawQuantity) || Number(rawQuantity) <= 0) throw new Error(t.invalidAddition);
   const clock = await readRequestClock();
   await createLateMealAddition({ mealEventId: String(formData.get("mealEventId") ?? ""), departmentId, dietTypeId: String(formData.get("dietTypeId") ?? ""), feedingRoute, quantity: Number(rawQuantity), reason: normalizeAdditionReason(formData.get("reason")) }, user, clock.now);
   revalidatePath("/bao-suat");
@@ -53,7 +77,8 @@ export async function reviewPatientNoteAction(formData: FormData) {
   const user = await getSessionUser();
   if (!user) redirect("/");
   const status = String(formData.get("status") ?? "");
-  if (status !== "APPROVED" && status !== "REJECTED") throw new Error("Trạng thái duyệt không hợp lệ.");
+  const t = TEXT[user.language as Language] ?? TEXT.vi;
+  if (status !== "APPROVED" && status !== "REJECTED") throw new Error(t.invalidReviewStatus);
   await reviewPatientNote({ id: String(formData.get("noteId") ?? ""), status, reviewNote: formData.get("reviewNote") }, user);
   revalidatePath("/bao-suat");
   revalidatePath("/bep");
@@ -74,20 +99,26 @@ async function confirmDeliveryReceipt(formData: FormData) {
 
 export async function saveServingReportAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
   if (!await getSessionUser()) redirect("/");
-  try { await saveServingReportSubmission(formData); return actionSuccess("Đã lưu và gửi báo suất cho bếp."); }
+  const user = await getSessionUser();
+  const t = TEXT[user?.language as Language ?? "vi"] ?? TEXT.vi;
+  try { await saveServingReportSubmission(formData); return actionSuccess(t.savedReport); }
   catch (error) { return actionFailure(error); }
 }
 
 export async function addLateMealAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
   if (!await getSessionUser()) redirect("/");
-  try { await addLateMeal(formData); return actionSuccess("Đã gửi báo bổ sung cho bếp."); }
+  const user = await getSessionUser();
+  const t = TEXT[user?.language as Language ?? "vi"] ?? TEXT.vi;
+  try { await addLateMeal(formData); return actionSuccess(t.sentAddition); }
   catch (error) { return actionFailure(error); }
 }
 
 export async function confirmDeliveryReceiptAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
   if (!await getSessionUser()) redirect("/");
+  const user = await getSessionUser();
+  const t = TEXT[user?.language as Language ?? "vi"] ?? TEXT.vi;
   try {
     await confirmDeliveryReceipt(formData);
-    return actionSuccess(formData.get("status") === "SHORT" ? "Đã ghi nhận số suất nhận thiếu." : "Đã xác nhận khoa nhận đủ suất.");
+    return actionSuccess(formData.get("status") === "SHORT" ? t.shortReceipt : t.fullReceipt);
   } catch (error) { return actionFailure(error); }
 }

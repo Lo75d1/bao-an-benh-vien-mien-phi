@@ -8,6 +8,7 @@ import { readManagementDay } from "@/lib/management";
 import { prisma } from "@/lib/prisma";
 import { clampDateToDataStart, readOperationalSettings } from "@/lib/settings";
 import { readRequestClock } from "@/lib/request-clock";
+import { normalizeLanguage } from "@/lib/i18n";
 
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ week?: string; route?: string }> }) {
   const user = await getSessionUser();
@@ -26,11 +27,12 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     readCalendarWeek(weekStart, user.role, departmentIds, route),
     Promise.all(Array.from({ length: 7 }, (_, index) => readManagementDay(toDateKey(addDays(weekStart, index)), clock.now, user.role === "NURSE" ? departmentIds : undefined, route, settings.serviceCompletionMinutes))),
   ]);
+  const language = normalizeLanguage(user.language);
   return (
     <AppShell user={user}>
       <main className="workspace calendar-page">
-        <WeeklyCalendar events={events} details={details} weekStart={weekStart} dataStartDate={settings.dataStartDate} role={user.role} route={route} sondeEnabled={settings.sondeEnabled} serviceCompletionMinutes={settings.serviceCompletionMinutes} initialNowIso={clock.now.toISOString()} liveClock={!clock.simulated} />
-        {user.role === "NURSE" && !memberships.length ? <p className="calendar-scope-warning">Chưa được gán khoa; dữ liệu phạm vi khoa hiển thị —.</p> : null}
+        <WeeklyCalendar events={events} details={details} weekStart={weekStart} dataStartDate={settings.dataStartDate} role={user.role} route={route} sondeEnabled={settings.sondeEnabled} serviceCompletionMinutes={settings.serviceCompletionMinutes} initialNowIso={clock.now.toISOString()} liveClock={!clock.simulated} language={language} />
+        {user.role === "NURSE" && !memberships.length ? <p className="calendar-scope-warning">{language === "en" ? "No department assigned; department-scoped data is shown as —." : "Chưa được gán khoa; dữ liệu phạm vi khoa hiển thị —."}</p> : null}
       </main>
     </AppShell>
   );
