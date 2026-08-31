@@ -4,7 +4,7 @@ import { publicMealEvidenceUrl } from "./evidence-storage";
 import { parseMenuItems } from "./menu-logic";
 import { prisma } from "./prisma";
 import { hospitalDate } from "./serving-report";
-import { readOperationalSettings } from "./settings";
+import { canViewPatientSubmission, readOperationalSettings } from "./settings";
 
 export const PATIENT_NOTE_LIMIT = 3;
 export const PATIENT_NOTE_WINDOW_MS = 60 * 60 * 1000;
@@ -166,6 +166,11 @@ export async function readPatientSubmissions(input: { type?: PatientSubmissionTy
     take: input.limit ?? 100,
     select: { id: true, type: true, status: true, note: true, contactName: true, contactInfo: true, mealDate: true, createdAt: true, reviewedAt: true, reviewNote: true, department: { select: { id: true, name: true } }, reviewedBy: { select: { displayName: true } } },
   });
+}
+
+export async function readVisiblePatientSubmissions(role: Role, input: { type?: PatientSubmissionType | "ALL"; status?: PatientNoteStatus | "ALL"; limit?: number } = {}) {
+  const [settings, rows] = await Promise.all([readOperationalSettings(), readPatientSubmissions(input)]);
+  return rows.filter((row) => canViewPatientSubmission(role, row.type, row.status, settings));
 }
 
 export async function updatePatientSubmission(input: { id: string; status: "APPROVED" | "REJECTED"; reviewNote: unknown }, actor: { id: string; displayName: string; role: Role }, now = new Date()) {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildPublicPatientUrl, canApproveWarehouse, entryWindowEnd, parseOperationalSettings, routeVisible, validateMealTimes, validateOperationalSettings, validatePublicBaseUrl, visibleOperationalItems } from "../src/lib/settings";
+import { buildPublicPatientUrl, canApproveWarehouse, canViewPatientSubmission, entryWindowEnd, parseOperationalSettings, routeVisible, validateMealTimes, validateOperationalSettings, validatePublicBaseUrl, visibleOperationalItems } from "../src/lib/settings";
 import { validateAccountInput } from "../src/lib/accounts";
 import { hashPassword, verifyPassword } from "../src/lib/password";
 import { validateMealTypeInput } from "../src/lib/meal-types";
@@ -31,6 +31,17 @@ test("cấu hình lượt xem mặc định hiển thị và đọc được tr�
   assert.equal(parseOperationalSettings({ publicViewCountVisible: false }).publicViewCountVisible, false);
 });
 
+test("cấu hình người nhận phản ánh dùng mặc định an toàn khi thiếu hoặc cũ", () => {
+  const defaults = parseOperationalSettings(null);
+  assert.equal(defaults.patientSubmissionRecipients.feedback.dietitian, true);
+  assert.equal(defaults.patientSubmissionRecipients.feedback.nurse, true);
+  assert.equal(defaults.patientSubmissionRecipients.kitchenNote.dietitian, true);
+  assert.equal(defaults.patientSubmissionRecipients.kitchenNote.nurse, true);
+  const partial = parseOperationalSettings({ publicBaseUrl: "https://benhvien.example.vn" });
+  assert.equal(partial.patientSubmissionRecipients.feedback.dietitian, true);
+  assert.equal(partial.patientSubmissionRecipients.kitchenNote.nurse, true);
+});
+
 test("địa chỉ trang công khai được chuẩn hóa và kiểm tra hợp lệ", () => {
   assert.equal(parseOperationalSettings(null).publicBaseUrl, "");
   assert.equal(validatePublicBaseUrl(" https://benhvien.example.vn/ "), "https://benhvien.example.vn");
@@ -46,6 +57,22 @@ test("địa chỉ QR công khai sinh từ base URL đã cấu hình", () => {
   assert.equal(buildPublicPatientUrl("   ", "dept-1"), null);
   assert.equal(buildPublicPatientUrl("javascript:alert(1)", "dept-1"), null);
   assert.equal(buildPublicPatientUrl("https://benhvien.example.vn", "dept-1")?.startsWith("https://benhvien.example.vn/"), true);
+});
+
+test("người nhận phản ánh và ghi chú Bếp được quyết định theo vai trò và workflow", () => {
+  const settings = parseOperationalSettings({
+    patientSubmissionRecipients: {
+      feedback: { dietitian: false, nurse: true },
+      kitchenNote: { dietitian: true, nurse: false },
+    },
+  });
+  assert.equal(canViewPatientSubmission("ADMIN", "FEEDBACK", "RECEIVED", settings), true);
+  assert.equal(canViewPatientSubmission("ADMIN", "KITCHEN_NOTE", "RECEIVED", settings), true);
+  assert.equal(canViewPatientSubmission("DIETITIAN", "FEEDBACK", "RECEIVED", settings), false);
+  assert.equal(canViewPatientSubmission("DIETITIAN", "KITCHEN_NOTE", "RECEIVED", settings), true);
+  assert.equal(canViewPatientSubmission("NURSE", "FEEDBACK", "RECEIVED", settings), true);
+  assert.equal(canViewPatientSubmission("NURSE", "KITCHEN_NOTE", "RECEIVED", settings), true);
+  assert.equal(canViewPatientSubmission("NURSE", "KITCHEN_NOTE", "APPROVED", settings), false);
 });
 
 test("setting giờ chốt chỉ nhận HH:mm hợp lệ", () => {

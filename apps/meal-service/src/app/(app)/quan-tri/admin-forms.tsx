@@ -20,6 +20,10 @@ const settingsSchema = z.object({
   warehouseMode: z.enum(["A", "B"]),
   warehouseApprovalRole: z.enum(["ADMIN", "DIETITIAN", "KITCHEN"]),
   publicBaseUrl: z.string().trim(),
+  feedbackDietitian: z.boolean(),
+  feedbackNurse: z.boolean(),
+  kitchenNoteDietitian: z.boolean(),
+  kitchenNoteNurse: z.boolean(),
   reason: z.string().trim().min(3, "Nêu lý do với ít nhất 3 ký tự.").max(500),
 });
 
@@ -32,7 +36,18 @@ type MealType = { id: string; name: string; cutoffTime: string; serviceTime: str
 
 export function SettingsForm({ settings, mealTypes, action }: { settings: Omit<SettingsFields, "reason">; mealTypes: MealType[]; action: (previous: ActionResult, data: FormData) => Promise<ActionResult> }) {
   const [result, formAction, pending] = useActionState(action, INITIAL_ACTION_RESULT);
-  const { register, handleSubmit, control, formState: { errors } } = useForm<SettingsFields>({ resolver: zodResolver(operationalSettingsSchema), shouldFocusError: true, defaultValues: { ...settings, reason: "" } });
+  const { register, handleSubmit, control, formState: { errors } } = useForm<SettingsFields>({
+    resolver: zodResolver(operationalSettingsSchema),
+    shouldFocusError: true,
+    defaultValues: {
+      ...settings,
+      feedbackDietitian: settings.feedbackDietitian,
+      feedbackNurse: settings.feedbackNurse,
+      kitchenNoteDietitian: settings.kitchenNoteDietitian,
+      kitchenNoteNurse: settings.kitchenNoteNurse,
+      reason: "",
+    },
+  });
   const sondeEnabled = useWatch({ control, name: "sondeEnabled" });
 
   return (
@@ -41,7 +56,18 @@ export function SettingsForm({ settings, mealTypes, action }: { settings: Omit<S
         const form = event?.target;
         if (!(form instanceof HTMLFormElement)) return;
         const data = new FormData(form);
-        for (const key of ["sondeEnabled", "publicMenuImages", "publicMenuDishes", "publicMenuIngredients", "publicViewCountVisible", "foodRetention24hRequired"] as const) data.set(key, values[key] ? "true" : "false");
+        for (const key of [
+          "sondeEnabled",
+          "publicMenuImages",
+          "publicMenuDishes",
+          "publicMenuIngredients",
+          "publicViewCountVisible",
+          "foodRetention24hRequired",
+          "feedbackDietitian",
+          "feedbackNurse",
+          "kitchenNoteDietitian",
+          "kitchenNoteNurse",
+        ] as const) data.set(key, values[key] ? "true" : "false");
         startTransition(() => formAction(data));
       })}
       noValidate
@@ -64,14 +90,7 @@ export function SettingsForm({ settings, mealTypes, action }: { settings: Omit<S
         </label>
         <label htmlFor="publicBaseUrl">
           Địa chỉ trang công khai của bệnh viện
-          <input
-            id="publicBaseUrl"
-            type="url"
-            placeholder="https://benhvien.example.vn"
-            {...register("publicBaseUrl")}
-            aria-invalid={!!errors.publicBaseUrl}
-            aria-describedby={errors.publicBaseUrl ? "publicBaseUrl-error" : undefined}
-          />
+          <input id="publicBaseUrl" type="url" placeholder="https://benhvien.example.vn" {...register("publicBaseUrl")} aria-invalid={!!errors.publicBaseUrl} aria-describedby={errors.publicBaseUrl ? "publicBaseUrl-error" : undefined} />
           <small>Dùng cho QR bệnh nhân. Chỉ dùng URL thuộc bệnh viện, không tự mặc định sang domain nhà phát triển.</small>
           {error("publicBaseUrl-error", errors.publicBaseUrl?.message)}
         </label>
@@ -104,19 +123,27 @@ export function SettingsForm({ settings, mealTypes, action }: { settings: Omit<S
             <option value="KITCHEN">Nhà bếp</option>
           </select>
         </label>
+        <fieldset className="settings-recipient-grid">
+          <legend>Người nhận ghi chú / phản ánh</legend>
+          <p>Admin luôn nhận. Các vai trò khác có thể bật/tắt riêng theo từng loại nội dung.</p>
+          <div className="settings-recipient-header"><span>Người nhận</span><span>Phản ánh</span><span>Ghi chú Bếp</span></div>
+          <div className="settings-recipient-row"><strong>Admin</strong><span>Luôn nhận</span><span>Luôn nhận</span></div>
+          <label className="settings-recipient-row"><strong>Dinh dưỡng</strong><input type="checkbox" {...register("feedbackDietitian")} /><input type="checkbox" {...register("kitchenNoteDietitian")} /></label>
+          <label className="settings-recipient-row"><strong>Khoa/Điều dưỡng</strong><input type="checkbox" {...register("feedbackNurse")} /><input type="checkbox" {...register("kitchenNoteNurse")} /></label>
+        </fieldset>
       </div>
 
       <div className="meal-time-grid">
         {(["NORMAL", ...(sondeEnabled ? ["SONDE" as const] : [])] as const).map((route) => (
           <section className="meal-schedule-settings" key={route}>
             <header>
-              <strong>{route === "SONDE" ? "Lịch cử Sonde" : "Lịch suất ăn thường"}</strong>
-              <span>{mealTypes.filter((meal) => meal.feedingRoute === route).length} bữa/cử</span>
+              <strong>{route === "SONDE" ? "Lịch cữ Sonde" : "Lịch suất ăn thường"}</strong>
+              <span>{mealTypes.filter((meal) => meal.feedingRoute === route).length} bữa/cữ</span>
             </header>
             <table>
               <thead>
                 <tr>
-                  <th>Tên bữa/cử</th>
+                  <th>Tên bữa/cữ</th>
                   <th>Giờ chốt</th>
                   <th>Giờ phục vụ</th>
                 </tr>

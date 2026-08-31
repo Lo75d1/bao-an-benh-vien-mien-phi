@@ -16,6 +16,10 @@ export const DEFAULT_SETTINGS: OperationalSettings = {
   publicViewCountVisible: true,
   foodRetention24hRequired: false,
   publicBaseUrl: "",
+  patientSubmissionRecipients: {
+    feedback: { dietitian: true, nurse: true },
+    kitchenNote: { dietitian: true, nurse: true },
+  },
 };
 
 export type OperationalSettings = {
@@ -31,6 +35,12 @@ export type OperationalSettings = {
   publicViewCountVisible: boolean;
   foodRetention24hRequired: boolean;
   publicBaseUrl: string;
+  patientSubmissionRecipients: PatientSubmissionRecipientsSettings;
+};
+
+export type PatientSubmissionRecipientsSettings = {
+  feedback: { dietitian: boolean; nurse: boolean };
+  kitchenNote: { dietitian: boolean; nurse: boolean };
 };
 
 export type MealTimeInput = { id: string; cutoffTime: string; serviceTime: string };
@@ -56,6 +66,35 @@ export function parseOperationalSettings(value: unknown): OperationalSettings {
     publicViewCountVisible: typeof source.publicViewCountVisible === "boolean" ? source.publicViewCountVisible : DEFAULT_SETTINGS.publicViewCountVisible,
     foodRetention24hRequired: typeof source.foodRetention24hRequired === "boolean" ? source.foodRetention24hRequired : DEFAULT_SETTINGS.foodRetention24hRequired,
     publicBaseUrl: typeof source.publicBaseUrl === "string" ? normalizePublicBaseUrl(source.publicBaseUrl) : DEFAULT_SETTINGS.publicBaseUrl,
+    patientSubmissionRecipients: parsePatientSubmissionRecipients(source.patientSubmissionRecipients),
+  };
+}
+
+export function parsePatientSubmissionRecipients(value: unknown): PatientSubmissionRecipientsSettings {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return structuredCloneDefaultRecipients();
+  const source = value as Record<string, unknown>;
+  const feedback = isBooleanRecord(source.feedback) ? source.feedback : {};
+  const kitchenNote = isBooleanRecord(source.kitchenNote) ? source.kitchenNote : {};
+  return {
+    feedback: {
+      dietitian: typeof feedback.dietitian === "boolean" ? feedback.dietitian : DEFAULT_SETTINGS.patientSubmissionRecipients.feedback.dietitian,
+      nurse: typeof feedback.nurse === "boolean" ? feedback.nurse : DEFAULT_SETTINGS.patientSubmissionRecipients.feedback.nurse,
+    },
+    kitchenNote: {
+      dietitian: typeof kitchenNote.dietitian === "boolean" ? kitchenNote.dietitian : DEFAULT_SETTINGS.patientSubmissionRecipients.kitchenNote.dietitian,
+      nurse: typeof kitchenNote.nurse === "boolean" ? kitchenNote.nurse : DEFAULT_SETTINGS.patientSubmissionRecipients.kitchenNote.nurse,
+    },
+  };
+}
+
+function isBooleanRecord(value: unknown): value is Record<string, boolean | undefined> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function structuredCloneDefaultRecipients(): PatientSubmissionRecipientsSettings {
+  return {
+    feedback: { ...DEFAULT_SETTINGS.patientSubmissionRecipients.feedback },
+    kitchenNote: { ...DEFAULT_SETTINGS.patientSubmissionRecipients.kitchenNote },
   };
 }
 
@@ -99,7 +138,22 @@ export function validateOperationalSettings(input: OperationalSettings): Operati
   if (!Number.isInteger(input.advanceEntryDays) || input.advanceEntryDays < 1 || input.advanceEntryDays > 60) throw new Error("Số ngày nhập trước phải từ 1 đến 60.");
   if (!APPROVAL_ROLES.has(input.warehouseApprovalRole)) throw new Error("Vai trò xác nhận kho không hợp lệ.");
   if (!Number.isInteger(input.serviceCompletionMinutes) || input.serviceCompletionMinutes < 15 || input.serviceCompletionMinutes > 240) throw new Error("Thời gian kết thúc phục vụ phải từ 15 đến 240 phút.");
-  return { ...input, publicBaseUrl: validatePublicBaseUrl(input.publicBaseUrl) };
+  return { ...input, publicBaseUrl: validatePublicBaseUrl(input.publicBaseUrl), patientSubmissionRecipients: validatePatientSubmissionRecipients(input.patientSubmissionRecipients) };
+}
+
+export function validatePatientSubmissionRecipients(input: PatientSubmissionRecipientsSettings): PatientSubmissionRecipientsSettings {
+  return {
+    feedback: { dietitian: !!input.feedback.dietitian, nurse: !!input.feedback.nurse },
+    kitchenNote: { dietitian: !!input.kitchenNote.dietitian, nurse: !!input.kitchenNote.nurse },
+  };
+}
+
+export function canViewPatientSubmission(role: Role, type: "FEEDBACK" | "KITCHEN_NOTE", status: "RECEIVED" | "APPROVED" | "REJECTED", settings: Pick<OperationalSettings, "patientSubmissionRecipients">): boolean {
+  if (role === "ADMIN") return true;
+  const recipient = type === "FEEDBACK" ? settings.patientSubmissionRecipients.feedback : settings.patientSubmissionRecipients.kitchenNote;
+  if (role === "DIETITIAN") return recipient.dietitian;
+  if (role === "NURSE") return type === "KITCHEN_NOTE" && status === "RECEIVED" ? true : recipient.nurse;
+  return false;
 }
 
 export function validateMealTimes(items: MealTimeInput[]): MealTimeInput[] {

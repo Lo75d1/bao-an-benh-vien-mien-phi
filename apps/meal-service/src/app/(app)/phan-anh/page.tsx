@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { getSessionUser } from "@/lib/auth";
-import { readPatientSubmissions } from "@/lib/patient-note";
+import { readVisiblePatientSubmissions } from "@/lib/patient-note";
 import { updatePatientSubmissionAction } from "./actions";
 
 const TYPE_LABEL = { FEEDBACK: "Ph?n ?nh", KITCHEN_NOTE: "Ghi ch? B?p" } as const;
@@ -15,7 +15,7 @@ export default async function PatientSubmissionsPage({ searchParams }: { searchP
   const query = await searchParams;
   const type = query.type === "FEEDBACK" || query.type === "KITCHEN_NOTE" ? query.type : "ALL";
   const status = query.status === "RECEIVED" || query.status === "APPROVED" || query.status === "REJECTED" ? query.status : "ALL";
-  const rows = await readPatientSubmissions({ type, status });
+  const rows = await readVisiblePatientSubmissions(user.role, { type, status });
   const pending = rows.filter((row) => row.status === "RECEIVED").length;
   return <AppShell user={user}><main className="workspace patient-submissions-page">
     <header className="workspace-header"><div><p className="eyebrow">Public</p><h1>Ph?n ?nh & Ghi ch? B?p</h1><span>{pending > 0 ? pending + " n?i dung ch?a x? l?" : "Kh?ng c? n?i dung ch? x? l?"}</span></div></header>
