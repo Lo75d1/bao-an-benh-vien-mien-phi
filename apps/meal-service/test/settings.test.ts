@@ -5,6 +5,8 @@ import { validateAccountInput } from "../src/lib/accounts";
 import { hashPassword, verifyPassword } from "../src/lib/password";
 import { validateMealTypeInput } from "../src/lib/meal-types";
 import { blendHex, parseBrandingSettings, readableForeground, validateBrandingSettings } from "../src/lib/branding";
+import manifest from "../src/app/manifest";
+import { publicMealTypeName, publicT, resolvePublicLanguage } from "../src/lib/public-i18n";
 
 test("nhận diện bệnh viện giữ giá trị hợp lệ và tự chọn màu chữ tương phản", () => {
   const branding = parseBrandingSettings({ organizationName: "Bệnh viện An Bình", shortName: "AB", primaryColor: "#F3E8C8" });
@@ -33,14 +35,31 @@ test("cấu hình lượt xem mặc định hiển thị và đọc được tr�
 
 test("cấu hình public URL và người nhận ghi chú phản ánh được parse an toàn", () => {
   const settings = parseOperationalSettings({
-    publicBaseUrl: "https://suatanbv.io.vn/",
+    publicBaseUrl: "https://suatan.benhvien-a.vn/",
     patientMealNoteRecipients: { department: true, dietitian: false },
     patientFeedbackRecipients: { department: false, dietitian: true },
   });
-  assert.equal(settings.publicBaseUrl, "https://suatanbv.io.vn");
+  assert.equal(settings.publicBaseUrl, "https://suatan.benhvien-a.vn");
   assert.deepEqual(settings.patientMealNoteRecipients, { department: true, dietitian: false });
   assert.deepEqual(settings.patientFeedbackRecipients, { department: false, dietitian: true });
   assert.equal(parseOperationalSettings({ publicBaseUrl: "javascript:alert(1)" }).publicBaseUrl, "");
+});
+
+test("public i18n có fallback và thuật ngữ Anh ổn định", () => {
+  assert.equal(resolvePublicLanguage("en"), "en");
+  assert.equal(resolvePublicLanguage("fr"), "vi");
+  assert.equal(publicT("en", "sendNoteFeedback"), "Send a Note / Feedback");
+  assert.equal(publicT("en", "mealNote"), "Meal Note");
+  assert.equal(publicMealTypeName("Bữa trưa", "en"), "Lunch");
+  assert.equal(publicMealTypeName("Món riêng bệnh viện", "en"), "Món riêng bệnh viện");
+});
+
+test("PWA manifest dùng tên sản phẩm tiếng Việt", () => {
+  const data = manifest();
+  assert.equal(data.name, "Suất ăn bệnh viện");
+  assert.equal(data.short_name, "Suất ăn BV");
+  assert.equal(data.display, "standalone");
+  assert.equal(data.start_url, "/");
 });
 
 test("setting giờ chốt chỉ nhận HH:mm hợp lệ", () => {
