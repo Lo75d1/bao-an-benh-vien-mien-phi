@@ -17,18 +17,58 @@ export function mergeVoiceEventKeys(previousIds: Iterable<string>, events: Voice
   return [...new Set([...previousIds, ...voiceEventKeys(events)])];
 }
 
-export function speakVietnamese(messages: string | string[]) {
-  if (typeof window === "undefined" || !("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined") return false;
+type AlertAudioContext = {
+  currentTime: number;
+  createOscillator: () => {
+    type: OscillatorType;
+    frequency: { value: number };
+    connect: (node: unknown) => void;
+    start: (when?: number) => void;
+    stop: (when?: number) => void;
+  };
+  createGain: () => {
+    gain: { value: number; linearRampToValueAtTime: (value: number, time: number) => void };
+    connect: (node: unknown) => void;
+  };
+  destination: unknown;
+  close?: () => Promise<void> | void;
+  resume?: () => Promise<void> | void;
+};
+
+function getAlertAudioContext() {
+  if (typeof window === "undefined") return null;
+  const globalWindow = window as Window & { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext };
+  const AudioContextCtor = globalWindow.AudioContext ?? globalWindow.webkitAudioContext;
+  if (!AudioContextCtor) return null;
   try {
-    const voice = window.speechSynthesis.getVoices().find((item) => item.lang.toLowerCase().startsWith("vi"));
-    for (const message of typeof messages === "string" ? [messages] : messages) {
-      const utterance = new SpeechSynthesisUtterance(message);
-      utterance.lang = "vi-VN";
-      if (voice) utterance.voice = voice;
-      window.speechSynthesis.speak(utterance);
-    }
+    return new AudioContextCtor() as unknown as AlertAudioContext;
+  } catch {
+    return null;
+  }
+}
+
+export async function playAlertSound() {
+  const context = getAlertAudioContext();
+  if (!context) return false;
+  try {
+    if (context.resume) await context.resume();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.value = 880;
+    gain.gain.value = 0.0001;
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    const start = context.currentTime + 0.01;
+    const stop = start + 0.12;
+    gain.gain.linearRampToValueAtTime(0.04, start + 0.01);
+    gain.gain.linearRampToValueAtTime(0.0001, stop);
+    oscillator.start(start);
+    oscillator.stop(stop);
+    if (context.close) globalThis.setTimeout(() => { void Promise.resolve(context.close?.()).catch(() => undefined); }, 250);
     return true;
   } catch {
+    try { await Promise.resolve(context.close?.()); } catch { /* beep blocked or unsupported */ }
     return false;
   }
 }

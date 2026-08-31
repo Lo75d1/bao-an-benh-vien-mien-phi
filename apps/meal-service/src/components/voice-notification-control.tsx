@@ -2,7 +2,7 @@
 
 import { Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { mergeVoiceEventKeys, speakVietnamese, unseenVoiceEvents, type VoiceNotificationEvent } from "@/lib/voice-notification";
+import { mergeVoiceEventKeys, playAlertSound, unseenVoiceEvents, type VoiceNotificationEvent } from "@/lib/voice-notification";
 
 function readStoredIds(storageKey: string) {
   try {
@@ -18,7 +18,7 @@ function storeIds(storageKey: string, ids: Iterable<string>) {
 }
 
 export function VoiceNotificationControl({ workspace, scope, events }: { workspace: "admin" | "nurse" | "kitchen"; scope: string; events: VoiceNotificationEvent[] }) {
-  const activeStorageKey = `meal-service:voice:${workspace}:${scope}:read`;
+  const activeStorageKey = `meal-service:alert:${workspace}:${scope}:read`;
   const initializedStorageKey = useRef<string | null>(null);
   const [enabled, setEnabled] = useState(false);
 
@@ -32,18 +32,17 @@ export function VoiceNotificationControl({ workspace, scope, events }: { workspa
     const fresh = unseenVoiceEvents(storedIds, events);
     if (!fresh.length) return;
     storeIds(activeStorageKey, mergeVoiceEventKeys(storedIds, fresh));
-    if (enabled) speakVietnamese(fresh.map((event) => event.message));
+    if (enabled) void playAlertSound();
   }, [activeStorageKey, enabled, events]);
 
   function toggle() {
     const next = !enabled;
     setEnabled(next);
-    if (next) speakVietnamese(["Đã bật thông báo giọng nói.", ...events.filter((event) => event.announceOnEnable).map((event) => event.message)]);
-    else if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    if (next) void playAlertSound();
   }
 
   return <button type="button" className="voice-notification-toggle" aria-pressed={enabled} onClick={toggle}>
     {enabled ? <Volume2 aria-hidden="true"/> : <VolumeX aria-hidden="true"/>}
-    <span>{enabled ? "Đã bật giọng nói" : "Bật thông báo giọng nói"}</span>
+    <span>{enabled ? "Đã bật âm báo" : "Bật âm báo"}</span>
   </button>;
 }
