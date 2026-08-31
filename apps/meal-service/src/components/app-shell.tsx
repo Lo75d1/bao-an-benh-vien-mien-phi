@@ -13,34 +13,34 @@ import { useBranding } from "@/components/branding-context";
 import { StaffLanguageSwitcher } from "@/components/language-switcher";
 import { getTranslations } from "@/lib/i18n";
 
-const NAVIGATION: Record<SessionUser["role"], Array<{ href: string; label: string }>> = {
+const NAVIGATION: Record<SessionUser["role"], Array<{ href: string; labelKey: keyof ReturnType<typeof getTranslations>["nav"] }>> = {
   ADMIN: [
-    { href: "/phan-anh", label: "Phản ánh" },
-    { href: "/quan-ly", label: "Điều hành" },
-    { href: "/thuc-don", label: "Thực đơn" },
-    { href: "/lich", label: "Lịch tuần" },
-    { href: "/kho", label: "Kho" },
-    { href: "/bao-cao", label: "Báo cáo" },
-    { href: "/quan-tri", label: "Quản trị" },
+    { href: "/phan-anh", labelKey: "operations" },
+    { href: "/quan-ly", labelKey: "operations" },
+    { href: "/thuc-don", labelKey: "menu" },
+    { href: "/lich", labelKey: "weekly" },
+    { href: "/kho", labelKey: "warehouse" },
+    { href: "/bao-cao", labelKey: "reports" },
+    { href: "/quan-tri", labelKey: "admin" },
   ],
   DIETITIAN: [
-    { href: "/phan-anh", label: "Phản ánh" },
-    { href: "/quan-ly", label: "Vận hành" },
-    { href: "/thuc-don", label: "Thực đơn" },
-    { href: "/lich", label: "Lịch tuần" },
-    { href: "/kho", label: "Kho" },
-    { href: "/bao-cao", label: "Báo cáo" },
+    { href: "/phan-anh", labelKey: "operations" },
+    { href: "/quan-ly", labelKey: "operationsDietitian" },
+    { href: "/thuc-don", labelKey: "menu" },
+    { href: "/lich", labelKey: "weekly" },
+    { href: "/kho", labelKey: "warehouse" },
+    { href: "/bao-cao", labelKey: "reports" },
   ],
   NURSE: [
-    { href: "/bao-suat", label: "Báo suất" },
-    { href: "/lich", label: "Lịch tuần" },
-    { href: "/bao-cao", label: "Báo cáo" },
+    { href: "/bao-suat", labelKey: "servings" },
+    { href: "/lich", labelKey: "weekly" },
+    { href: "/bao-cao", labelKey: "reports" },
   ],
   KITCHEN: [
-    { href: "/bep", label: "Bếp" },
-    { href: "/lich", label: "Lịch tuần" },
-    { href: "/kho", label: "Kho" },
-    { href: "/bao-cao", label: "Báo cáo" },
+    { href: "/bep", labelKey: "kitchen" },
+    { href: "/lich", labelKey: "weekly" },
+    { href: "/kho", labelKey: "warehouse" },
+    { href: "/bao-cao", labelKey: "reports" },
   ],
 };
 
@@ -133,7 +133,7 @@ export function AppShell({
         <nav aria-label={t.public.title}>
           {NAVIGATION[user.role].map((item) => {
             const active = pathname.startsWith(item.href);
-            return <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}>{item.label}</Link>;
+            return <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}>{t.nav[item.labelKey]}</Link>;
           })}
         </nav>
         <div className="top-shell-actions">

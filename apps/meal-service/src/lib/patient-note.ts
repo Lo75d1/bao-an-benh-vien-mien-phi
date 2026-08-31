@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { Prisma, type PatientNoteStatus, type PatientSubmissionType, type Role } from "@prisma/client";
 import { publicMealEvidenceUrl } from "./evidence-storage";
-import { readSubmissionAttachment, storeSubmissionAttachment } from "./submission-attachment-storage";
+import { deleteSubmissionAttachment, readSubmissionAttachment, storeSubmissionAttachment } from "./submission-attachment-storage";
 import { parseMenuItems } from "./menu-logic";
 import { prisma } from "./prisma";
 import { hospitalDate } from "./serving-report";
@@ -102,7 +102,12 @@ export async function submitPatientSubmission(input: { token: string; type: unkn
       if (recent >= PATIENT_NOTE_LIMIT) throw new Error("Bạn đã gửi quá nhiều nội dung. Vui lòng thử lại sau.");
     }
     const attachment = input.attachment && input.attachment.size > 0 ? await storeSubmissionAttachment(input.attachment) : null;
-    return tx.patientNote.create({ data: { departmentId: department.id, mealDate: hospitalDate(now), type, note, contactName, contactInfo, attachmentPath: attachment?.storagePath ?? null, attachmentMimeType: attachment?.mimeType ?? null, attachmentSize: attachment?.size ?? null, ipHash, status: "RECEIVED" } });
+    try {
+      return await tx.patientNote.create({ data: { departmentId: department.id, mealDate: hospitalDate(now), type, note, contactName, contactInfo, attachmentPath: attachment?.storagePath ?? null, attachmentMimeType: attachment?.mimeType ?? null, attachmentSize: attachment?.size ?? null, ipHash, status: "RECEIVED" } });
+    } catch (error) {
+      if (attachment?.storagePath) await deleteSubmissionAttachment(attachment.storagePath);
+      throw error;
+    }
   }, { isolationLevel: "Serializable" });
 }
 
