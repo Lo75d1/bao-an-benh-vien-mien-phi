@@ -16,6 +16,26 @@ export type MealBusinessFacts = {
   retention24h: RetentionFact;
 };
 
+export type OperationalStatusTone = "success" | "active" | "warning" | "muted";
+export type OperationalStatus = {
+  label: "Khoa đã nhận" | "Đã bàn giao khoa" | "Bếp đang chuẩn bị" | "Báo đầy đủ" | "Chưa báo đủ" | "Chờ báo";
+  tone: OperationalStatusTone;
+};
+
+export function deriveOperationalStatus(input: {
+  hasReceipt?: boolean;
+  hasHandoff?: boolean;
+  kitchen?: KitchenFact;
+  report?: ReportFact;
+}): OperationalStatus {
+  if (input.hasReceipt) return { label: "Khoa đã nhận", tone: "success" };
+  if (input.hasHandoff) return { label: "Đã bàn giao khoa", tone: "success" };
+  if (input.kitchen === "IN_PROGRESS" || input.kitchen === "PREPARED") return { label: "Bếp đang chuẩn bị", tone: "active" };
+  if (input.report === "SENT") return { label: "Báo đầy đủ", tone: "success" };
+  if (input.report === "PARTIAL") return { label: "Chưa báo đủ", tone: "warning" };
+  return { label: "Chờ báo", tone: "muted" };
+}
+
 /** MealEvent/DietMeal rỗng chỉ là khung lịch, chưa phải dữ liệu nghiệp vụ. */
 export function hasMealBusinessData(input: {
   reportCount?: number;

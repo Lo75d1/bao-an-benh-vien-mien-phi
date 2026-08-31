@@ -13,6 +13,9 @@ export const DEFAULT_SETTINGS: OperationalSettings = {
   publicMenuImages: true,
   publicViewCountVisible: true,
   foodRetention24hRequired: false,
+  publicBaseUrl: "",
+  patientMealNoteRecipients: { department: true, dietitian: true },
+  patientFeedbackRecipients: { department: true, dietitian: false },
 };
 
 export type OperationalSettings = {
@@ -25,6 +28,14 @@ export type OperationalSettings = {
   publicMenuImages: boolean;
   publicViewCountVisible: boolean;
   foodRetention24hRequired: boolean;
+  publicBaseUrl: string;
+  patientMealNoteRecipients: PatientRecipientSettings;
+  patientFeedbackRecipients: PatientRecipientSettings;
+};
+
+export type PatientRecipientSettings = {
+  department: boolean;
+  dietitian: boolean;
 };
 
 export type MealTimeInput = { id: string; cutoffTime: string; serviceTime: string };
@@ -32,6 +43,27 @@ export type SettingsActor = { id: string; displayName: string; role: Role };
 
 const APPROVAL_ROLES = new Set<Role>(["ADMIN", "DIETITIAN", "KITCHEN"]);
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+function parseRecipientSettings(value: unknown, fallback: PatientRecipientSettings): PatientRecipientSettings {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { ...fallback };
+  const source = value as Record<string, unknown>;
+  return {
+    department: typeof source.department === "boolean" ? source.department : fallback.department,
+    dietitian: typeof source.dietitian === "boolean" ? source.dietitian : fallback.dietitian,
+  };
+}
+
+function parsePublicBaseUrl(value: unknown) {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString().replace(/\/$/, "") : "";
+  } catch {
+    return "";
+  }
+}
 
 export function parseOperationalSettings(value: unknown): OperationalSettings {
   if (!value || typeof value !== "object" || Array.isArray(value)) return { ...DEFAULT_SETTINGS };
@@ -46,6 +78,9 @@ export function parseOperationalSettings(value: unknown): OperationalSettings {
     publicMenuImages: typeof source.publicMenuImages === "boolean" ? source.publicMenuImages : DEFAULT_SETTINGS.publicMenuImages,
     publicViewCountVisible: typeof source.publicViewCountVisible === "boolean" ? source.publicViewCountVisible : DEFAULT_SETTINGS.publicViewCountVisible,
     foodRetention24hRequired: typeof source.foodRetention24hRequired === "boolean" ? source.foodRetention24hRequired : DEFAULT_SETTINGS.foodRetention24hRequired,
+    publicBaseUrl: parsePublicBaseUrl(source.publicBaseUrl),
+    patientMealNoteRecipients: parseRecipientSettings(source.patientMealNoteRecipients, DEFAULT_SETTINGS.patientMealNoteRecipients),
+    patientFeedbackRecipients: parseRecipientSettings(source.patientFeedbackRecipients, DEFAULT_SETTINGS.patientFeedbackRecipients),
   };
 }
 
@@ -54,6 +89,11 @@ export function validateOperationalSettings(input: OperationalSettings): Operati
   if (!Number.isInteger(input.advanceEntryDays) || input.advanceEntryDays < 1 || input.advanceEntryDays > 60) throw new Error("Số ngày nhập trước phải từ 1 đến 60.");
   if (!APPROVAL_ROLES.has(input.warehouseApprovalRole)) throw new Error("Role duyệt kho không hợp lệ.");
   if (!Number.isInteger(input.serviceCompletionMinutes) || input.serviceCompletionMinutes < 15 || input.serviceCompletionMinutes > 240) throw new Error("Thời gian kết thúc phục vụ phải từ 15 đến 240 phút.");
+  if (input.publicBaseUrl) {
+    const url = parsePublicBaseUrl(input.publicBaseUrl);
+    if (!url) throw new Error("Public URL phải là địa chỉ http/https hợp lệ.");
+    input.publicBaseUrl = url;
+  }
   return { ...input };
 }
 

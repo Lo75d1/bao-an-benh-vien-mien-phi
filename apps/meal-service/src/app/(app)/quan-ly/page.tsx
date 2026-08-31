@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { ErrorState } from "@/components/presentation";
-import { VoiceNotificationControl } from "@/components/voice-notification-control";
+import { SoundNotificationControl } from "@/components/sound-notification-control";
 import { getSessionUser } from "@/lib/auth";
 import { mealOverrideForClock } from "@/lib/demo-meal-context";
 import { addDays, hospitalDayKey, mealTimePhase } from "@/lib/meal-events";
@@ -42,7 +42,7 @@ export default async function ManagementPage({ searchParams }: { searchParams: P
     ...demo.state.reports.filter((item) => eventIds.includes(item.mealEventId)).map((item) => ({ key: `demo:report:${item.mealEventId}:${item.departmentId}`, message: "Có khoa vừa gửi báo suất ăn. Vui lòng kiểm tra." })),
     ...demo.state.handoffs.filter((item) => eventIds.includes(item.mealEventId)).map((item) => ({ key: `demo:handoff:${item.mealEventId}:${item.departmentId}`, message: "Bếp vừa bàn giao suất ăn cho khoa. Vui lòng kiểm tra." })),
   ] : [];
-  const voiceEvents = [
+  const soundEvents = [
     ...pendingVoiceEvents.map((item) => ({ key: `${item.mealEvent.mealType.feedingRoute}:addition:${item.id}`, message: "Có báo bổ sung suất ăn mới. Vui lòng kiểm tra." })),
     ...reportVoiceEvents.map((item) => ({ key: `${item.mealEvent.mealType.feedingRoute}:report:${item.id}`, message: "Có khoa vừa gửi báo suất ăn. Vui lòng kiểm tra." })),
     ...handoffVoiceEvents.map((item) => ({ key: `${item.mealEvent.mealType.feedingRoute}:handoff:${item.id}`, message: "Bếp vừa bàn giao suất ăn cho khoa. Vui lòng kiểm tra." })),
@@ -60,5 +60,5 @@ export default async function ManagementPage({ searchParams }: { searchParams: P
     if ((phase === "SERVING" || phase === "PASSED") && missingReceipts > 0) items.push({ id: `${meal.id}-receipts`, label: `${meal.name}: ${missingReceipts} khoa chưa xác nhận nhận suất`, detail: "Theo dõi đủ/thiếu trong giai đoạn phục vụ" });
     return items;
   }) ?? [];
-  return <AppShell user={user} adminNotifications={notifications} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined} workflowStatus={<VoiceNotificationControl workspace="admin" scope={selected} events={voiceEvents}/> }><main className="management-page">{dayData ? <ManagementBoard data={dayData} dates={dates} initialMealTime={mealOverrideForClock(query.meal, clock.simulated)} role={user.role} liveClock={!clock.simulated}/> : <ErrorState title="Chưa tải được vận hành hôm nay" description="Không có dữ liệu nào được thay đổi."/>}</main></AppShell>;
+  return <AppShell user={user} adminNotifications={notifications} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined} workflowStatus={<SoundNotificationControl workspace="admin" scope={selected} events={soundEvents}/> }><main className="management-page">{dayData ? <ManagementBoard data={dayData} dates={dates} initialMealTime={mealOverrideForClock(query.meal, clock.simulated)} role={user.role} liveClock={!clock.simulated}/> : <ErrorState title="Chưa tải được vận hành hôm nay" description="Không có dữ liệu nào được thay đổi."/>}</main></AppShell>;
 }

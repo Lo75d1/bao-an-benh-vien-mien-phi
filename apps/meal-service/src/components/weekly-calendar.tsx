@@ -58,6 +58,13 @@ export function WeeklyCalendar({ events, details, weekStart, dataStartDate, role
     })),
     now,
   );
+  const displayStates = events.map((event) => ({
+    event,
+    state: displayMealState(event.mealDate, event.mealType.cutoffTime, event.mealType.serviceTime, rollupMealEventStatus(event.dietMeals.map((meal) => meal.status) ?? []), now, serviceCompletionMinutes),
+  }));
+  const currentOperationalEvent = displayStates.find((item) => item.state?.isCurrent);
+  const reportingOperationalEvent = currentOperationalEvent ? null : displayStates.find((item) => item.state?.key === "REPORTING");
+  const activeOperationalEventId = currentOperationalEvent?.event.id ?? reportingOperationalEvent?.event.id ?? null;
 
   return (
     <>
@@ -141,7 +148,10 @@ export function WeeklyCalendar({ events, details, weekStart, dataStartDate, role
                     const dayKey = toDateKey(day.date);
                     const event = byCell.get(`${dayKey}:${mealType.id}`);
                     const storedStatus = rollupMealEventStatus(event?.dietMeals.map((meal) => meal.status) ?? []);
-                    const timeState = displayMealState(day.date, mealType.cutoffTime, mealType.serviceTime, storedStatus, now, serviceCompletionMinutes);
+                    const rawTimeState = displayMealState(day.date, mealType.cutoffTime, mealType.serviceTime, storedStatus, now, serviceCompletionMinutes);
+                    const timeState = rawTimeState?.key === "REPORTING" && event?.id !== activeOperationalEventId
+                      ? { ...rawTimeState, key: "UPCOMING" as const, label: "Chưa đến", tone: "muted" as const, isCurrent: false }
+                      : rawTimeState;
                     const candidate = event ? detailByDate.get(dayKey)?.meals.find((meal) => meal.id === event.id) : null;
                     const detail =
                       candidate &&

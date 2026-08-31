@@ -43,6 +43,8 @@ const NAVIGATION: Record<SessionUser["role"], NavItem[]> = {
     { href: "/lich", label: "Lịch tuần" },
     { href: "/kho", label: "Kho" },
     { href: "/bao-cao", label: "Báo cáo" },
+    { href: "/quan-tri/ghi-chu-phan-anh", label: "Ghi chú" },
+    { href: "/quan-tri/qr", label: "QR" },
     { href: "/quan-tri", label: "Quản trị" },
   ],
   DIETITIAN: [

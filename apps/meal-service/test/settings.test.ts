@@ -31,6 +31,18 @@ test("cấu hình lượt xem mặc định hiển thị và đọc được tr�
   assert.equal(parseOperationalSettings({ publicViewCountVisible: false }).publicViewCountVisible, false);
 });
 
+test("cấu hình public URL và người nhận ghi chú phản ánh được parse an toàn", () => {
+  const settings = parseOperationalSettings({
+    publicBaseUrl: "https://suatanbv.io.vn/",
+    patientMealNoteRecipients: { department: true, dietitian: false },
+    patientFeedbackRecipients: { department: false, dietitian: true },
+  });
+  assert.equal(settings.publicBaseUrl, "https://suatanbv.io.vn");
+  assert.deepEqual(settings.patientMealNoteRecipients, { department: true, dietitian: false });
+  assert.deepEqual(settings.patientFeedbackRecipients, { department: false, dietitian: true });
+  assert.equal(parseOperationalSettings({ publicBaseUrl: "javascript:alert(1)" }).publicBaseUrl, "");
+});
+
 test("setting giờ chốt chỉ nhận HH:mm hợp lệ", () => {
   assert.deepEqual(validateMealTimes([{ id: "breakfast", cutoffTime: "05:30", serviceTime: "06:30" }])[0].cutoffTime, "05:30");
   assert.throws(() => validateMealTimes([{ id: "breakfast", cutoffTime: "25:00", serviceTime: "06:30" }]));

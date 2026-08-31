@@ -69,6 +69,19 @@ enum PatientNoteStatus {
   REJECTED
 }
 
+enum PatientSubmissionType {
+  MEAL_NOTE
+  FEEDBACK
+}
+
+enum PatientSubmissionStatus {
+  NEW
+  IN_PROGRESS
+  FORWARDED_TO_KITCHEN
+  RESOLVED
+  REJECTED
+}
+
 enum WarehouseKind {
   GENERAL
   KITCHEN
@@ -122,7 +135,9 @@ model User {
   additions             LateMealAddition[]     @relation("AdditionSubmitter")
   acknowledgedAdditions LateMealAddition[]     @relation("AdditionAcknowledger")
   evidence              MealEvidence[]
-  reviewedNotes         PatientNote[]
+  reviewedNotes         PatientNote[]           @relation("PatientNoteReviewer")
+  forwardedPatientNotes PatientNote[]           @relation("PatientNoteForwarder")
+  resolvedPatientNotes  PatientNote[]           @relation("PatientNoteResolver")
   inventoryTransactions InventoryTransaction[]
   menuTemplates         MenuTemplate[]
   auditLogs             AuditLog[]
@@ -219,6 +234,7 @@ model MealEvent {
   mealHandoffs MealHandoff[]
   additions  LateMealAddition[]
   evidence   MealEvidence[]
+  patientNotes PatientNote[]
 
   @@unique([mealDate, mealTypeId])
 }
@@ -358,18 +374,32 @@ model PatientNote {
   id           String            @id @default(cuid())
   departmentId String
   mealDate     DateTime          @db.Date
+  mealEventId  String?
+  type         PatientSubmissionType   @default(MEAL_NOTE)
   note         String
   contactName  String?
+  contactInfo  String?
   status       PatientNoteStatus @default(RECEIVED)
+  submissionStatus PatientSubmissionStatus @default(NEW)
   reviewedById String?
   reviewedAt   DateTime?
   reviewNote   String?
+  forwardedToKitchenAt DateTime?
+  forwardedById        String?
+  resolvedAt           DateTime?
+  resolvedById         String?
   ipHash       String?
   createdAt    DateTime          @default(now())
   department   Department        @relation(fields: [departmentId], references: [id])
-  reviewedBy   User?             @relation(fields: [reviewedById], references: [id])
+  mealEvent    MealEvent?        @relation(fields: [mealEventId], references: [id])
+  reviewedBy   User?             @relation("PatientNoteReviewer", fields: [reviewedById], references: [id])
+  forwardedBy  User?             @relation("PatientNoteForwarder", fields: [forwardedById], references: [id])
+  resolvedBy   User?             @relation("PatientNoteResolver", fields: [resolvedById], references: [id])
 
   @@index([departmentId, status, createdAt])
+  @@index([type, submissionStatus, createdAt])
+  @@index([departmentId, type, submissionStatus, mealDate])
+  @@index([mealEventId, type, submissionStatus])
   @@index([departmentId, ipHash, createdAt])
 }
 

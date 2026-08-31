@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Suất ăn bệnh viện">
+  <rect width="512" height="512" rx="112" fill="#123c36"/>
+  <circle cx="256" cy="256" r="184" fill="#f8fbfd" opacity=".96"/>
+  <path d="M152 282c0-58 47-105 104-105s104 47 104 105H152Z" fill="#0f6e56"/>
+  <path d="M132 304h248c-12 49-56 86-124 86s-112-37-124-86Z" fill="#123c36"/>
+  <path d="M178 152c16-18 41-30 78-30s62 12 78 30" fill="none" stroke="#0f6e56" stroke-width="28" stroke-linecap="round"/>
+  <text x="256" y="278" text-anchor="middle" font-family="Arial, sans-serif" font-size="94" font-weight="800" fill="#f8fbfd">SA</text>
+</svg>

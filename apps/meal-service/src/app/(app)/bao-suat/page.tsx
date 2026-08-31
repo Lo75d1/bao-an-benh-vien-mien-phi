@@ -17,7 +17,7 @@ import { ServingForm } from "./serving-form";
 import { DeliveryHandoffWaiting, DeliveryReceiptControl, LateAdditionForm } from "./nurse-action-forms";
 import { LivePhaseRefresh } from "@/components/live-phase-refresh";
 import { PhaseTransitionNotice } from "@/components/phase-transition-notice";
-import { VoiceNotificationControl } from "@/components/voice-notification-control";
+import { SoundNotificationControl } from "@/components/sound-notification-control";
 
 const dateLabel = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric" });
 
@@ -60,12 +60,12 @@ export default async function ServingReportPage({ searchParams }: { searchParams
   const deliveryReceiptTrigger = event && report && (currentPhase === "SERVING" || currentPhase === "PASSED") ? receiptAvailability.status === "WAITING_HANDOFF" ? <DeliveryHandoffWaiting eventName={event.mealType.name}/> : <DeliveryReceiptControl eventId={event.id} eventName={event.mealType.name} route={data.route} expected={receiptAvailability.expectedQuantity} receipt={receipt ? { status: receipt.status, expectedQuantity: receipt.expectedQuantity, receivedQuantity: receipt.receivedQuantity, note: receipt.note, confirmedAt: receipt.confirmedAt.toISOString(), confirmedBy: receipt.confirmedBy.displayName } : null} action={confirmDeliveryReceiptAction}/> : null;
   const lifecycleEvent = dayOver ? data.events[0] : currentEvent;
   const notifications = [...(pendingNotes.length ? [{ id: "patient-notes", label: `${pendingNotes.length} ghi chú chờ xác nhận`, detail: "Cần xác nhận trước khi chuyển tới bếp" }] : []), ...(event && report && (currentPhase === "SERVING" || currentPhase === "PASSED") && !receipt ? receiptAvailability.status === "WAITING_HANDOFF" ? [{ id: "delivery-handoff", label: `${event.mealType.name}: chờ Bếp bàn giao`, detail: "Khoa sẽ xác nhận đủ hoặc thiếu sau khi Bếp bàn giao" }] : [{ id: "delivery-receipt", label: `${event.mealType.name}: chưa xác nhận nhận suất`, detail: "Xác nhận nhận đủ hoặc nhận thiếu" }] : [])];
-  const voiceEvents = [
+  const soundEvents = [
     ...(currentEvent && currentPhase === "BEFORE_CUTOFF" ? [{ key: `phase:${hospitalDayKey(currentEvent.mealDate)}:${currentEvent.id}:${data.route}:${data.departmentId}:BEFORE_CUTOFF`, message: "Đã đến thời gian báo suất ăn. Vui lòng kiểm tra và gửi báo suất.", announceOnEnable: true }] : []),
     ...(event && handoff ? [{ key: `handoff:${hospitalDayKey(event.mealDate)}:${event.id}:${data.route}:${data.departmentId}`, message: "Bếp đã bàn giao suất ăn. Vui lòng kiểm tra và xác nhận số lượng." }] : []),
   ];
-  const voiceControl = <VoiceNotificationControl workspace="nurse" scope={`${data.departmentId}:${data.route}`} events={voiceEvents}/>;
-  return <AppShell user={user} adminNotifications={notifications} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined} workflowStatus={<div className="workspace-voice-status">{currentEvent && currentPhase ? <span><strong>{currentEvent.mealType.name}</strong> — {MEAL_PHASE_LABEL[currentPhase]}</span> : null}{voiceControl}</div>}><main className="nurse-report-page">
+  const soundControl = <SoundNotificationControl workspace="nurse" scope={`${data.departmentId}:${data.route}`} events={soundEvents}/>;
+  return <AppShell user={user} adminNotifications={notifications} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined} workflowStatus={<div className="workspace-sound-status">{currentEvent && currentPhase ? <span><strong>{currentEvent.mealType.name}</strong> — {MEAL_PHASE_LABEL[currentPhase]}</span> : null}{soundControl}</div>}><main className="nurse-report-page">
     <LivePhaseRefresh enabled={!clock.simulated}/>
     {currentEvent && currentPhase ? <PhaseTransitionNotice scope={`nurse:${data.route}`} mealName={currentEvent.mealType.name} phase={currentPhase}/> : null}
     {saved ? <p className="success-banner" role="status">{saved === "receipt" ? "Đã lưu xác nhận giao nhận của khoa." : "Đã xác nhận bảng suất ăn và chuyển số liệu cho bếp."}</p> : null}

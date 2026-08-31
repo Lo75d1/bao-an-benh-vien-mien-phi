@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getMealBusinessFacts, getMealPhase, getMealState } from "../src/lib/meal-state";
+import { deriveOperationalStatus, getMealBusinessFacts, getMealPhase, getMealState } from "../src/lib/meal-state";
 
 const day = new Date("2026-08-28T00:00:00.000Z");
 
@@ -42,4 +42,13 @@ test("ảnh và mẫu lưu là fact độc lập với phase", () => {
   assert.equal(facts.kitchen, "IN_PROGRESS");
   assert.equal(facts.mealPhoto, "MISSING");
   assert.equal(facts.retention24h, "REQUIRED");
+});
+
+test("trạng thái điều hành ưu tiên receipt, handoff, bếp rồi báo suất", () => {
+  assert.equal(deriveOperationalStatus({ hasReceipt: true, hasHandoff: true, kitchen: "IN_PROGRESS", report: "SENT" }).label, "Khoa đã nhận");
+  assert.equal(deriveOperationalStatus({ hasHandoff: true, kitchen: "IN_PROGRESS", report: "SENT" }).label, "Đã bàn giao khoa");
+  assert.equal(deriveOperationalStatus({ kitchen: "IN_PROGRESS", report: "SENT" }).label, "Bếp đang chuẩn bị");
+  assert.equal(deriveOperationalStatus({ kitchen: "NOT_STARTED", report: "SENT" }).label, "Báo đầy đủ");
+  assert.equal(deriveOperationalStatus({ kitchen: "NOT_STARTED", report: "PARTIAL" }).label, "Chưa báo đủ");
+  assert.equal(deriveOperationalStatus({ kitchen: "NOT_STARTED", report: "NOT_SENT" }).label, "Chờ báo");
 });

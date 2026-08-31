@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { publicMealEvidenceUrl, staffMealEvidenceUrl } from "../src/lib/evidence-storage";
-import { approvedNotesOnly, clientIpFromHeaders, hashClientIp, isPatientNoteRateLimited, publicDietMeal, publicPatientNotes, selectPublicMealWindow } from "../src/lib/patient-note";
+import { approvedNotesOnly, clientIpFromHeaders, hashClientIp, isPatientNoteRateLimited, kitchenForwardedNotesOnly, normalizeSubmissionType, publicDietMeal, publicPatientNotes, selectPublicMealWindow } from "../src/lib/patient-note";
 
 test("chỉ ghi chú APPROVED được chuyển tới bếp", () => {
   const visible = approvedNotesOnly([
@@ -10,6 +10,17 @@ test("chỉ ghi chú APPROVED được chuyển tới bếp", () => {
     { status: "REJECTED" as const, note: "đã từ chối" },
   ]);
   assert.deepEqual(visible, [{ note: "đã xác nhận" }]);
+});
+
+test("workflow mới chỉ chuyển MEAL_NOTE đã forward tới bếp", () => {
+  const visible = kitchenForwardedNotesOnly([
+    { submissionStatus: "NEW" as const, status: "RECEIVED" as const, note: "mới" },
+    { submissionStatus: "FORWARDED_TO_KITCHEN" as const, status: "APPROVED" as const, note: "đã chuyển" },
+    { submissionStatus: "RESOLVED" as const, status: "RECEIVED" as const, note: "đã xử lý" },
+  ]);
+  assert.deepEqual(visible, [{ note: "đã chuyển" }]);
+  assert.equal(normalizeSubmissionType("FEEDBACK"), "FEEDBACK");
+  assert.equal(normalizeSubmissionType("khác"), "MEAL_NOTE");
 });
 
 test("projection công khai không chứa internalNote", () => {

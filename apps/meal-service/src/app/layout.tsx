@@ -11,7 +11,7 @@ import { DemoClockProvider } from "@/components/demo-clock-context";
 
 export async function generateMetadata() {
   const branding = await readBrandingSettings();
-  return { title: branding.organizationName, description: `Nền tảng quản lý suất ăn · ${branding.organizationName}` };
+  return { title: branding.organizationName || "Suất ăn bệnh viện", description: `Nền tảng quản lý suất ăn · ${branding.organizationName || "Suất ăn bệnh viện"}`, applicationName: "Suất ăn bệnh viện", manifest: "/manifest.webmanifest", appleWebApp: { capable: true, title: "Suất ăn bệnh viện" } };
 }
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

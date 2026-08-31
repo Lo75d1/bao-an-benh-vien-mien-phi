@@ -35,10 +35,17 @@ export default async function PatientPage({ params, searchParams }: { params: Pr
       </article>)}</div></section>)}</div>}
     </section>
 
-    <section className="patient-note-form" id="gui-ghi-chu" aria-labelledby="note-heading"><p className="eyebrow">Gửi cho khoa</p><h2 id="note-heading">Góp ý về bữa ăn</h2><p>Ghi chú sẽ chờ điều dưỡng duyệt trước khi chuyển tới bếp. Không gửi thông tin bệnh án hoặc dữ liệu nhạy cảm.</p>
-      {query.note === "sent" && <p className="patient-form-success" role="status" aria-live="polite">Đã gửi ghi chú. Điều dưỡng sẽ xem xét trước khi chuyển tới bếp.</p>}
-      {query.note && query.note !== "sent" && <p className="patient-form-error" role="alert">{query.note === "limited" ? "Bạn đã gửi quá nhiều ghi chú. Vui lòng thử lại sau." : query.note === "invalid" ? "Ghi chú cần từ 3 đến 500 ký tự." : "Chưa thể gửi ghi chú lúc này. Vui lòng thử lại sau."}</p>}
-      <form action={action}><label htmlFor="patient-note">Ghi chú <span>bắt buộc</span></label><textarea id="patient-note" name="note" minLength={3} maxLength={500} required placeholder="Ví dụ: Món canh hôm nay hơi mặn…"/><label htmlFor="contact-name">Tên để khoa tiện trao đổi <span>không bắt buộc</span></label><input id="contact-name" name="contactName" maxLength={100} autoComplete="off"/><button type="submit">Gửi ghi chú</button></form>
+    <section className="patient-note-form" id="gui-ghi-chu" aria-labelledby="note-heading"><p className="eyebrow">Gửi cho khoa / quản trị</p><h2 id="note-heading">Gửi ghi chú / phản ánh</h2><p>Nội dung này sẽ được gửi đến Khoa điều trị và Quản trị hệ thống. Ghi chú bữa ăn chỉ chuyển tới Bếp sau khi Khoa hoặc Admin kiểm tra.</p>
+      {query.note === "sent" && <p className="patient-form-success" role="status" aria-live="polite">Đã gửi nội dung. Khoa điều trị và Quản trị hệ thống sẽ xem xét.</p>}
+      {query.note && query.note !== "sent" && <p className="patient-form-error" role="alert">{query.note === "limited" ? "Bạn đã gửi quá nhiều nội dung. Vui lòng thử lại sau." : query.note === "invalid" ? "Nội dung cần từ 3 đến 500 ký tự." : "Chưa thể gửi nội dung lúc này. Vui lòng thử lại sau."}</p>}
+      <form action={action}>
+        <input type="hidden" name="mealDate" value={data.selectedDate}/>
+        <fieldset className="patient-submission-type"><legend>Chọn loại nội dung</legend><label><input type="radio" name="type" value="MEAL_NOTE" defaultChecked/>Ghi chú bữa ăn</label><label><input type="radio" name="type" value="FEEDBACK"/>Phản ánh</label></fieldset>
+        <label htmlFor="patient-note">Nội dung <span>bắt buộc</span></label><textarea id="patient-note" name="note" minLength={3} maxLength={500} required placeholder="Ví dụ: Món canh hôm nay hơi mặn hoặc cần phản ánh về bữa ăn…"/>
+        <label htmlFor="contact-name">Tên người gửi <span>không bắt buộc</span></label><input id="contact-name" name="contactName" maxLength={100} autoComplete="name"/>
+        <label htmlFor="contact-info">Thông tin liên hệ <span>không bắt buộc</span></label><input id="contact-info" name="contactInfo" maxLength={120} autoComplete="tel" placeholder="Số điện thoại hoặc buồng/phòng nếu muốn khoa phản hồi"/>
+        <button type="submit">Gửi nội dung</button>
+      </form>
     </section>
     <footer className="patient-footer">Thông tin theo khoa · Không thay thế tư vấn y tế</footer>
   </main>;

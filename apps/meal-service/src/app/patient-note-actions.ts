@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { clientIpFromHeaders, submitPatientNote } from "@/lib/patient-note";
+import { clientIpFromHeaders, submitPatientSubmission } from "@/lib/patient-note";
 
 function safeReturnValue(value: FormDataEntryValue | null): string {
   return typeof value === "string" && /^[A-Za-z0-9_-]{0,80}$/.test(value) ? value : "";
@@ -19,7 +19,7 @@ export async function submitPublicPatientNoteAction(formData: FormData) {
   if (date) params.set("date", date);
 
   try {
-    await submitPatientNote({ token, note: formData.get("note"), contactName: formData.get("contactName"), ip });
+    await submitPatientSubmission({ token, type: formData.get("type"), note: formData.get("note"), contactName: formData.get("contactName"), contactInfo: formData.get("contactInfo"), mealDate: formData.get("mealDate"), mealEventId: formData.get("mealEventId"), ip });
     params.set("note", "sent");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Không thể gửi ghi chú.";

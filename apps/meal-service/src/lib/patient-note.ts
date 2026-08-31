@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { Prisma, type PatientNoteStatus, type Role } from "@prisma/client";
+import { Prisma, type PatientNoteStatus, type PatientSubmissionStatus, type PatientSubmissionType, type Role } from "@prisma/client";
 import { evidenceStorage } from "./evidence-storage";
 import { prisma } from "./prisma";
 import { hospitalDate } from "./serving-report";
@@ -24,6 +24,18 @@ export function normalizeContactName(value: unknown): string | null {
   return name;
 }
 
+export function normalizeContactInfo(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const contact = value.trim().replace(/\s+/g, " ");
+  if (!contact) return null;
+  if (contact.length > 120) throw new Error("Thông tin liên hệ tối đa 120 ký tự.");
+  return contact;
+}
+
+export function normalizeSubmissionType(value: unknown): PatientSubmissionType {
+  return value === "FEEDBACK" ? "FEEDBACK" : "MEAL_NOTE";
+}
+
 export function clientIpFromHeaders(forwarded: string | null, realIp: string | null): string | null {
   // Reverse proxy của hệ thống ghi x-real-ip; chỉ dùng X-Forwarded-For làm phương án dự phòng.
   const candidate = realIp?.trim() || forwarded?.split(",")[0]?.trim() || "";
@@ -45,6 +57,10 @@ export function approvedNotesOnly<T extends { status: PatientNoteStatus; note: s
   return notes.filter((item) => item.status === "APPROVED").map((item) => ({ note: item.note }));
 }
 
+export function kitchenForwardedNotesOnly<T extends { submissionStatus?: PatientSubmissionStatus | null; status?: PatientNoteStatus; note: string }>(notes: T[]): Array<Pick<T, "note">> {
+  return notes.filter((item) => item.submissionStatus === "FORWARDED_TO_KITCHEN" || item.status === "APPROVED").map((item) => ({ note: item.note }));
+}
+
 export function publicDietMeal<T extends { patientVisibleNote: string | null; internalNote?: string | null }>(meal: T) {
   return { patientVisibleNote: meal.patientVisibleNote };
 }
@@ -60,45 +76,105 @@ export function publicPatientNotes(dietitianNote: string | null, departmentNote:
   return notes;
 }
 
-export async function submitPatientNote(input: { token: string; note: unknown; contactName: unknown; ip: string | null }, now = new Date()) {
+export async function submitPatientSubmission(input: { token: string; type: unknown; note: unknown; contactName: unknown; contactInfo?: unknown; mealDate?: unknown; mealEventId?: unknown; ip: string | null }, now = new Date()) {
   const salt = process.env.PATIENT_NOTE_IP_SALT?.trim();
   if (!input.ip || !salt) throw new Error("Không thể xác minh yêu cầu chống spam lúc này.");
   const ipHash = hashClientIp(input.ip, salt);
+  const type = normalizeSubmissionType(input.type);
   const note = normalizePatientNote(input.note);
   const contactName = normalizeContactName(input.contactName);
+  const contactInfo = normalizeContactInfo(input.contactInfo);
   const department = await prisma.department.findFirst({ where: { publicToken: input.token, status: "ACTIVE" }, select: { id: true } });
   if (!department) throw new Error("Mã khoa không hợp lệ hoặc đã ngừng hoạt động.");
+  const mealEventId = typeof input.mealEventId === "string" && input.mealEventId.trim() ? input.mealEventId.trim() : null;
+  const requestedDate = typeof input.mealDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.mealDate) ? new Date(`${input.mealDate}T00:00:00.000Z`) : null;
   const since = new Date(now.getTime() - PATIENT_NOTE_WINDOW_MS);
   return prisma.$transaction(async (tx) => {
     const recent = await tx.patientNote.count({ where: { departmentId: department.id, ipHash, createdAt: { gte: since } } });
-    if (recent >= PATIENT_NOTE_LIMIT) throw new Error("Bạn đã gửi quá nhiều ghi chú. Vui lòng thử lại sau.");
-    return tx.patientNote.create({ data: { departmentId: department.id, mealDate: hospitalDate(now), note, contactName, ipHash, status: "RECEIVED" } });
+    if (recent >= PATIENT_NOTE_LIMIT) throw new Error("Bạn đã gửi quá nhiều nội dung. Vui lòng thử lại sau.");
+    const mealEvent = mealEventId ? await tx.mealEvent.findUnique({ where: { id: mealEventId }, select: { id: true, mealDate: true } }) : null;
+    if (mealEventId && !mealEvent) throw new Error("Bữa liên quan không hợp lệ.");
+    return tx.patientNote.create({ data: { departmentId: department.id, mealEventId: mealEvent?.id ?? null, mealDate: mealEvent?.mealDate ?? requestedDate ?? hospitalDate(now), type, note, contactName, contactInfo, ipHash, status: "RECEIVED", submissionStatus: "NEW" } });
   }, { isolationLevel: "Serializable" });
+}
+
+export async function submitPatientNote(input: { token: string; note: unknown; contactName: unknown; ip: string | null }, now = new Date()) {
+  return submitPatientSubmission({ ...input, type: "MEAL_NOTE" }, now);
 }
 
 export async function readPendingPatientNotes(userId: string) {
   const memberships = await prisma.departmentMembership.findMany({ where: { userId, department: { status: "ACTIVE" } }, select: { departmentId: true } });
   const departmentIds = memberships.map((item) => item.departmentId);
-  return prisma.patientNote.findMany({ where: { departmentId: { in: departmentIds }, status: "RECEIVED" }, orderBy: { createdAt: "asc" }, select: { id: true, note: true, contactName: true, mealDate: true, createdAt: true, department: { select: { name: true } } } });
+  return prisma.patientNote.findMany({ where: { departmentId: { in: departmentIds }, type: "MEAL_NOTE", submissionStatus: { in: ["NEW", "IN_PROGRESS"] } }, orderBy: { createdAt: "asc" }, select: { id: true, type: true, submissionStatus: true, note: true, contactName: true, contactInfo: true, mealDate: true, createdAt: true, department: { select: { name: true } } } });
 }
 
 export async function reviewPatientNote(input: { id: string; status: "APPROVED" | "REJECTED"; reviewNote: unknown }, actor: { id: string; displayName: string; role: Role }, now = new Date()) {
-  if (actor.role !== "NURSE") throw new Error("Chỉ điều dưỡng được duyệt ghi chú bệnh nhân.");
+  if (actor.role !== "NURSE" && actor.role !== "ADMIN") throw new Error("Chỉ khoa điều trị hoặc quản trị viên được duyệt ghi chú bệnh nhân.");
   const reviewNote = normalizeContactName(input.reviewNote);
   return prisma.$transaction(async (tx) => {
-    const existing = await tx.patientNote.findFirst({ where: { id: input.id, status: "RECEIVED", department: { memberships: { some: { userId: actor.id } } } }, select: { id: true, status: true, departmentId: true } });
+    const existing = await tx.patientNote.findFirst({ where: { id: input.id, type: "MEAL_NOTE", submissionStatus: { in: ["NEW", "IN_PROGRESS"] }, ...(actor.role === "NURSE" ? { department: { memberships: { some: { userId: actor.id } } } } : {}) }, select: { id: true, status: true, submissionStatus: true, departmentId: true } });
     if (!existing) throw new Error("Ghi chú không còn chờ duyệt hoặc không thuộc khoa của bạn.");
-    const updated = await tx.patientNote.update({ where: { id: existing.id }, data: { status: input.status, reviewedById: actor.id, reviewedAt: now, reviewNote } });
-    await tx.auditLog.create({ data: { entityType: "PatientNote", entityId: existing.id, action: input.status === "APPROVED" ? "APPROVE" : "REJECT", actorId: actor.id, actorName: actor.displayName, beforeJson: { status: existing.status }, afterJson: { status: input.status } as Prisma.InputJsonValue, reason: reviewNote ?? (input.status === "APPROVED" ? "Điều dưỡng duyệt ghi chú" : "Điều dưỡng từ chối ghi chú") } });
+    const nextStatus = input.status === "APPROVED" ? "FORWARDED_TO_KITCHEN" : "REJECTED";
+    const updated = await tx.patientNote.update({ where: { id: existing.id }, data: { status: input.status, submissionStatus: nextStatus, reviewedById: actor.id, reviewedAt: now, reviewNote, forwardedToKitchenAt: input.status === "APPROVED" ? now : null, forwardedById: input.status === "APPROVED" ? actor.id : null } });
+    await tx.auditLog.create({ data: { entityType: "PatientNote", entityId: existing.id, action: input.status === "APPROVED" ? "FORWARD_TO_KITCHEN" : "REJECT", actorId: actor.id, actorName: actor.displayName, beforeJson: { status: existing.status, submissionStatus: existing.submissionStatus }, afterJson: { status: input.status, submissionStatus: nextStatus } as Prisma.InputJsonValue, reason: reviewNote ?? (input.status === "APPROVED" ? "Khoa/Admin kiểm tra và chuyển ghi chú tới bếp" : "Khoa/Admin từ chối ghi chú") } });
     return updated;
   });
 }
 
 export async function readApprovedKitchenNotes() {
-  const notes = await prisma.patientNote.findMany({ where: { status: "APPROVED" }, orderBy: { reviewedAt: "desc" }, take: 30, select: { id: true, note: true, mealDate: true, reviewedAt: true, department: { select: { name: true } } } });
+  const notes = await prisma.patientNote.findMany({ where: { type: "MEAL_NOTE", submissionStatus: "FORWARDED_TO_KITCHEN" }, orderBy: [{ forwardedToKitchenAt: "desc" }, { reviewedAt: "desc" }], take: 30, select: { id: true, note: true, mealDate: true, reviewedAt: true, forwardedToKitchenAt: true, department: { select: { name: true } } } });
   const read = await prisma.auditLog.findMany({ where: { entityType: "PatientNote", entityId: { in: notes.map((note) => note.id) }, action: "KITCHEN_READ" }, select: { entityId: true } });
   const readIds = new Set(read.map((item) => item.entityId));
   return notes.map((note) => ({ ...note, acknowledged: readIds.has(note.id) }));
+}
+
+export async function readPatientSubmissions(input: { type?: PatientSubmissionType | "ALL"; status?: PatientSubmissionStatus | "ALL"; departmentId?: string; limit?: number } = {}) {
+  return prisma.patientNote.findMany({
+    where: {
+      ...(input.type && input.type !== "ALL" ? { type: input.type } : {}),
+      ...(input.status && input.status !== "ALL" ? { submissionStatus: input.status } : {}),
+      ...(input.departmentId ? { departmentId: input.departmentId } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take: input.limit ?? 100,
+    select: { id: true, type: true, submissionStatus: true, note: true, contactName: true, contactInfo: true, mealDate: true, createdAt: true, reviewedAt: true, reviewNote: true, forwardedToKitchenAt: true, resolvedAt: true, department: { select: { id: true, name: true } }, mealEvent: { select: { id: true, mealType: { select: { name: true } } } }, reviewedBy: { select: { displayName: true } }, forwardedBy: { select: { displayName: true } }, resolvedBy: { select: { displayName: true } } },
+  });
+}
+
+export async function transitionPatientSubmission(input: { id: string; action: "ACCEPT" | "IN_PROGRESS" | "FORWARD_TO_KITCHEN" | "RESOLVE" | "REJECT"; note?: unknown }, actor: { id: string; displayName: string; role: Role }, now = new Date()) {
+  if (actor.role !== "ADMIN" && actor.role !== "NURSE" && actor.role !== "DIETITIAN") throw new Error("Bạn không có quyền xử lý ghi chú/phản ánh.");
+  const reviewNote = normalizeContactName(input.note);
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.patientNote.findUnique({ where: { id: input.id }, select: { id: true, type: true, submissionStatus: true, departmentId: true, status: true } });
+    if (!existing) throw new Error("Không tìm thấy ghi chú/phản ánh.");
+    if (actor.role === "NURSE") {
+      const member = await tx.departmentMembership.findFirst({ where: { userId: actor.id, departmentId: existing.departmentId }, select: { id: true } });
+      if (!member) throw new Error("Bạn không có quyền xử lý nội dung của khoa này.");
+    }
+    let nextStatus: PatientSubmissionStatus = existing.submissionStatus;
+    const data: Prisma.PatientNoteUpdateInput = { reviewNote };
+    if (input.action === "ACCEPT" || input.action === "IN_PROGRESS") nextStatus = "IN_PROGRESS";
+    if (input.action === "REJECT") nextStatus = "REJECTED";
+    if (input.action === "RESOLVE") nextStatus = "RESOLVED";
+    if (input.action === "FORWARD_TO_KITCHEN") {
+      if (existing.type !== "MEAL_NOTE") throw new Error("Chỉ ghi chú bữa ăn mới được chuyển bếp.");
+      nextStatus = "FORWARDED_TO_KITCHEN";
+      data.status = "APPROVED";
+      data.reviewedBy = { connect: { id: actor.id } };
+      data.reviewedAt = now;
+      data.forwardedBy = { connect: { id: actor.id } };
+      data.forwardedToKitchenAt = now;
+    }
+    if (input.action === "REJECT") data.status = "REJECTED";
+    if (input.action === "RESOLVE") {
+      data.resolvedBy = { connect: { id: actor.id } };
+      data.resolvedAt = now;
+    }
+    data.submissionStatus = nextStatus;
+    const updated = await tx.patientNote.update({ where: { id: existing.id }, data });
+    await tx.auditLog.create({ data: { entityType: "PatientNote", entityId: existing.id, action: `PATIENT_SUBMISSION_${input.action}`, actorId: actor.id, actorName: actor.displayName, beforeJson: { type: existing.type, submissionStatus: existing.submissionStatus }, afterJson: { type: existing.type, submissionStatus: nextStatus } as Prisma.InputJsonValue, reason: reviewNote ?? "Cập nhật trạng thái ghi chú/phản ánh" } });
+    return updated;
+  });
 }
 
 type PublicEvaluation = { overall: "OK" | "WARN" | "FAIL" | "MISSING"; criteria: Array<{ key: string; label: string; status: string }> };
