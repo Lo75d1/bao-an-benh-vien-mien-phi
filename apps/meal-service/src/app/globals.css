@@ -448,6 +448,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .action-feedback.is-error { color: #b42318; }
 .kitchen-completed-action { display: flex; align-items: center; justify-content: flex-end; gap: .75rem; flex-wrap: wrap; }
 .kitchen-completed-action > span { display: inline-flex; align-items: center; gap: .4rem; color: #08634f; font-weight: 750; }
+.kitchen-dialog-shell { height: 100%; max-height: calc(100dvh - 1rem); display: flex; flex-direction: column; min-height: 0; }
+.kitchen-dialog-header { position: sticky; top: 0; z-index: 1; flex: 0 0 auto; padding: 1rem 1rem .85rem; background: var(--background); border-bottom: 1px solid var(--border); }
+.kitchen-dialog-header > button { top: .85rem; right: .85rem; }
+.kitchen-dialog-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; display: grid; gap: 1rem; padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom)); }
+@media (max-width: 760px) { .kitchen-dialog-shell { max-height: calc(100dvh - .75rem); } .kitchen-dialog-header { padding: .9rem .9rem .75rem; } .kitchen-dialog-header > button { top: .7rem; right: .7rem; } .kitchen-dialog-scroll { gap: .85rem; padding: .9rem .9rem calc(.9rem + env(safe-area-inset-bottom)); } }
 @media (prefers-reduced-motion: reduce) { .action-spinner { animation: none; } }
 .nurse-service-primary { width: min(100%, 760px); margin-top: .75rem; }
 .service-receipt-pending, .service-receipt-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1rem; width: 100%; padding: 1rem; border: 1px solid #b8d2e3; border-radius: .85rem; background: #f6fbff; text-align: left; }
