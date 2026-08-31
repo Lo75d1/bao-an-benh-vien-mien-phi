@@ -27,12 +27,12 @@ export function InvoiceSaveForm({ warehouseId, defaultOccurredAt, action }: Prop
 
   return <form ref={formRef} action={formAction} className="invoice-save-form">
     <input type="hidden" name="warehouseId" value={warehouseId}/>
-    <label>Ng?y h?a ??n<input name="occurredAt" type="datetime-local" defaultValue={defaultOccurredAt} required/></label>
-    <label>?nh ho?c PDF h?a ??n<input name="file" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required onChange={(event) => setClientError(validateInvoiceUploadFile(event.currentTarget.files?.[0]) ?? "")}/></label>
-    <small>Ch? nh?n JPG, PNG, WEBP ho?c PDF t?i ?a {Math.round(MAX_INVOICE_UPLOAD_BYTES / 1024 / 1024)} MB.</small>
+    <label>Ngày hóa đơn<input name="occurredAt" type="datetime-local" defaultValue={defaultOccurredAt} required/></label>
+    <label>Ảnh hoặc PDF hóa đơn<input name="file" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required onChange={(event) => setClientError(validateInvoiceUploadFile(event.currentTarget.files?.[0]) ?? "")}/></label>
+    <small>Chỉ nhận JPG, PNG, WEBP hoặc PDF tối đa {Math.round(MAX_INVOICE_UPLOAD_BYTES / 1024 / 1024)} MB.</small>
     {clientError ? <p className="action-feedback is-error" role="alert">{clientError}</p> : null}
-    <label>Ghi ch?<input name="note" maxLength={500} placeholder="V? d?: ch? s?ng, nh? cung c?p?"/></label>
+    <label>Ghi chú<input name="note" maxLength={500} placeholder="Ví dụ: chợ sớm, nhà cung cấp…"/></label>
     <ActionFeedback result={result}/>
-    <ActionButton className="primary-action" pending={pending}><ReceiptText/> L?u h?a ??n</ActionButton>
+    <ActionButton className="primary-action" pending={pending}><ReceiptText/> Lưu hóa đơn</ActionButton>
   </form>;
 }

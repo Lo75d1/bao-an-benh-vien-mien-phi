@@ -25,8 +25,8 @@ export async function submitPublicPatientNoteAction(formData: FormData) {
     await submitPatientSubmission({ token, type, note: formData.get("note"), contactName: formData.get("contactName"), contactInfo: formData.get("contactInfo"), ip });
     params.set("note", type === "KITCHEN_NOTE" ? "sent-kitchen" : "sent-feedback");
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Kh?ng th? g?i n?i dung.";
-    params.set("note", message.includes("qu? nhi?u") ? "limited" : message.includes("3 ??n 500") ? "invalid" : "unavailable");
+    const message = error instanceof Error ? error.message : "Không thể gửi nội dung.";
+    params.set("note", message.includes("quá nhiều") ? "limited" : message.includes("3 đến 500") ? "invalid" : "unavailable");
   }
   redirect(`/?${params.toString()}#gui-ghi-chu`);
 }
