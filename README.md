@@ -5,6 +5,7 @@ Hệ thống mã nguồn mở hỗ trợ bệnh viện quản lý một luồng 
 ## Huong dan nhanh
 
 - [Huong dan su dung](docs/HUONG-DAN-SU-DUNG.md)
+- [Huong dan setup ban dau cho IT](docs/HUONG-DAN-SETUP-BAN-DAU-CHO-IT.md)
 - [Huong dan trien khai](docs/DEPLOY.md)
 - Trang cong khai ho tro Phan anh / Ghi chu Bep va tieng Viet / English.
 
