@@ -95,6 +95,7 @@ Can cau hinh toi thieu:
 - `DATABASE_URL`
 - thong tin PostgreSQL;
 - `APP_SECRET`;
+- `BOOTSTRAP_SETUP_TOKEN` la ma khoi tao server de mo cong `/thiet-lap-ban-dau`;
 - tai khoan admin khoi tao neu he thong yeu cau;
 - salt/cau hinh bao mat neu co;
 - cau hinh upload/storage neu repo su dung bien moi truong rieng.
@@ -104,6 +105,27 @@ Luu y:
 - Khong commit `.env`.
 - Khong gui secret qua anh chup man hinh.
 - Trong Docker Compose, `DATABASE_URL` thuong dung host `db`, khong dung `localhost`.
+- `BOOTSTRAP_SETUP_TOKEN` khac voi `BOOTSTRAP_ADMIN_PASSWORD`.
+- Man hinh "Ma khoi tao server" can nhap `BOOTSTRAP_SETUP_TOKEN`.
+- Buoc "Xac nhan Admin dau tien" moi dung `BOOTSTRAP_ADMIN_EMAIL` va `BOOTSTRAP_ADMIN_PASSWORD`.
+
+Vi du tao nhanh `BOOTSTRAP_SETUP_TOKEN`:
+
+```bash
+BOOTSTRAP_SETUP_TOKEN=$(openssl rand -hex 24)
+echo "BOOTSTRAP_SETUP_TOKEN=$BOOTSTRAP_SETUP_TOKEN" >> .env
+```
+
+Neu `.env` da co dong `BOOTSTRAP_SETUP_TOKEN=` nhung dang de trong, cap nhat lai:
+
+```bash
+TOKEN=$(openssl rand -hex 24)
+sed -i "s/^BOOTSTRAP_SETUP_TOKEN=.*/BOOTSTRAP_SETUP_TOKEN=$TOKEN/" .env
+echo "$TOKEN"
+docker compose up -d --force-recreate app
+```
+
+Sau do copy token vua in ra de nhap vao man hinh `/thiet-lap-ban-dau`.
 
 ## 7. Khoi dong database
 
