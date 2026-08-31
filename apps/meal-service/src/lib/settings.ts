@@ -15,6 +15,7 @@ export const DEFAULT_SETTINGS: OperationalSettings = {
   publicMenuIngredients: false,
   publicViewCountVisible: true,
   foodRetention24hRequired: false,
+  publicBaseUrl: "",
 };
 
 export type OperationalSettings = {
@@ -29,6 +30,7 @@ export type OperationalSettings = {
   publicMenuIngredients: boolean;
   publicViewCountVisible: boolean;
   foodRetention24hRequired: boolean;
+  publicBaseUrl: string;
 };
 
 export type MealTimeInput = { id: string; cutoffTime: string; serviceTime: string };
@@ -36,6 +38,7 @@ export type SettingsActor = { id: string; displayName: string; role: Role };
 
 const APPROVAL_ROLES = new Set<Role>(["ADMIN", "DIETITIAN", "KITCHEN"]);
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+const HTTP_URL_PATTERN = /^https?:\/\/.+/i;
 
 export function parseOperationalSettings(value: unknown): OperationalSettings {
   if (!value || typeof value !== "object" || Array.isArray(value)) return { ...DEFAULT_SETTINGS };
@@ -52,7 +55,43 @@ export function parseOperationalSettings(value: unknown): OperationalSettings {
     publicMenuIngredients: typeof source.publicMenuIngredients === "boolean" ? source.publicMenuIngredients : DEFAULT_SETTINGS.publicMenuIngredients,
     publicViewCountVisible: typeof source.publicViewCountVisible === "boolean" ? source.publicViewCountVisible : DEFAULT_SETTINGS.publicViewCountVisible,
     foodRetention24hRequired: typeof source.foodRetention24hRequired === "boolean" ? source.foodRetention24hRequired : DEFAULT_SETTINGS.foodRetention24hRequired,
+    publicBaseUrl: typeof source.publicBaseUrl === "string" ? normalizePublicBaseUrl(source.publicBaseUrl) : DEFAULT_SETTINGS.publicBaseUrl,
   };
+}
+
+export function normalizePublicBaseUrl(value: string): string {
+  return value.trim().replace(/\/+$/, "");
+}
+
+export function validatePublicBaseUrl(value: string): string {
+  const normalized = normalizePublicBaseUrl(value);
+  if (!normalized) return "";
+  if (!HTTP_URL_PATTERN.test(normalized)) throw new Error("Địa chỉ trang công khai phải bắt đầu bằng http:// hoặc https://.");
+  let url: URL;
+  try {
+    url = new URL(normalized);
+  } catch {
+    throw new Error("Địa chỉ trang công khai không hợp lệ.");
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("Địa chỉ trang công khai phải dùng http hoặc https.");
+  if (!url.hostname) throw new Error("Địa chỉ trang công khai không hợp lệ.");
+  return url.toString().replace(/\/+$/, "");
+}
+
+export function buildPublicPatientUrl(publicBaseUrl: string, token: string): string | null {
+  let base: string;
+  try {
+    base = validatePublicBaseUrl(publicBaseUrl);
+  } catch {
+    return null;
+  }
+  if (!base) return null;
+  const url = new URL(base);
+  const path = url.pathname.replace(/\/+$/, "");
+  url.pathname = `${path}/k/${encodeURIComponent(token)}`.replace(/\/{2,}/g, "/");
+  url.search = "";
+  url.hash = "";
+  return url.toString();
 }
 
 export function validateOperationalSettings(input: OperationalSettings): OperationalSettings {
@@ -60,7 +99,7 @@ export function validateOperationalSettings(input: OperationalSettings): Operati
   if (!Number.isInteger(input.advanceEntryDays) || input.advanceEntryDays < 1 || input.advanceEntryDays > 60) throw new Error("Số ngày nhập trước phải từ 1 đến 60.");
   if (!APPROVAL_ROLES.has(input.warehouseApprovalRole)) throw new Error("Vai trò xác nhận kho không hợp lệ.");
   if (!Number.isInteger(input.serviceCompletionMinutes) || input.serviceCompletionMinutes < 15 || input.serviceCompletionMinutes > 240) throw new Error("Thời gian kết thúc phục vụ phải từ 15 đến 240 phút.");
-  return { ...input };
+  return { ...input, publicBaseUrl: validatePublicBaseUrl(input.publicBaseUrl) };
 }
 
 export function validateMealTimes(items: MealTimeInput[]): MealTimeInput[] {

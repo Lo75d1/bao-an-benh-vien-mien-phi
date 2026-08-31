@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { canApproveWarehouse, entryWindowEnd, parseOperationalSettings, routeVisible, validateMealTimes, validateOperationalSettings, visibleOperationalItems } from "../src/lib/settings";
+import { buildPublicPatientUrl, canApproveWarehouse, entryWindowEnd, parseOperationalSettings, routeVisible, validateMealTimes, validateOperationalSettings, validatePublicBaseUrl, visibleOperationalItems } from "../src/lib/settings";
 import { validateAccountInput } from "../src/lib/accounts";
 import { hashPassword, verifyPassword } from "../src/lib/password";
 import { validateMealTypeInput } from "../src/lib/meal-types";
@@ -29,6 +29,23 @@ test("nhận diện mặc định ưu tiên nền sáng", () => {
 test("cấu hình lượt xem mặc định hiển thị và đọc được trạng thái tắt", () => {
   assert.equal(parseOperationalSettings(null).publicViewCountVisible, true);
   assert.equal(parseOperationalSettings({ publicViewCountVisible: false }).publicViewCountVisible, false);
+});
+
+test("địa chỉ trang công khai được chuẩn hóa và kiểm tra hợp lệ", () => {
+  assert.equal(parseOperationalSettings(null).publicBaseUrl, "");
+  assert.equal(validatePublicBaseUrl(" https://benhvien.example.vn/ "), "https://benhvien.example.vn");
+  assert.equal(validatePublicBaseUrl("http://localhost:3000"), "http://localhost:3000");
+  assert.throws(() => validatePublicBaseUrl("javascript:alert(1)"));
+  assert.throws(() => validatePublicBaseUrl("not-a-url"));
+});
+
+test("địa chỉ QR công khai sinh từ base URL đã cấu hình", () => {
+  assert.equal(buildPublicPatientUrl("https://benhvien.example.vn", "dept-1"), "https://benhvien.example.vn/k/dept-1");
+  assert.equal(buildPublicPatientUrl("https://benhvien.example.vn/khoa/noi", "dept 1"), "https://benhvien.example.vn/khoa/noi/k/dept%201");
+  assert.equal(buildPublicPatientUrl("", "dept-1"), null);
+  assert.equal(buildPublicPatientUrl("   ", "dept-1"), null);
+  assert.equal(buildPublicPatientUrl("javascript:alert(1)", "dept-1"), null);
+  assert.equal(buildPublicPatientUrl("https://benhvien.example.vn", "dept-1")?.startsWith("https://benhvien.example.vn/"), true);
 });
 
 test("setting giờ chốt chỉ nhận HH:mm hợp lệ", () => {
