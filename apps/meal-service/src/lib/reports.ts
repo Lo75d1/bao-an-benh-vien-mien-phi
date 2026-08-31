@@ -2,6 +2,7 @@ import type { Role } from "@prisma/client";
 import { prisma } from "./prisma";
 import { parseMenuItems } from "./menu-logic";
 import { buildDietMealShopping } from "./kitchen";
+import type { Language } from "./i18n";
 
 export const REPORT_CONTENTS = ["full", "servings", "additions", "menus", "evidence", "warehouse"] as const;
 export type ReportContent = (typeof REPORT_CONTENTS)[number];
@@ -14,6 +15,17 @@ export type ReportActor = { id: string; role: Role };
 
 const CONTENT_LABEL: Record<ReportContent, string> = { full: "Báo cáo vận hành đầy đủ", servings: "Báo suất theo khoa", additions: "Suất bổ sung", menus: "Thực đơn và dinh dưỡng", evidence: "Bằng chứng bếp", warehouse: "Nhập, xuất và điều chỉnh kho" };
 const MISSING = "—";
+const REPORT_EN: Record<string, string> = {
+  "Báo cáo vận hành đầy đủ": "Full operations report", "Báo suất theo khoa": "Meal counts by department", "Suất bổ sung": "Meal additions", "Thực đơn và dinh dưỡng": "Menus and nutrition", "Bằng chứng bếp": "Kitchen evidence", "Nhập, xuất và điều chỉnh kho": "Inventory receipts, issues, and adjustments", "Tổng quan theo ngày": "Daily overview", "Bảng đi chợ theo ngày": "Daily shopping list", "Báo cáo vận hành đã chọn": "Selected operations report", "Toàn viện": "Hospital-wide",
+  "Ngày": "Date", "Bữa": "Meal", "Khoa": "Department", "Chế độ": "Diet", "Suất gốc": "Original count", "Trạng thái báo": "Report status", "Gửi lúc": "Submitted at", "Loại": "Type", "Bếp xử lý": "Kitchen response", "Lý do": "Reason", "Mã chế độ": "Diet code", "Món ăn": "Dishes", "Thực phẩm": "Foods", "Khuyến nghị": "Recommendation", "Đánh giá": "Assessment", "Người lập": "Prepared by", "Loại bằng chứng": "Evidence type", "Tệp": "File", "Ghi chú": "Note", "Người lưu": "Saved by", "Lưu lúc": "Saved at", "Thời điểm": "Time", "Kho": "Warehouse", "Mặt hàng": "Item", "Số lượng": "Quantity", "Đơn vị": "Unit", "Đơn giá": "Unit price", "Trạng thái": "Status", "Phát sinh bếp nhận": "Kitchen-accepted additions", "Tổng phục vụ": "Total served", "Theo khoa": "By department", "Theo mã chế độ": "By diet code", "Ăn được (kg)": "Edible (kg)", "Thải bỏ": "Waste", "Cần mua (kg)": "Purchase required (kg)", "Ảnh món ăn": "Meal photo", "Ảnh lưu mẫu": "Retention-sample photo", "Đã lưu": "Saved",
+};
+
+export function localizeReportData(report: ReportData, language: Language): ReportData {
+  if (language !== "en") return report;
+  const section = (value: ReportSection): ReportSection => ({ ...value, title: REPORT_EN[value.title] ?? value.title, columns: value.columns.map((column) => ({ ...column, label: REPORT_EN[column.label] ?? column.label })), rows: value.rows.map((row) => Object.fromEntries(Object.entries(row).map(([key, cell]) => [key, typeof cell === "string" ? REPORT_EN[cell] ?? cell : cell])) as Record<string, ReportCell>) });
+  const localized = section(report);
+  return { ...report, ...localized, scope: REPORT_EN[report.scope] ?? report.scope, sections: report.sections?.map(section) };
+}
 
 export function parseReportRange(fromValue: string, toValue: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fromValue) || !/^\d{4}-\d{2}-\d{2}$/.test(toValue)) throw new Error("Khoảng ngày không hợp lệ.");

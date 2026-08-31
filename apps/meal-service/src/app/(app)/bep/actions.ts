@@ -17,18 +17,20 @@ import { readOperationalSettings } from "@/lib/settings";
 import { readRequestClock } from "@/lib/request-clock";
 import { actionFailure, actionSuccess, type ActionResult } from "@/lib/action-result";
 import { handoffMealEvent } from "@/lib/meal-handoff";
+import { normalizeLanguage, type Language } from "@/lib/i18n";
 
 async function requireKitchen() {
   const user = await getSessionUser();
   if (!user || user.role !== "KITCHEN" || !user.kitchenRoute)
     throw new Error(
-      "Tài khoản bếp chưa được gán phạm vi Ăn thường hoặc Sonde.",
+      normalizeLanguage(user?.language) === "en" ? "This Kitchen account has not been assigned to the Oral or Tube-feeding workspace." : "Tài khoản bếp chưa được gán phạm vi Ăn thường hoặc Sonde.",
     );
   return user;
 }
 async function requirePreparationOpen(
   input: { eventId?: string; dietMealId?: string; additionId?: string },
   kitchenRoute: "NORMAL" | "SONDE",
+  language: Language,
 ) {
   const event = await prisma.mealEvent.findFirst({
     where: {
@@ -65,7 +67,7 @@ async function requirePreparationOpen(
       mealType: { select: { id: true, cutoffTime: true, serviceTime: true } },
     },
   });
-  if (!event) throw new Error("Không tìm thấy bữa ăn đang xử lý.");
+  if (!event) throw new Error(language === "en" ? "The current meal could not be found." : "Không tìm thấy bữa ăn đang xử lý.");
   const settings = await readOperationalSettings();
   const clock = await readRequestClock();
   if (
@@ -78,13 +80,13 @@ async function requirePreparationOpen(
     )
   )
     throw new Error(
-      `Bếp chỉ được thao tác từ giờ chuẩn bị ${event.mealType.cutoffTime}.`,
+      language === "en" ? `Kitchen actions are available from ${event.mealType.cutoffTime}.` : `Bếp chỉ được thao tác từ giờ chuẩn bị ${event.mealType.cutoffTime}.`,
     );
 }
 export async function transitionMealAction(formData: FormData) {
   const user = await requireKitchen();
   const dietMealId = String(formData.get("dietMealId") ?? "");
-  await requirePreparationOpen({ dietMealId }, user.kitchenRoute!);
+  await requirePreparationOpen({ dietMealId }, user.kitchenRoute!, normalizeLanguage(user.language));
   await transitionDietMeal(
     dietMealId,
     String(formData.get("target") ?? "") as DietMealStatus,
@@ -104,11 +106,12 @@ export async function uploadEvidenceAction(formData: FormData) {
   const kind = String(formData.get("kind") ?? "") as EvidenceKind;
   const file = formData.get("file");
   const dietMealId = String(formData.get("dietMealId") ?? "");
-  await requirePreparationOpen({ dietMealId }, user.kitchenRoute!);
+  const language = normalizeLanguage(user.language);
+  await requirePreparationOpen({ dietMealId }, user.kitchenRoute!, language);
   if (!EVIDENCE_KINDS.has(kind) || !(file instanceof File) || file.size === 0)
-    throw new Error("Cần chọn loại và tệp ảnh hợp lệ.");
+    throw new Error(language === "en" ? "Choose a valid evidence type and image file." : "Cần chọn loại và tệp ảnh hợp lệ.");
   if (!file.type.startsWith("image/") || file.size > 10 * 1024 * 1024)
-    throw new Error("Chỉ nhận ảnh tối đa 10 MB.");
+    throw new Error(language === "en" ? "Images must not exceed 10 MB." : "Chỉ nhận ảnh tối đa 10 MB.");
   const note =
     String(formData.get("note") ?? "")
       .trim()
@@ -125,7 +128,7 @@ export async function uploadEvidenceAction(formData: FormData) {
 export async function acknowledgeAdditionAction(formData: FormData) {
   const user = await requireKitchen();
   const additionId = String(formData.get("additionId") ?? "");
-  await requirePreparationOpen({ additionId }, user.kitchenRoute!);
+  await requirePreparationOpen({ additionId }, user.kitchenRoute!, normalizeLanguage(user.language));
   await acknowledgeLateMealAddition(
     {
       additionId,
@@ -145,7 +148,7 @@ async function completeKitchenEventSubmission(formData: FormData) {
   const user = await requireKitchen();
   const eventId = String(formData.get("eventId") ?? "");
   const mealIds = formData.getAll("dietMealId").map(String);
-  await requirePreparationOpen({ eventId }, user.kitchenRoute!);
+  await requirePreparationOpen({ eventId }, user.kitchenRoute!, normalizeLanguage(user.language));
   const files = mealIds.map((dietMealId) => ({
     dietMealId,
     file: [formData.get(`library-${dietMealId}`), formData.get(`camera-${dietMealId}`)].find((value) => value instanceof File && value.size > 0),
@@ -174,20 +177,23 @@ export async function saveFoodRetentionAction(_previous: ActionResult, formData:
   try {
     const user = await requireKitchen();
     const eventId = String(formData.get("eventId") ?? "");
-    await requirePreparationOpen({ eventId }, user.kitchenRoute!);
+    const language = normalizeLanguage(user.language);
+    await requirePreparationOpen({ eventId }, user.kitchenRoute!, language);
     const file = [formData.get("library-retention"), formData.get("camera-retention")].find((value) => value instanceof File && value.size > 0);
-    if (!(file instanceof File)) throw new Error("Cần chụp hoặc chọn ảnh mẫu lưu 24 giờ.");
+    if (!(file instanceof File)) throw new Error(language === "en" ? "Take or choose a photo of the 24-hour retention sample." : "Cần chụp hoặc chọn ảnh mẫu lưu 24 giờ.");
     const result = await saveFoodRetentionEvidence({ eventId, feedingRoute: user.kitchenRoute!, file, note: String(formData.get("retentionNote") ?? "").trim().slice(0, 500) || null }, user);
     revalidatePath("/bep"); revalidatePath("/lich"); revalidatePath("/quan-ly");
-    return result.stored ? actionSuccess("Đã ghi nhận mẫu lưu 24 giờ cho toàn bữa.") : actionFailure(new Error("Không thể lưu ảnh vào bộ nhớ."));
+    return result.stored ? actionSuccess(language === "en" ? "The 24-hour retention sample was recorded for the meal." : "Đã ghi nhận mẫu lưu 24 giờ cho toàn bữa.") : actionFailure(new Error(language === "en" ? "Unable to store the image." : "Không thể lưu ảnh vào bộ nhớ."));
   } catch (error) { return actionFailure(error); }
 }
 
 export async function completeKitchenEventAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
   if (!await getSessionUser()) redirect("/");
   try {
+    const user = await requireKitchen();
+    const language = normalizeLanguage(user.language);
     const stored = await completeKitchenEventSubmission(formData);
-    return stored ? actionSuccess("Đã lưu bằng chứng và xác nhận toàn bộ bữa đã chuẩn bị xong.") : actionFailure(new Error("Không thể lưu ảnh vào bộ nhớ. Dữ liệu chưa được xác nhận."));
+    return stored ? actionSuccess(language === "en" ? "Evidence saved and the entire meal confirmed prepared." : "Đã lưu bằng chứng và xác nhận toàn bộ bữa đã chuẩn bị xong.") : actionFailure(new Error(language === "en" ? "Unable to store the image. The meal was not confirmed." : "Không thể lưu ảnh vào bộ nhớ. Dữ liệu chưa được xác nhận."));
   } catch (error) { return actionFailure(error); }
 }
 
@@ -195,15 +201,16 @@ export async function handoffMealEventAction(_previous: ActionResult, formData: 
   if (!await getSessionUser()) redirect("/");
   try {
     const user = await requireKitchen();
+    const language = normalizeLanguage(user.language);
     const handoffs = await handoffMealEvent({ mealEventId: String(formData.get("eventId") ?? ""), feedingRoute: user.kitchenRoute! }, user);
     revalidatePath("/bep"); revalidatePath("/bao-suat"); revalidatePath("/quan-ly"); revalidatePath("/lich");
-    return actionSuccess(`Đã bàn giao suất ăn cho ${handoffs.length} khoa.`);
+    return actionSuccess(language === "en" ? `Meals handed off to ${handoffs.length} departments.` : `Đã bàn giao suất ăn cho ${handoffs.length} khoa.`);
   } catch (error) { return actionFailure(error); }
 }
 export async function reopenKitchenEventAction(formData: FormData) {
   const user = await requireKitchen();
   const eventId = String(formData.get("eventId") ?? "");
-  await requirePreparationOpen({ eventId }, user.kitchenRoute!);
+  await requirePreparationOpen({ eventId }, user.kitchenRoute!, normalizeLanguage(user.language));
   await reopenKitchenEvent(eventId, user.kitchenRoute!, user);
   revalidatePath("/bep");
   revalidatePath("/lich");
@@ -214,12 +221,12 @@ export async function acknowledgeKitchenNoteAction(formData: FormData) {
   const noteId = String(formData.get("noteId") ?? "");
   await requirePreparationOpen({
     eventId: String(formData.get("eventId") ?? ""),
-  }, user.kitchenRoute!);
+  }, user.kitchenRoute!, normalizeLanguage(user.language));
   const note = await prisma.patientNote.findFirst({
     where: { id: noteId, type: "KITCHEN_NOTE", status: "APPROVED" },
     select: { id: true },
   });
-  if (!note) throw new Error("Không tìm thấy ghi chú đã duyệt.");
+  if (!note) throw new Error(normalizeLanguage(user.language) === "en" ? "The approved note could not be found." : "Không tìm thấy ghi chú đã duyệt.");
   await prisma.auditLog.create({
     data: {
       entityType: "PatientNote",

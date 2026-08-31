@@ -5,6 +5,7 @@ import { Download, FileSpreadsheet, Sparkles, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { detectImportColumns, parseImportRows, requiredImportFields, type ImportColumnMap, type ImportField, type ImportPreviewRow } from "@/lib/menu-excel-import";
 import type { MenuItemInput } from "@/lib/menu-logic";
+import type { Language } from "@/lib/i18n";
 
 type MealOption = { id: string; code: string; approved: boolean };
 const fieldLabels: Array<[ImportField, string]> = [
@@ -22,7 +23,9 @@ const fieldLabels: Array<[ImportField, string]> = [
   ["waterG", "Nước (g)"],
 ];
 
-export function MenuExcelImportDialog({ meals, mealName, onApply }: { meals: MealOption[]; mealName: string; onApply: (rows: Array<{ mealId: string; item: MenuItemInput }>) => void }) {
+export function MenuExcelImportDialog({ meals, mealName, onApply, language = "vi" }: { meals: MealOption[]; mealName: string; onApply: (rows: Array<{ mealId: string; item: MenuItemInput }>) => void; language?: Language }) {
+  const en = language === "en";
+  const fieldLabel = (field: ImportField, fallback: string) => en ? ({ dietCode: "Diet code", mealName: "Meal", dishName: "Dish name", foodName: "Food name", grams: "Edible g/serving", energyKcal: "Energy (kcal)", proteinG: "Protein (g)", lipidG: "Fat (g)", glucidG: "Carbohydrate (g)", sodiumMg: "Sodium (mg)", potassiumMg: "Potassium (mg)", waterG: "Water (g)" } as Record<ImportField, string>)[field] : fallback;
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [headers, setHeaders] = useState<string[]>([]);
@@ -42,8 +45,8 @@ export function MenuExcelImportDialog({ meals, mealName, onApply }: { meals: Mea
     const ExcelJS = await import("exceljs");
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Nhap thuc don");
-    sheet.addRow(["Mã chế độ ăn", "Tên món ăn", "Tên thực phẩm", "Gram sạch/suất", "Năng lượng kcal", "Đạm g", "Béo g", "Bột đường g", "Natri mg", "Kali mg", "Nước g", "Bữa ăn"]);
-    sheet.addRow([meals[0]?.code ?? "COM_THUONG", "Cơm — món chính", "", "", "", "", "", "", "", "", "", mealName]);
+    sheet.addRow(en ? ["Diet code", "Dish name", "Food name", "Edible g/serving", "Energy kcal", "Protein g", "Fat g", "Carbohydrate g", "Sodium mg", "Potassium mg", "Water g", "Meal"] : ["Mã chế độ ăn", "Tên món ăn", "Tên thực phẩm", "Gram sạch/suất", "Năng lượng kcal", "Đạm g", "Béo g", "Bột đường g", "Natri mg", "Kali mg", "Nước g", "Bữa ăn"]);
+    sheet.addRow([meals[0]?.code ?? "COM_THUONG", en ? "Rice — main dish" : "Cơm — món chính", "", "", "", "", "", "", "", "", "", mealName]);
     sheet.getRow(1).font = { bold: true };
     sheet.columns.forEach((column, index) => {
       column.width = index === 3 ? 28 : 18;
@@ -85,16 +88,16 @@ export function MenuExcelImportDialog({ meals, mealName, onApply }: { meals: Mea
       setRawRows(nextRows);
       setMapping(nextMapping);
       setRows(parseImportRows(nextRows, nextMapping));
-      setStatus(requiredImportFields.every((field) => nextMapping[field] !== undefined) ? "Đã nhận diện cột. Kiểm tra mã trước khi đưa vào thực đơn." : "Còn cột chưa nhận diện. Chọn cột bằng tay hoặc dùng AI hỗ trợ.");
+      setStatus(requiredImportFields.every((field) => nextMapping[field] !== undefined) ? (en ? "Columns identified. Check diet codes before adding rows to the menu." : "Đã nhận diện cột. Kiểm tra mã trước khi đưa vào thực đơn.") : (en ? "Some columns are not identified. Map them manually or use AI assistance." : "Còn cột chưa nhận diện. Chọn cột bằng tay hoặc dùng AI hỗ trợ."));
     } catch {
-      setStatus("Không đọc được tệp .xlsx này.");
+      setStatus(en ? "Unable to read this .xlsx file." : "Không đọc được tệp .xlsx này.");
     } finally {
       setBusy(false);
     }
   }
   async function analyzeWithAi() {
     setBusy(true);
-    setStatus("AI đang nhận diện tên cột…");
+    setStatus(en ? "AI is identifying column names…" : "AI đang nhận diện tên cột…");
     try {
       const response = await fetch("/api/menu-import/analyze", {
         method: "POST",
@@ -109,11 +112,11 @@ export function MenuExcelImportDialog({ meals, mealName, onApply }: { meals: Mea
         mapping?: ImportColumnMap;
         error?: string;
       };
-      if (!response.ok || !data.mapping) throw new Error(data.error || "AI chưa phân tích được.");
+      if (!response.ok || !data.mapping) throw new Error(en ? "AI could not analyze the columns." : data.error || "AI chưa phân tích được.");
       rebuild({ ...mapping, ...data.mapping });
-      setStatus("AI đã ghép cột. Hãy kiểm tra lại trước khi nhập.");
+      setStatus(en ? "AI mapped the columns. Review them before importing." : "AI đã ghép cột. Hãy kiểm tra lại trước khi nhập.");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "AI chưa phân tích được.");
+      setStatus(error instanceof Error ? error.message : (en ? "AI could not analyze the columns." : "AI chưa phân tích được."));
     } finally {
       setBusy(false);
     }
@@ -130,7 +133,7 @@ export function MenuExcelImportDialog({ meals, mealName, onApply }: { meals: Mea
         item: {
           foodId: null,
           itemName: row.foodName,
-          dishName: row.dishName || "Món 1",
+          dishName: row.dishName || (en ? "Dish 1" : "Món 1"),
           grams: row.grams,
           wastePercent: null,
           nutrients: row.nutrients,
@@ -144,32 +147,32 @@ export function MenuExcelImportDialog({ meals, mealName, onApply }: { meals: Mea
       <DialogTrigger asChild>
         <button type="button">
           <FileSpreadsheet />
-          Nhập Excel
+          {en ? "Import Excel" : "Nhập Excel"}
         </button>
       </DialogTrigger>
       <DialogContent className="nutrition-import-dialog max-h-[92vh] max-w-6xl overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Nhập thực đơn từ Excel</DialogTitle>
-          <DialogDescription>Đọc từng hàng thực phẩm, kiểm tra các chất dinh dưỡng và chọn đúng mã trước khi nhập. Dữ liệu hiện tại chưa bị thay đổi.</DialogDescription>
+          <DialogTitle>{en ? "Import menu from Excel" : "Nhập thực đơn từ Excel"}</DialogTitle>
+          <DialogDescription>{en ? "Read each food row, verify nutrients, and choose the correct diet code before import. Existing data is unchanged." : "Đọc từng hàng thực phẩm, kiểm tra các chất dinh dưỡng và chọn đúng mã trước khi nhập. Dữ liệu hiện tại chưa bị thay đổi."}</DialogDescription>
         </DialogHeader>
         {!headers.length ? (
           <div className="nutrition-import-start">
             <button type="button" className="nutrition-import-drop" onClick={() => inputRef.current?.click()}>
               <Upload />
-              <strong>Chọn tệp Excel</strong>
-              <span>.xlsx hoặc .xlsm · hàng đầu là tiêu đề · mỗi thực phẩm là một hàng</span>
+              <strong>{en ? "Choose Excel file" : "Chọn tệp Excel"}</strong>
+              <span>{en ? ".xlsx or .xlsm · first row contains headers · one food per row" : ".xlsx hoặc .xlsm · hàng đầu là tiêu đề · mỗi thực phẩm là một hàng"}</span>
             </button>
             <button type="button" className="nutrition-import-template" onClick={downloadTemplate}>
-              <Download /> Tải file mẫu đúng các trường
+              <Download /> {en ? "Download field template" : "Tải file mẫu đúng các trường"}
             </button>
           </div>
         ) : (
           <div className="nutrition-import-body">
             <section className="nutrition-import-mapping">
-              <strong>Ghép trường</strong>
+              <strong>{en ? "Map fields" : "Ghép trường"}</strong>
               {fieldLabels.map(([field, label]) => (
                 <label key={field}>
-                  {label}
+                  {fieldLabel(field, label)}
                   <select
                     value={mapping[field] ?? ""}
                     onChange={(event) =>
@@ -179,10 +182,10 @@ export function MenuExcelImportDialog({ meals, mealName, onApply }: { meals: Mea
                       })
                     }
                   >
-                    <option value="">— Chưa có —</option>
+                    <option value="">{en ? "— Not mapped —" : "— Chưa có —"}</option>
                     {headers.map((header, index) => (
                       <option key={`${header}-${index}`} value={index}>
-                        {header || `Cột ${index + 1}`}
+                        {header || `${en ? "Column" : "Cột"} ${index + 1}`}
                       </option>
                     ))}
                   </select>
@@ -190,39 +193,39 @@ export function MenuExcelImportDialog({ meals, mealName, onApply }: { meals: Mea
               ))}
               <label className="nutrition-ai-consent">
                 <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
-                Cho phép gửi tên cột và 3 dòng mẫu đến Gemini để nhận diện. Không gửi cả tệp.
+                {en ? "Allow column names and three sample rows to be sent to Gemini for identification. The full file is not sent." : "Cho phép gửi tên cột và 3 dòng mẫu đến Gemini để nhận diện. Không gửi cả tệp."}
               </label>
               <button type="button" disabled={!consent || busy} onClick={analyzeWithAi}>
                 <Sparkles />
-                AI hỗ trợ ghép cột
+                {en ? "AI-assisted mapping" : "AI hỗ trợ ghép cột"}
               </button>
             </section>
             <section className="nutrition-import-preview">
               <header>
-                <strong>Xem trước · {rows.length} hàng</strong>
+                <strong>{en ? "Preview" : "Xem trước"} · {rows.length} {en ? "rows" : "hàng"}</strong>
                 <span>{status}</span>
               </header>
               <div>
                 <table>
                   <thead>
                     <tr>
-                      <th>Dòng</th>
-                      <th>Mã chế độ ăn</th>
-                      <th>Bữa</th>
-                      <th>Tên món ăn</th>
-                      <th>Thực phẩm</th>
-                      <th>g/suất</th>
+                      <th>{en ? "Row" : "Dòng"}</th>
+                      <th>{en ? "Diet code" : "Mã chế độ ăn"}</th>
+                      <th>{en ? "Meal" : "Bữa"}</th>
+                      <th>{en ? "Dish name" : "Tên món ăn"}</th>
+                      <th>{en ? "Food" : "Thực phẩm"}</th>
+                      <th>g/{en ? "serving" : "suất"}</th>
                       <th>kcal</th>
-                      <th>Đạm</th>
-                      <th>Béo</th>
-                      <th>Bột đường</th>
-                      <th>Trạng thái</th>
+                      <th>{en ? "Protein" : "Đạm"}</th>
+                      <th>{en ? "Fat" : "Béo"}</th>
+                      <th>{en ? "Carbohydrate" : "Bột đường"}</th>
+                      <th>{en ? "Status" : "Trạng thái"}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((row, index) => {
                       const meal = mealByCode.get(row.dietCode.toLocaleLowerCase("vi"));
-                      const warning = !meal ? "Chọn đúng mã" : meal.approved ? "Mã đã tự khóa" : row.warnings.filter((item) => item !== "Chưa chọn mã chế độ ăn").join(" · ");
+                      const warning = !meal ? (en ? "Choose a valid code" : "Chọn đúng mã") : meal.approved ? (en ? "Code is locked" : "Mã đã tự khóa") : row.warnings.filter((item) => item !== "Chưa chọn mã chế độ ăn").map((item) => en ? ({ "Thiếu tên thực phẩm": "Food name missing", "Gram không hợp lệ": "Invalid grams" } as Record<string, string>)[item] ?? item : item).join(" · ");
                       return (
                         <tr key={row.rowNumber} className={warning ? "has-warning" : ""}>
                           <td>{row.rowNumber}</td>
@@ -235,11 +238,11 @@ export function MenuExcelImportDialog({ meals, mealName, onApply }: { meals: Mea
                                 })
                               }
                             >
-                              <option value="">— Chọn mã —</option>
+                              <option value="">{en ? "— Choose code —" : "— Chọn mã —"}</option>
                               {meals.map((option) => (
                                 <option key={option.id} value={option.code} disabled={option.approved}>
                                   {option.code}
-                                  {option.approved ? " · đã tự khóa" : ""}
+                                  {option.approved ? (en ? " · locked" : " · đã tự khóa") : ""}
                                 </option>
                               ))}
                             </select>
@@ -282,7 +285,7 @@ export function MenuExcelImportDialog({ meals, mealName, onApply }: { meals: Mea
                           <td>{row.nutrients.proteinG ?? "—"}</td>
                           <td>{row.nutrients.lipidG ?? "—"}</td>
                           <td>{row.nutrients.glucidG ?? "—"}</td>
-                          <td>{warning || "Sẵn sàng"}</td>
+                          <td>{warning || (en ? "Ready" : "Sẵn sàng")}</td>
                         </tr>
                       );
                     })}
@@ -306,7 +309,7 @@ export function MenuExcelImportDialog({ meals, mealName, onApply }: { meals: Mea
         {status && !headers.length ? <p role="status">{status}</p> : null}
         <DialogFooter>
           <button type="button" onClick={() => inputRef.current?.click()} disabled={busy}>
-            {headers.length ? "Chọn tệp khác" : "Chọn tệp"}
+            {headers.length ? (en ? "Choose another file" : "Chọn tệp khác") : (en ? "Choose file" : "Chọn tệp")}
           </button>
           <button
             type="button"
@@ -315,10 +318,10 @@ export function MenuExcelImportDialog({ meals, mealName, onApply }: { meals: Mea
             onClick={() => {
               onApply(validRows);
               setOpen(false);
-              setStatus(`Đã đưa ${validRows.length} hàng vào bản nháp.`);
+              setStatus(en ? `Added ${validRows.length} rows to the draft.` : `Đã đưa ${validRows.length} hàng vào bản nháp.`);
             }}
           >
-            Đưa {validRows.length || "—"} hàng vào thực đơn
+            {en ? "Add" : "Đưa"} {validRows.length || "—"} {en ? "rows to menu" : "hàng vào thực đơn"}
           </button>
         </DialogFooter>
       </DialogContent>

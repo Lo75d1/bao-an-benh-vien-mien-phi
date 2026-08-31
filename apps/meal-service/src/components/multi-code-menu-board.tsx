@@ -9,6 +9,7 @@ import { MenuFoodSearch } from "./nutrition-2598/MenuFoodSearch";
 import { dishToMenuItems, foodToMenuItem, type DishResult, type FoodResult } from "./nutrition-2598/types";
 import { assessMenuDataQuality, calculateMenuTotals, type MenuItemInput, type MenuNutrientKey } from "@/lib/menu-logic";
 import { MenuExcelImportDialog } from "./menu-excel-import-dialog";
+import type { Language } from "@/lib/i18n";
 
 type Meal = {
   id: string;
@@ -38,6 +39,200 @@ type Context = {
   feedingRoute: "NORMAL" | "SONDE";
 };
 type ActiveDish = { mealId: string; name: string };
+const TEXT = {
+  vi: {
+    protein: "Đạm",
+    lipid: "Béo",
+    glucid: "Bột đường",
+    sodium: "Natri",
+    potassium: "Kali",
+    water: "Nước",
+    actionHint: "Bấm để chọn hoặc xem khuyến nghị",
+    noHint: "Chưa gắn khuyến nghị",
+    chooseCodeSearch: "Chọn mã này để tìm kiếm",
+    recommendationInfo: "Thông tin khuyến nghị",
+    clearConfirm: (code: string) => `Xóa tất cả món của mã ${code}?`,
+    clearAll: "Xóa tất cả món",
+    addDish: "Thêm món",
+    locked: "Đã khóa",
+    editable: "Còn sửa",
+    analysis: "Phân tích bữa ăn theo một suất",
+    exportExcel: "Xuất Excel",
+    exportPdf: "Xuất PDF",
+    oneDayRecommendation: "Mức đáp ứng khuyến nghị một ngày",
+    addFromExcel: "Đã thêm hàng từ Excel vào bản nháp. Thực phẩm chưa liên kết giữ dinh dưỡng theo tệp hoặc “—”.",
+    copyMenu: "Sao chép thực đơn",
+    copyOther: "Sao chép từ ngày khác",
+    copyTitle: "Sao chép thực đơn từ bữa khác",
+    copyDesc: "Chọn một ngày và bữa nguồn. Hệ thống ghép theo mã chế độ ăn và không thay đổi mã đã khóa.",
+    copyEmpty: "— · Chưa có bữa nguồn để sao chép.",
+    savedTemplates: "Mẫu đã lưu",
+    templateTitle: "Mẫu thực đơn đã lưu",
+    templateDesc: (code: string) => `Chọn mẫu để áp dụng cho mã đang chỉnh: ${code}.`,
+    templateSource: (code: string) => `Mẫu lấy từ ${code}; dữ liệu nguồn không bị thay đổi.`,
+    saveMenu: "Lưu thực đơn",
+    dishSearchPlaceholder: "Tìm món ăn cho mã đang chọn…",
+    foodSearchPlaceholder: "Tìm thực phẩm để thêm vào món…",
+    dishDialogPlaceholder: "Tìm thực phẩm để thêm vào món này…",
+    noFood: "Chưa có thực phẩm",
+    patientNote: "Ghi chú dành cho bệnh nhân",
+    saveCode: "Lưu mã này",
+    menuEntry: "Lên thực đơn",
+    mealAnalysis: "Phân tích",
+    workflowSteps: "Hai bước nghiệp vụ",
+    dateData: "Ngày · Dữ liệu từ",
+    meal: "Bữa",
+    codeCount: "Số mã",
+    codesWithMenu: "mã có thực đơn",
+    foods: "thực phẩm",
+    noTemplate: "— · Chưa có mẫu.",
+    saveMealTemplate: "Lưu mẫu bữa này",
+    saveTemplateTitle: "Lưu mã đang chỉnh làm mẫu",
+    templateName: "Tên mẫu",
+    saveTemplate: "Lưu mẫu",
+    draftSaved: (code: string) => `Đã lưu bản nháp mã ${code} trên máy này.`,
+    viewRecommendation: "Xem khuyến nghị",
+    copyCode: (code: string) => `Sao chép toàn bộ mã ${code}`,
+    actual: "Thực tế",
+    partialMissing: "Thiếu một phần · vẫn lưu được",
+    essentialMissing: "Thiếu dữ liệu thiết yếu",
+    dishActions: (dish: string) => `Thao tác món ${dish}`,
+    duplicateBeside: "Nhân đôi bên cạnh",
+    deleteDish: "Xóa món",
+    createBlankDish: "Tạo món trống rồi thêm thực phẩm",
+    findExistingDish: "Tìm món có sẵn",
+    duplicateLastDish: "Nhân đôi món cuối",
+    analysisHelp: "Không nhân số suất; dữ liệu thiếu giữ “—”.",
+    ingredientsPerServing: "Nguyên liệu có trong bữa ăn · gram/1 suất",
+    food: "Thực phẩm",
+    total: "Tổng",
+    code: "Mã",
+    actualEnergy: "Năng lượng thực tế",
+    dietitianTarget: "Mục tiêu NVDD",
+    adherence: "Đáp ứng",
+    readyToSave: (count: number) => `${count} mã sẵn sàng lưu`,
+    blockedSave: (codes: string) => `${codes} thiếu dữ liệu thiết yếu — bổ sung trước khi lưu.`,
+    editing: "Đang chỉnh",
+    dishes: "Món ăn",
+    switchAnalysis: "Chuyển sang phân tích",
+    dishDescription: "Thành phần và dinh dưỡng theo đúng gram của một suất; dữ liệu thiếu giữ “—”.",
+    cleanGrams: "Gram sạch/suất",
+    waste: "Thải bỏ",
+    note: "Ghi chú",
+    addedDish: (dish: string, code: string) => `Đã thêm món ${dish} vào mã ${code}.`,
+    copiedMenu: (label: string) => `Đã sao chép thực đơn từ ${label}. Hãy kiểm tra lại rồi bấm Lưu thực đơn.`,
+    copyConfirm: (label: string) => `Sao chép toàn bộ thực đơn từ ${label}? Nội dung nháp của các mã chưa khóa sẽ được thay thế.`,
+    importedRows: (count: number) => `Đã thêm ${count} hàng từ Excel vào bản nháp. Thực phẩm chưa liên kết giữ dinh dưỡng theo tệp hoặc “—”.`,
+    deleteItem: (name: string) => `Xóa ${name}`,
+    recommendationTitle: "Khuyến nghị",
+    recommendationDescription: "Ngưỡng chuyên môn do Admin liên kết từ danh mục mã chế độ ăn; năng lượng do dinh dưỡng viên nhập tại hàng mã.",
+    dietitianEnergy: "Năng lượng NVDD",
+    patientNotePlaceholder: "Ví dụ: Món được chế biến nhạt, dùng khi còn ấm…",
+    patientNoteHelp: "Nội dung này được công khai cùng đúng bữa và mã chế độ ăn. Không nhập thông tin nội bộ hoặc hồ sơ bệnh án.",
+    exportSheet: "Thực đơn",
+    exportHeaders: ["Ngày", "Bữa", "Mã", "Tên chế độ", "Món", "Thực phẩm", "Gram/suất"],
+    defaultDish: "Món 1",
+    newDish: "Món mới",
+    copySuffix: "bản sao",
+    perServing: "suất",
+  },
+  en: {
+    protein: "Protein",
+    lipid: "Fat",
+    glucid: "Carb",
+    sodium: "Sodium",
+    potassium: "Potassium",
+    water: "Water",
+    actionHint: "Choose or view recommendation",
+    noHint: "No recommendation linked",
+    chooseCodeSearch: "Choose this code to search",
+    recommendationInfo: "Recommendation details",
+    clearConfirm: (code: string) => `Delete all dishes for code ${code}?`,
+    clearAll: "Delete all dishes",
+    addDish: "Add dish",
+    locked: "Locked",
+    editable: "Editable",
+    analysis: "Meal analysis by serving",
+    exportExcel: "Export Excel",
+    exportPdf: "Export PDF",
+    oneDayRecommendation: "One-day recommendation adherence",
+    addFromExcel: "Added Excel rows to the draft. Unlinked foods keep the file nutrients or “—”.",
+    copyMenu: "Copy menu",
+    copyOther: "Copy from another date",
+    copyTitle: "Copy menu from another meal",
+    copyDesc: "Choose a source date and meal. The system matches diet codes and does not change locked codes.",
+    copyEmpty: "— · No source meal to copy yet.",
+    savedTemplates: "Saved templates",
+    templateTitle: "Saved menu templates",
+    templateDesc: (code: string) => `Choose a template to apply to the current code: ${code}.`,
+    templateSource: (code: string) => `Template from ${code}; source data is unchanged.`,
+    saveMenu: "Save menu",
+    dishSearchPlaceholder: "Search dishes for the selected code…",
+    foodSearchPlaceholder: "Search foods to add to a dish…",
+    dishDialogPlaceholder: "Search foods to add to this dish…",
+    noFood: "No foods yet",
+    patientNote: "Patient-visible note",
+    saveCode: "Save this code",
+    menuEntry: "Plan menu",
+    mealAnalysis: "Analysis",
+    workflowSteps: "Two-step workflow",
+    dateData: "Date · Data from",
+    meal: "Meal",
+    codeCount: "Codes",
+    codesWithMenu: "codes with menus",
+    foods: "foods",
+    noTemplate: "— · No templates yet.",
+    saveMealTemplate: "Save meal template",
+    saveTemplateTitle: "Save current code as template",
+    templateName: "Template name",
+    saveTemplate: "Save template",
+    draftSaved: (code: string) => `Draft for code ${code} saved on this device.`,
+    viewRecommendation: "View recommendation",
+    copyCode: (code: string) => `Copy all items for code ${code}`,
+    actual: "Actual",
+    partialMissing: "Partially incomplete · can still be saved",
+    essentialMissing: "Required data missing",
+    dishActions: (dish: string) => `Actions for dish ${dish}`,
+    duplicateBeside: "Duplicate next to this dish",
+    deleteDish: "Delete dish",
+    createBlankDish: "Create an empty dish and add foods",
+    findExistingDish: "Find an existing dish",
+    duplicateLastDish: "Duplicate last dish",
+    analysisHelp: "Per-serving values only; missing data remains “—”.",
+    ingredientsPerServing: "Meal ingredients · grams per serving",
+    food: "Food",
+    total: "Total",
+    code: "Code",
+    actualEnergy: "Actual energy",
+    dietitianTarget: "Dietitian target",
+    adherence: "Adherence",
+    readyToSave: (count: number) => `${count} codes ready to save`,
+    blockedSave: (codes: string) => `${codes} are missing required data. Complete them before saving.`,
+    editing: "Editing",
+    dishes: "Dishes",
+    switchAnalysis: "Continue to analysis",
+    dishDescription: "Ingredients and nutrients use the exact grams per serving; missing data remains “—”.",
+    cleanGrams: "Edible g/serving",
+    waste: "Waste",
+    note: "Note",
+    addedDish: (dish: string, code: string) => `Added ${dish} to code ${code}.`,
+    copiedMenu: (label: string) => `Copied the menu from ${label}. Review it, then select Save menu.`,
+    copyConfirm: (label: string) => `Copy the entire menu from ${label}? Drafts for unlocked codes will be replaced.`,
+    importedRows: (count: number) => `Added ${count} Excel rows to the draft. Unlinked foods keep the file nutrients or “—”.`,
+    deleteItem: (name: string) => `Delete ${name}`,
+    recommendationTitle: "Recommendation",
+    recommendationDescription: "Clinical thresholds are linked by Admin from the diet-code catalog; the dietitian enters the energy target on each code row.",
+    dietitianEnergy: "Dietitian energy target",
+    patientNotePlaceholder: "Example: Prepared with less salt; serve warm…",
+    patientNoteHelp: "This content is published with the selected meal and diet code. Do not enter internal information or medical-record details.",
+    exportSheet: "Menu",
+    exportHeaders: ["Date", "Meal", "Code", "Diet name", "Dish", "Food", "Grams/serving"],
+    defaultDish: "Dish 1",
+    newDish: "New dish",
+    copySuffix: "copy",
+    perServing: "serving",
+  },
+} as const;
 const number = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
 const nutrients: Array<{
   key: MenuNutrientKey;
@@ -102,8 +297,8 @@ const emptyNutrients = {
 function clone(items: MenuItemInput[]) {
   return items.map((item) => ({ ...item, nutrients: { ...item.nutrients } }));
 }
-function dishes(items: MenuItemInput[]) {
-  return [...new Set(items.map((item) => item.dishName?.trim() || "Món 1"))];
+function dishes(items: MenuItemInput[], fallback: string) {
+  return [...new Set(items.map((item) => item.dishName?.trim() || fallback))];
 }
 function kcal(items: MenuItemInput[]) {
   if (!items.length) return "—";
@@ -121,40 +316,44 @@ function targetOf(thresholds: DietCodeThresholds | null, min: keyof DietCodeThre
   return typeof high === "number" ? high : typeof low === "number" ? low : null;
 }
 
-function CodeActions({ meal, onChoose, onRecommendation, onClear, onSave }: { meal: Meal; onChoose: () => void; onRecommendation: () => void; onClear: () => void; onSave: () => void }) {
+function CodeActions({ meal, language, onChoose, onRecommendation, onClear, onSave }: { meal: Meal; language: Language; onChoose: () => void; onRecommendation: () => void; onClear: () => void; onSave: () => void }) {
+  const t = TEXT[language];
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button type="button" className="nutrition-code-actions">
           <strong translate="no">{meal.code}</strong>
           <span>{meal.name}</span>
-          <small>{meal.thresholds ? "Bấm để chọn hoặc xem khuyến nghị" : "Chưa gắn khuyến nghị"}</small>
+          <small>{meal.thresholds ? t.actionHint : t.noHint}</small>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="nutrition-code-action-menu">
         <DropdownMenuItem onSelect={onChoose}>
-          <Search /> Chọn mã này để tìm kiếm
+          <Search /> {t.chooseCodeSearch}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={onRecommendation}>
-          <BookOpen /> Thông tin khuyến nghị
+          <BookOpen /> {t.recommendationInfo}
         </DropdownMenuItem>
         <DropdownMenuItem
           disabled={meal.approved}
           onSelect={() => {
-            if (window.confirm(`Xóa tất cả món của mã ${meal.code}?`)) onClear();
+            if (window.confirm(t.clearConfirm(meal.code))) onClear();
           }}
         >
-          <Trash2 /> Xóa tất cả món
+          <Trash2 /> {t.clearAll}
         </DropdownMenuItem>
         <DropdownMenuItem disabled={meal.approved} onSelect={onSave}>
-          <Save /> Lưu mã này
+          <Save /> {t.saveCode}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
-export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStartDate, saveAction, saveTemplateAction }: { meals: Meal[]; templates: Template[]; copies: CopySet[]; context: Context; dataStartDate: string; saveAction: (data: FormData) => void; saveTemplateAction: (data: FormData) => void }) {
+export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStartDate, language = "vi", saveAction, saveTemplateAction }: { meals: Meal[]; templates: Template[]; copies: CopySet[]; context: Context; dataStartDate: string; language?: Language; saveAction: (data: FormData) => void; saveTemplateAction: (data: FormData) => void }) {
+  const t = TEXT[language];
+  const fallbackDish: string = t.defaultDish;
+  const nutrientLabel = (key: MenuNutrientKey) => ({ proteinG: t.protein, lipidG: t.lipid, glucidG: t.glucid, sodiumMg: t.sodium, potassiumMg: t.potassium, waterG: t.water, energyKcal: "kcal" })[key];
   const legacyStorageKey = `suat-an:menu-drafts:${context.eventId}:${context.feedingRoute}`;
   const storageKey = `suat-an:menu-drafts:v3:${context.eventId}:${context.feedingRoute}`;
   const targetKey = `${storageKey}:kcal-targets`;
@@ -274,7 +473,7 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
     if (!mealId) return;
     const meal = meals.find((item) => item.id === mealId);
     if (meal?.approved) return;
-    const dishName = target?.name ?? "Món mới";
+    const dishName = target?.name ?? t.newDish;
     setMenus((current) => ({
       ...current,
       [mealId]: [...(current[mealId] ?? []), foodToMenuItem(food, dishName)],
@@ -288,7 +487,7 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
       [active.id]: [...(current[active.id] ?? []), ...rows],
     }));
     setPendingDishReveal(`${active.id}:${dish.name}`);
-    setImportMessage(`Đã thêm món ${dish.name} vào mã ${active.code}.`);
+    setImportMessage(t.addedDish(dish.name, active.code));
   }
   function patchItem(mealId: string, index: number, patch: Partial<MenuItemInput>) {
     setMenus((current) => ({
@@ -299,18 +498,18 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
   function removeDish(mealId: string, dish: string) {
     setMenus((current) => ({
       ...current,
-      [mealId]: (current[mealId] ?? []).filter((item) => (item.dishName?.trim() || "Món 1") !== dish),
+      [mealId]: (current[mealId] ?? []).filter((item) => (item.dishName?.trim() || fallbackDish) !== dish),
     }));
     setActiveDish(null);
   }
   function duplicateDish(mealId: string, dish: string) {
     const items = menus[mealId] ?? [];
-    const base = `${dish} · bản sao`;
+    const base = `${dish} · ${t.copySuffix}`;
     let name = base;
     let suffix = 2;
     while (items.some((item) => item.dishName === name)) name = `${base} ${suffix++}`;
     const copies = items
-      .filter((item) => (item.dishName?.trim() || "Món 1") === dish)
+      .filter((item) => (item.dishName?.trim() || fallbackDish) === dish)
       .map((item) => ({
         ...item,
         dishName: name,
@@ -325,12 +524,12 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
   function dropDish(targetMealId: string, targetDish?: string) {
     if (!dragged) return;
     setMenus((current) => {
-      const sourceRows = (current[dragged.mealId] ?? []).filter((item) => (item.dishName?.trim() || "Món 1") === dragged.name);
+      const sourceRows = (current[dragged.mealId] ?? []).filter((item) => (item.dishName?.trim() || fallbackDish) === dragged.name);
       if (!sourceRows.length) return current;
       const next = { ...current };
-      if (dragged.mealId === targetMealId) next[dragged.mealId] = (current[dragged.mealId] ?? []).filter((item) => (item.dishName?.trim() || "Món 1") !== dragged.name);
+      if (dragged.mealId === targetMealId) next[dragged.mealId] = (current[dragged.mealId] ?? []).filter((item) => (item.dishName?.trim() || fallbackDish) !== dragged.name);
       const target = [...(next[targetMealId] ?? [])];
-      const insertAt = targetDish ? target.findIndex((item) => (item.dishName?.trim() || "Món 1") === targetDish) : -1;
+      const insertAt = targetDish ? target.findIndex((item) => (item.dishName?.trim() || fallbackDish) === targetDish) : -1;
       const moved = sourceRows.map((item) => ({
         ...item,
         nutrients: { ...item.nutrients },
@@ -345,10 +544,10 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
   function newDish(meal: Meal) {
     if (meal.approved) return;
     setActiveId(meal.id);
-    const names = dishes(menus[meal.id] ?? []);
-    let name = "Món mới";
+    const names = dishes(menus[meal.id] ?? [], fallbackDish);
+    let name: string = t.newDish;
     let index = 2;
-    while (names.includes(name)) name = `Món mới ${index++}`;
+    while (names.includes(name)) name = `${t.newDish} ${index++}`;
     setActiveDish({ mealId: meal.id, name });
     setSearchKind("food");
   }
@@ -357,7 +556,7 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
     setMenus((current) => ({ ...current, [active.id]: clone(template.items) }));
   }
   function applyCopy(source: CopySet) {
-    if (!window.confirm(`Sao chép toàn bộ thực đơn từ ${source.label}? Nội dung nháp của các mã chưa khóa sẽ được thay thế.`)) return;
+    if (!window.confirm(t.copyConfirm(source.label))) return;
     const byCode = new Map(source.meals.map((meal) => [meal.code, meal.items]));
     setMenus((current) => {
       const next = { ...current };
@@ -367,7 +566,7 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
       }
       return next;
     });
-    setImportMessage(`Đã sao chép thực đơn từ ${source.label}. Hãy kiểm tra lại rồi bấm Lưu thực đơn.`);
+    setImportMessage(t.copiedMenu(source.label));
   }
   function applyImportedRows(rows: Array<{ mealId: string; item: MenuItemInput }>) {
     setMenus((current) => {
@@ -375,15 +574,15 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
       for (const row of rows) next[row.mealId] = [...(next[row.mealId] ?? []), row.item];
       return next;
     });
-    setImportMessage(`Đã thêm ${rows.length} hàng từ Excel vào bản nháp. Thực phẩm chưa liên kết giữ dinh dưỡng theo tệp hoặc “—”.`);
+    setImportMessage(t.importedRows(rows.length));
   }
 
   async function exportExcel() {
     const ExcelJS = await import("exceljs");
     const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet("Thực đơn");
-    sheet.addRow(["Ngày", "Bữa", "Mã", "Tên chế độ", "Món", "Thực phẩm", "Gram/suất"]);
-    for (const meal of meals) for (const item of menus[meal.id] ?? []) sheet.addRow([context.date, context.mealName, meal.code, meal.name, item.dishName ?? "Món 1", item.itemName, item.grams]);
+    const sheet = workbook.addWorksheet(t.exportSheet);
+    sheet.addRow([...t.exportHeaders]);
+    for (const meal of meals) for (const item of menus[meal.id] ?? []) sheet.addRow([context.date, context.mealName, meal.code, meal.name, item.dishName ?? fallbackDish, item.itemName, item.grams]);
     sheet.columns.forEach((column) => {
       column.width = 22;
     });
@@ -402,25 +601,25 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
   return (
     <section className="nutrition-menu-workbench">
       <header className="nutrition-menu-context">
-        <div className="nutrition-step-switch" role="tablist" aria-label="Hai bước nghiệp vụ">
+        <div className="nutrition-step-switch" role="tablist" aria-label={t.workflowSteps}>
           <button type="button" role="tab" aria-selected={step === "entry"} className={step === "entry" ? "active" : ""} onClick={() => setStep("entry")}>
-            1 · Lên thực đơn
+            1 · {t.menuEntry}
           </button>
           <button type="button" role="tab" aria-selected={step === "analysis"} className={step === "analysis" ? "active" : ""} onClick={() => setStep("analysis")}>
-            2 · Phân tích
+            2 · {t.mealAnalysis}
           </button>
         </div>
         <dl>
           <div>
-            <dt>Ngày · Dữ liệu từ {dataStartDate}</dt>
+            <dt>{t.dateData} {dataStartDate}</dt>
             <dd>{context.date}</dd>
           </div>
           <div>
-            <dt>Bữa</dt>
+            <dt>{t.meal}</dt>
             <dd>{context.mealName}</dd>
           </div>
           <div>
-            <dt>Số mã</dt>
+            <dt>{t.codeCount}</dt>
             <dd>{meals.length}</dd>
           </div>
         </dl>
@@ -433,30 +632,31 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
               approved,
             }))}
             onApply={applyImportedRows}
+            language={language}
           />
           <div className="nutrition-context-actions">
             <Dialog>
               <DialogTrigger asChild>
                 <button type="button">
                   <ClipboardCopy />
-                  Sao chép từ ngày khác
+                  {t.copyOther}
                 </button>
               </DialogTrigger>
               <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Sao chép thực đơn từ bữa khác</DialogTitle>
-                  <DialogDescription>Chọn một ngày và bữa nguồn. Hệ thống ghép theo mã chế độ ăn và không thay đổi mã đã khóa.</DialogDescription>
+                  <DialogTitle>{t.copyTitle}</DialogTitle>
+                  <DialogDescription>{t.copyDesc}</DialogDescription>
                 </DialogHeader>
                 <div className="nutrition-template-list">
                   {copies.length ? (
                     copies.map((source) => (
                       <button type="button" key={source.id} onClick={() => applyCopy(source)}>
                         <strong>{source.label}</strong>
-                        <span>{source.meals.filter((meal) => meal.items.length).length} mã có thực đơn</span>
+                        <span>{source.meals.filter((meal) => meal.items.length).length} {t.codesWithMenu}</span>
                       </button>
                     ))
                   ) : (
-                    <p>— · Chưa có bữa nguồn để sao chép.</p>
+                    <p>{t.copyEmpty}</p>
                   )}
                 </div>
               </DialogContent>
@@ -465,24 +665,24 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
               <DialogTrigger asChild>
                 <button type="button">
                   <BookOpen />
-                  Mẫu đã lưu
+                  {t.savedTemplates}
                 </button>
               </DialogTrigger>
               <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Mẫu thực đơn đã lưu</DialogTitle>
-                  <DialogDescription>Chọn mẫu để áp dụng cho mã đang chỉnh: {active?.code ?? "—"}.</DialogDescription>
+                  <DialogTitle>{t.templateTitle}</DialogTitle>
+                  <DialogDescription>{t.templateDesc(active?.code ?? "—")}</DialogDescription>
                 </DialogHeader>
                 <div className="nutrition-template-list">
                   {templates.length ? (
                     templates.map((template) => (
                       <button type="button" key={template.id} onClick={() => applyTemplate(template)}>
                         <strong>{template.name}</strong>
-                        <span>{template.items.length} thực phẩm</span>
+                        <span>{template.items.length} {t.foods}</span>
                       </button>
                     ))
                   ) : (
-                    <p>— · Chưa có mẫu.</p>
+                    <p>{t.noTemplate}</p>
                   )}
                 </div>
               </DialogContent>
@@ -491,13 +691,13 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
               <DialogTrigger asChild>
                 <button type="button">
                   <Save />
-                  Lưu mẫu bữa này
+                  {t.saveMealTemplate}
                 </button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Lưu mã đang chỉnh làm mẫu</DialogTitle>
-                  <DialogDescription>Mẫu lấy từ {active?.code ?? "—"}; dữ liệu nguồn không bị thay đổi.</DialogDescription>
+                  <DialogTitle>{t.saveTemplateTitle}</DialogTitle>
+                  <DialogDescription>{t.templateSource(active?.code ?? "—")}</DialogDescription>
                 </DialogHeader>
                 {active ? (
                   <form action={saveTemplateAction} className="nutrition-save-template">
@@ -506,10 +706,10 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
                     <input type="hidden" name="feedingRoute" value={context.feedingRoute} />
                     <input type="hidden" name="items" value={JSON.stringify(menus[active.id] ?? [])} />
                     <label>
-                      Tên mẫu
+                      {t.templateName}
                       <input name="templateName" required minLength={2} maxLength={100} />
                     </label>
-                    <button className="primary-action">Lưu mẫu</button>
+                    <button className="primary-action">{t.saveTemplate}</button>
                   </form>
                 ) : null}
               </DialogContent>
@@ -522,12 +722,13 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
         <div className="nutrition-code-canvas">
           {meals.map((meal) => {
             const items = menus[meal.id] ?? [];
-            const dishNames = dishes(items);
+            const dishNames = dishes(items, fallbackDish);
             const quality = qualities[meal.id];
             return (
               <article className={`nutrition-code-row ${activeId === meal.id ? "active" : ""} quality-${quality.level.toLowerCase()}`} key={meal.id} onDragOver={(event) => event.preventDefault()} onDrop={() => dropDish(meal.id)}>
                 <CodeActions
                   meal={meal}
+                  language={language}
                   onChoose={() => {
                     selectCode(meal);
                     window.setTimeout(() => document.querySelector<HTMLInputElement>(".nutrition-menu-command input")?.focus(), 0);
@@ -536,7 +737,7 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
                   onClear={() => setMenus((current) => ({ ...current, [meal.id]: [] }))}
                   onSave={() => {
                     selectCode(meal);
-                    setImportMessage(`Đã lưu bản nháp mã ${meal.code} trên máy này.`);
+                    setImportMessage(t.draftSaved(meal.code));
                   }}
                 />
                 <header onClick={() => selectCode(meal)}>
@@ -550,12 +751,12 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
                   >
                     <strong translate="no">{meal.code}</strong>
                     <span>{meal.name}</span>
-                    <small>{meal.thresholds ? "Xem khuyến nghị" : "Chưa gắn khuyến nghị"}</small>
+                    <small>{meal.thresholds ? t.viewRecommendation : t.noHint}</small>
                   </button>
                   <button
                     type="button"
                     className="icon-action"
-                    aria-label={`Sao chép toàn bộ mã ${meal.code}`}
+                    aria-label={t.copyCode(meal.code)}
                     disabled={!items.length || meal.approved}
                     onClick={(event) => {
                       event.stopPropagation();
@@ -569,7 +770,7 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
                     <ClipboardCopy />
                   </button>
                   <label className="nutrition-kcal-target">
-                    kcal/suất
+                    kcal/{t.perServing}
                     <input
                       type="number"
                       min="1"
@@ -586,19 +787,19 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
                       }
                     />
                   </label>
-                  <span className="nutrition-kcal-actual">Thực tế {kcal(items)} kcal</span>
-                  {items.length && quality.level === "WARNING" ? <b className="quality-badge warning">Thiếu một phần · vẫn lưu được</b> : null}
-                  {items.length && quality.level === "BLOCKED" ? <b className="quality-badge blocked">Thiếu dữ liệu thiết yếu</b> : null}
+                  <span className="nutrition-kcal-actual">{t.actual} {kcal(items)} kcal</span>
+                  {items.length && quality.level === "WARNING" ? <b className="quality-badge warning">{t.partialMissing}</b> : null}
+                  {items.length && quality.level === "BLOCKED" ? <b className="quality-badge blocked">{t.essentialMissing}</b> : null}
                   {meal.approved ? (
                     <b className="approved">
                       <Check />
-                      Đã khóa
+                      {t.locked}
                     </b>
                   ) : null}
                 </header>
                 <div className="nutrition-dish-strip">
                   {dishNames.map((dish) => {
-                    const rows = items.filter((item) => (item.dishName?.trim() || "Món 1") === dish);
+                    const rows = items.filter((item) => (item.dishName?.trim() || fallbackDish) === dish);
                     return (
                       <article
                         className="nutrition-dish-card"
@@ -627,18 +828,18 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
                           <GripVertical />
                           <strong>{dish}</strong>
                           <span>{kcal(rows)} kcal</span>
-                          <small>{rows.length ? rows.map((item) => `${item.itemName} ${number.format(item.grams)}g`).join(" · ") : "Chưa có thực phẩm"}</small>
+                          <small>{rows.length ? rows.map((item) => `${item.itemName} ${number.format(item.grams)}g`).join(" · ") : t.noFood}</small>
                         </button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <button type="button" className="dish-more" aria-label={`Thao tác món ${dish}`}>
+                            <button type="button" className="dish-more" aria-label={t.dishActions(dish)}>
                               <MoreVertical />
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent>
-                            <DropdownMenuItem onSelect={() => duplicateDish(meal.id, dish)}>Nhân đôi bên cạnh</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => duplicateDish(meal.id, dish)}>{t.duplicateBeside}</DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => removeDish(meal.id, dish)} disabled={meal.approved}>
-                              Xóa món
+                              {t.deleteDish}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -649,17 +850,17 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
                     <DropdownMenuTrigger asChild>
                       <button type="button" className="nutrition-add-dish" disabled={meal.approved} onClick={() => selectCode(meal)}>
                         <Plus />
-                        Thêm món
+                        {t.addDish}
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                      <DropdownMenuItem onSelect={() => newDish(meal)}>Tạo món trống rồi thêm thực phẩm</DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => newDish(meal)}>{t.createBlankDish}</DropdownMenuItem>
                       <DropdownMenuItem
                         onSelect={() => focusDishSearch(meal)}
                       >
-                        Tìm món có sẵn
+                        {t.findExistingDish}
                       </DropdownMenuItem>
-                      {dishNames.length ? <DropdownMenuItem onSelect={() => duplicateDish(meal.id, dishNames[dishNames.length - 1])}>Nhân đôi món cuối</DropdownMenuItem> : null}
+                      {dishNames.length ? <DropdownMenuItem onSelect={() => duplicateDish(meal.id, dishNames[dishNames.length - 1])}>{t.duplicateLastDish}</DropdownMenuItem> : null}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -671,17 +872,17 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
         <div className="nutrition-analysis-panel">
           <header>
             <div>
-              <h2>Phân tích bữa ăn theo một suất</h2>
-              <p>Không nhân số suất; dữ liệu thiếu giữ “—”.</p>
+              <h2>{t.analysis}</h2>
+              <p>{t.analysisHelp}</p>
             </div>
             <div>
               <button type="button" onClick={exportExcel}>
                 <FileDown />
-                Xuất Excel
+                {t.exportExcel}
               </button>
               <button type="button" onClick={() => window.print()}>
                 <FileDown />
-                Xuất PDF
+                {t.exportPdf}
               </button>
             </div>
           </header>
@@ -691,16 +892,16 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
             </p>
           ) : null}
           <section>
-            <h3>Nguyên liệu có trong bữa ăn · gram/1 suất</h3>
+            <h3>{t.ingredientsPerServing}</h3>
             <div className="nutrition-matrix-scroll">
               <table>
                 <thead>
                   <tr>
-                    <th>Thực phẩm</th>
+                    <th>{t.food}</th>
                     {meals.map((meal) => (
                       <th key={meal.id}>{meal.code}</th>
                     ))}
-                    <th>Tổng</th>
+                    <th>{t.total}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -718,17 +919,17 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
             </div>
           </section>
           <section>
-            <h3>Mức đáp ứng khuyến nghị một ngày</h3>
+            <h3>{t.oneDayRecommendation}</h3>
             <div className="nutrition-matrix-scroll">
               <table>
                 <thead>
                   <tr>
-                    <th>Mã</th>
-                    <th>Năng lượng thực tế</th>
-                    <th>Mục tiêu NVDD</th>
-                    <th>Đáp ứng</th>
+                    <th>{t.code}</th>
+                    <th>{t.actualEnergy}</th>
+                    <th>{t.dietitianTarget}</th>
+                    <th>{t.adherence}</th>
                     {nutrients.map((item) => (
-                      <th key={item.key}>{item.label}</th>
+                      <th key={item.key}>{nutrientLabel(item.key)}</th>
                     ))}
                   </tr>
                 </thead>
@@ -758,11 +959,11 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
           <form action={saveAction} className="nutrition-analysis-actions">
             <input type="hidden" name="menus" value={payload} />
             <div className="nutrition-save-status">
-              <span>{savableMeals.length} mã sẵn sàng lưu</span>
-              {blockedDrafts.length ? <strong>{blockedDrafts.map((meal) => meal.code).join(", ")} thiếu dữ liệu thiết yếu — bổ sung trước khi lưu.</strong> : null}
+              <span>{t.readyToSave(savableMeals.length)}</span>
+              {blockedDrafts.length ? <strong>{t.blockedSave(blockedDrafts.map((meal) => meal.code).join(", "))}</strong> : null}
             </div>
             <button className="primary-action" disabled={payload === "[]" || blockedDrafts.length > 0}>
-              Lưu thực đơn
+              {t.saveMenu}
             </button>
           </form>
         </div>
@@ -770,19 +971,19 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
 
       {step === "entry" ? (
         <footer className="nutrition-menu-command">
-          <strong>Đang chỉnh: {active?.code ?? "—"}</strong>
+          <strong>{t.editing}: {active?.code ?? "—"}</strong>
           <button type="button" className={searchKind === "dish" ? "active" : ""} onClick={() => setSearchKind("dish")}>
-            Món ăn
+            {t.dishes}
           </button>
           <button type="button" className={searchKind === "food" ? "active" : ""} onClick={() => setSearchKind("food")}>
-            Thực phẩm
+            {t.food}
           </button>
           <div className="nutrition-command-search">
             <Search />
-            <MenuFoodSearch inputRef={commandSearchRef} kind={searchKind} filterIconOnly onPickFood={(food) => addFood(food, null)} onPickDish={addDish} placeholder={searchKind === "dish" ? "Tìm món ăn cho mã đang chọn…" : "Tìm thực phẩm để thêm vào món…"} />
+            <MenuFoodSearch inputRef={commandSearchRef} kind={searchKind} filterIconOnly onPickFood={(food) => addFood(food, null)} onPickDish={addDish} placeholder={searchKind === "dish" ? t.dishSearchPlaceholder : t.foodSearchPlaceholder} language={language} />
           </div>
           <button type="button" className="primary-action" onClick={() => setStep("analysis")}>
-            Chuyển sang phân tích
+            {t.switchAnalysis}
           </button>
         </footer>
       ) : null}
@@ -797,26 +998,26 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
           <DialogContent className="nutrition-dish-dialog max-h-[88vh] max-w-[min(96vw,1280px)] overflow-hidden">
             <DialogHeader>
               <DialogTitle>{activeDish.name}</DialogTitle>
-              <DialogDescription>Thành phần và dinh dưỡng theo đúng gram của một suất; dữ liệu thiếu giữ “—”.</DialogDescription>
+              <DialogDescription>{t.dishDescription}</DialogDescription>
             </DialogHeader>
             <div className="nutrition-dish-table">
               <table>
                 <thead>
                   <tr>
-                    <th>Thực phẩm</th>
-                    <th>Gram sạch/suất</th>
+                    <th>{t.food}</th>
+                    <th>{t.cleanGrams}</th>
                     <th>kcal</th>
-                    <th>Đạm (g)</th>
-                    <th>Béo (g)</th>
-                    <th>Bột đường (g)</th>
-                    <th>Thải bỏ</th>
-                    <th>Ghi chú</th>
+                    <th>{t.protein} (g)</th>
+                    <th>{t.lipid} (g)</th>
+                    <th>{t.glucid} (g)</th>
+                    <th>{t.waste}</th>
+                    <th>{t.note}</th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
                   {(menus[activeDish.mealId] ?? []).map((item, index) =>
-                    (item.dishName?.trim() || "Món 1") === activeDish.name ? (
+                    (item.dishName?.trim() || fallbackDish) === activeDish.name ? (
                       <tr key={`${item.itemName}-${index}`}>
                         <td>{item.itemName}</td>
                         <td>
@@ -850,7 +1051,7 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
                         <td>
                           <button
                             type="button"
-                            aria-label={`Xóa ${item.itemName}`}
+                            aria-label={t.deleteItem(item.itemName)}
                             onClick={() =>
                               setMenus((current) => ({
                                 ...current,
@@ -869,7 +1070,7 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
             </div>
             <div className="nutrition-dialog-search">
               <Search />
-              <MenuFoodSearch inputRef={dialogSearchRef} kind="food" filterIconOnly onPickFood={(food) => addFood(food, activeDish)} placeholder="Tìm thực phẩm để thêm vào món này…" />
+              <MenuFoodSearch inputRef={dialogSearchRef} kind="food" filterIconOnly onPickFood={(food) => addFood(food, activeDish)} placeholder={t.dishDialogPlaceholder} language={language} />
             </div>
           </DialogContent>
         ) : null}
@@ -883,13 +1084,13 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
         {recommendationMeal ? (
           <DialogContent className="max-w-3xl">
             <DialogHeader>
-              <DialogTitle>Khuyến nghị · {recommendationMeal.code}</DialogTitle>
-              <DialogDescription>Ngưỡng chuyên môn do Admin liên kết từ danh mục mã chế độ ăn; năng lượng do dinh dưỡng viên nhập tại hàng mã.</DialogDescription>
+              <DialogTitle>{t.recommendationTitle} · {recommendationMeal.code}</DialogTitle>
+              <DialogDescription>{t.recommendationDescription}</DialogDescription>
             </DialogHeader>
             <div className="nutrition-recommendation-grid">
               <div>
-                <span>Năng lượng NVDD</span>
-                <strong>{kcalTargets[recommendationMeal.id] ? `${kcalTargets[recommendationMeal.id]} kcal/suất` : "—"}</strong>
+                <span>{t.dietitianEnergy}</span>
+                <strong>{kcalTargets[recommendationMeal.id] ? `${kcalTargets[recommendationMeal.id]} kcal/${t.perServing}` : "—"}</strong>
               </div>
               {nutrients.map((item) => {
                 const low = recommendationMeal.thresholds?.[item.min];
@@ -903,7 +1104,7 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
               })}
             </div>
             <label className="nutrition-patient-note">
-              Ghi chú dành cho bệnh nhân
+              {t.patientNote}
               <textarea
                 value={patientNotes[recommendationMeal.id] ?? ""}
                 onChange={(event) =>
@@ -914,9 +1115,9 @@ export function MultiCodeMenuBoard({ meals, templates, copies, context, dataStar
                 }
                 maxLength={500}
                 disabled={recommendationMeal.approved}
-                placeholder="Ví dụ: Món được chế biến nhạt, dùng khi còn ấm…"
+                placeholder={t.patientNotePlaceholder}
               />
-              <small>Nội dung này được công khai cùng đúng bữa và mã chế độ ăn. Không nhập thông tin nội bộ hoặc hồ sơ bệnh án.</small>
+              <small>{t.patientNoteHelp}</small>
             </label>
           </DialogContent>
         ) : null}

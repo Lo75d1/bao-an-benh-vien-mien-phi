@@ -7,16 +7,17 @@ import { getSessionUser } from "@/lib/auth";
 import { actionFailure, actionSuccess, type ActionResult } from "@/lib/action-result";
 import { attachInventoryDocument, createInventoryTransaction, saveWarehouseInvoice, updateInventoryTransaction, voidInventoryTransaction, type TransactionLineInput } from "@/lib/warehouse";
 import { validateInvoiceUploadFile } from "@/lib/invoice-upload";
+import { normalizeLanguage } from "@/lib/i18n";
 
 async function requireActor() {
   const user = await getSessionUser();
-  if (!user || !["ADMIN", "DIETITIAN", "KITCHEN"].includes(user.role)) throw new Error("Bạn không có quyền thao tác kho.");
+  if (!user || !["ADMIN", "DIETITIAN", "KITCHEN"].includes(user.role)) throw new Error(normalizeLanguage(user?.language) === "en" ? "You do not have permission to manage inventory." : "Bạn không có quyền thao tác kho.");
   return user;
 }
 
-function occurredAt(value: FormDataEntryValue | null) {
+function occurredAt(value: FormDataEntryValue | null, language: "vi" | "en" = "vi") {
   const date = new Date(String(value ?? ""));
-  if (Number.isNaN(date.getTime())) throw new Error("Thời điểm giao dịch không hợp lệ.");
+  if (Number.isNaN(date.getTime())) throw new Error(language === "en" ? "Invalid transaction time." : "Thời điểm giao dịch không hợp lệ.");
   return date;
 }
 
@@ -59,12 +60,13 @@ export async function saveInvoiceAction(_previous: ActionResult, formData: FormD
   try {
     const actor = await requireActor();
     const file = formData.get("file");
-    const validation = validateInvoiceUploadFile(file instanceof File ? file : null);
+    const language = normalizeLanguage(actor.language);
+    const validation = validateInvoiceUploadFile(file instanceof File ? file : null, language);
     if (validation) throw new Error(validation);
-    const result = await saveWarehouseInvoice({ warehouseId: String(formData.get("warehouseId") ?? ""), occurredAt: occurredAt(formData.get("occurredAt")), file: file as File, note: String(formData.get("note") ?? "") || null }, actor);
+    const result = await saveWarehouseInvoice({ warehouseId: String(formData.get("warehouseId") ?? ""), occurredAt: occurredAt(formData.get("occurredAt"), language), file: file as File, note: String(formData.get("note") ?? "") || null }, actor);
     revalidatePath("/kho");
-    if (!result.stored) throw new Error("Không lưu được tệp hóa đơn vào bộ nhớ. Vui lòng kiểm tra cấu hình upload/volume.");
-    return actionSuccess("Đã lưu hóa đơn và ghi nhật ký.");
+    if (!result.stored) throw new Error(language === "en" ? "Unable to store the invoice file. Check the upload volume configuration." : "Không lưu được tệp hóa đơn vào bộ nhớ. Vui lòng kiểm tra cấu hình upload/volume.");
+    return actionSuccess(language === "en" ? "Invoice saved and logged." : "Đã lưu hóa đơn và ghi nhật ký.");
   } catch (error) {
     return actionFailure(error);
   }

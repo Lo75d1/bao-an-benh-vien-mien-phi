@@ -3,6 +3,7 @@
 import { Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { mergeVoiceEventKeys, playAlertSound, unseenVoiceEvents, type VoiceNotificationEvent } from "@/lib/voice-notification";
+import type { Language } from "@/lib/i18n";
 
 function readStoredIds(storageKey: string) {
   try {
@@ -17,7 +18,7 @@ function storeIds(storageKey: string, ids: Iterable<string>) {
   try { sessionStorage.setItem(storageKey, JSON.stringify([...new Set(ids)])); } catch { /* Storage bị chặn không được làm hỏng trang. */ }
 }
 
-export function VoiceNotificationControl({ workspace, scope, events }: { workspace: "admin" | "nurse" | "kitchen"; scope: string; events: VoiceNotificationEvent[] }) {
+export function VoiceNotificationControl({ workspace, scope, events, language = "vi" }: { workspace: "admin" | "nurse" | "kitchen"; scope: string; events: VoiceNotificationEvent[]; language?: Language }) {
   const activeStorageKey = `meal-service:alert:${workspace}:${scope}:read`;
   const initializedStorageKey = useRef<string | null>(null);
   const [enabled, setEnabled] = useState(false);
@@ -43,6 +44,6 @@ export function VoiceNotificationControl({ workspace, scope, events }: { workspa
 
   return <button type="button" className="voice-notification-toggle" aria-pressed={enabled} onClick={toggle}>
     {enabled ? <Volume2 aria-hidden="true"/> : <VolumeX aria-hidden="true"/>}
-    <span>{enabled ? "Đã bật âm báo" : "Bật âm báo"}</span>
+    <span>{enabled ? (language === "en" ? "Sound alerts on" : "Đã bật âm báo") : (language === "en" ? "Enable sound alerts" : "Bật âm báo")}</span>
   </button>;
 }

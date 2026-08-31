@@ -3,9 +3,9 @@ export const ALLOWED_INVOICE_MIME_TYPES = ["image/jpeg", "image/png", "image/web
 
 const ALLOWED_INVOICE_MIME_TYPE_SET = new Set<string>(ALLOWED_INVOICE_MIME_TYPES);
 
-export function validateInvoiceUploadFile(file: { size: number; type: string } | null | undefined): string | null {
-  if (!file || file.size <= 0) return "C?n ch?n ?nh ho?c PDF h?a ??n.";
-  if (!ALLOWED_INVOICE_MIME_TYPE_SET.has(file.type)) return "Ch? nh?n JPG, PNG, WEBP ho?c PDF.";
-  if (file.size > MAX_INVOICE_UPLOAD_BYTES) return "T?p v??t qu? gi?i h?n 10 MB. Vui l?ng n?n ho?c ch?n t?p nh? h?n.";
+export function validateInvoiceUploadFile(file: { size: number; type: string } | null | undefined, language: "vi" | "en" = "vi"): string | null {
+  if (!file || file.size <= 0) return language === "en" ? "Choose an invoice image or PDF." : "Cần chọn ảnh hoặc PDF hóa đơn.";
+  if (!ALLOWED_INVOICE_MIME_TYPE_SET.has(file.type)) return language === "en" ? "Only JPG, PNG, WEBP, or PDF files are accepted." : "Chỉ nhận JPG, PNG, WEBP hoặc PDF.";
+  if (file.size > MAX_INVOICE_UPLOAD_BYTES) return language === "en" ? "The file exceeds 10 MB. Compress it or choose a smaller file." : "Tệp vượt quá giới hạn 10 MB. Vui lòng nén hoặc chọn tệp nhỏ hơn.";
   return null;
 }

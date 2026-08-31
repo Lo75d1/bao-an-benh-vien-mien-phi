@@ -9,6 +9,11 @@ export function formatVnDay(value: Date) {
   return shortDate.format(value).replace("Th ", "T").replace("CN", "CN");
 }
 
+export function formatDay(value: Date, language: "vi" | "en") {
+  if (language === "vi") return formatVnDay(value);
+  return new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", weekday: "short", day: "2-digit", month: "2-digit" }).format(value);
+}
+
 export function dietDisplayName(name: string, code?: string | null) {
   return { name, code: code || null };
 }
