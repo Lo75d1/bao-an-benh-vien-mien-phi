@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, BookOpen, ChefHat, ClipboardCheck, Download, FileSpreadsheet, FolderOpen, GitFork, GitFork as Github, HeartPulse, Home, LifeBuoy, MessageCircle, Settings2, ShieldCheck, Soup, Utensils } from "lucide-react";
 import { DemoEntry, type DemoEntryAccount } from "@/components/demo-entry";
+import { DemoRealFlowSlideshow } from "@/components/demo-real-flow-slideshow";
 import { DemoSystemIntro } from "@/components/demo-system-intro";
 
 const roles = [
@@ -38,6 +39,7 @@ export default function DemoLandingPage() {
     </section>
 
     <DemoSystemIntro />
+    <DemoRealFlowSlideshow />
 
     <section id="huong-dan" className="demo-guide-section" aria-labelledby="guide-title"><header><p>Hướng dẫn trải nghiệm</p><h2 id="guide-title">Đi qua hệ thống theo đúng người thực hiện</h2><span>Bắt đầu ở trang bệnh nhân, sau đó thử năm vị trí làm việc. Mỗi tài khoản có dữ liệu và hướng dẫn riêng.</span></header>
       <div className="demo-home-step"><div><Home aria-hidden="true"/><span>Điểm bắt đầu</span></div><div><h3>Trang chủ dành cho bệnh nhân</h3><p>Xem thực đơn theo mã chế độ ăn và ngày bệnh viện cho phép công khai. Không cần đăng nhập và không yêu cầu mã khoa.</p><Link href="/?patient=1">Mở trang bệnh nhân<ArrowRight aria-hidden="true"/></Link></div></div>
