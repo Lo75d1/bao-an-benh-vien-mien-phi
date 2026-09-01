@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import type { Locale } from "./locale";
 import { readLocale } from "./locale-server";
 
 export const SOCIAL_PREVIEW_DESCRIPTION =
@@ -21,12 +22,11 @@ function absoluteUrl(base: URL, path: string): string {
   return new URL(path, base).toString();
 }
 
-export async function buildSocialMetadata(): Promise<Metadata> {
-  const [locale, metadataBase] = await Promise.all([readLocale(), requestOrigin()]);
+export function composeSocialMetadata(metadataBase: URL, locale: Locale, canonicalPath = "/"): Metadata {
   const title = "Suất ăn bệnh viện – Demo";
   const description = locale === "en" ? SOCIAL_PREVIEW_DESCRIPTION_EN : SOCIAL_PREVIEW_DESCRIPTION;
   const image = absoluteUrl(metadataBase, DEFAULT_SOCIAL_IMAGE_PATH);
-  const canonical = absoluteUrl(metadataBase, "/");
+  const canonical = absoluteUrl(metadataBase, canonicalPath);
 
   return {
     metadataBase,
@@ -48,4 +48,9 @@ export async function buildSocialMetadata(): Promise<Metadata> {
       images: [image],
     },
   };
+}
+
+export async function buildSocialMetadata(canonicalPath = "/"): Promise<Metadata> {
+  const [locale, metadataBase] = await Promise.all([readLocale(), requestOrigin()]);
+  return composeSocialMetadata(metadataBase, locale, canonicalPath);
 }

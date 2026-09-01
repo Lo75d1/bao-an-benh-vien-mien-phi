@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { demoRoleGalleryItems } from "@/lib/demo-role-gallery";
 import { getTranslations } from "@/lib/locale";
 import { readLocale } from "@/lib/locale-server";
+import { buildSocialMetadata } from "@/lib/social-metadata";
 
 const roles = [
   { key: "nurse", icon: ClipboardCheck, title: "Điều dưỡng của khoa", description: "Báo suất đúng chế độ, gửi bổ sung sau chốt và xác nhận khoa đã nhận đủ hay còn thiếu.", action: "Vào màn báo suất", badge: undefined, account: { label: "Điều dưỡng", email: "nurse@demo.local", password: "Demo-Nurse-2026!" } },
@@ -19,6 +20,10 @@ const demoEntries: DemoEntryAccount[] = [
   { key: "patient", label: "Trang bệnh nhân", description: "Xem thực đơn công khai", href: "/?patient=1" },
   ...roles.map((role) => ({ key: role.key, label: role.title, description: role.badge ?? role.action, email: role.account.email, password: role.account.password })),
 ];
+
+export async function generateMetadata() {
+  return buildSocialMetadata("/demo");
+}
 
 function RoleDialog({ role }: { role: (typeof roles)[number] }) {
   const Icon = role.icon;
