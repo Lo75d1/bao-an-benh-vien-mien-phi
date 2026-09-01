@@ -83,6 +83,11 @@ function AccountMenu({ user }: { user: SessionUser }) {
           <Link href="/ho-so"><KeyRound className="size-4" />{t.account.changePassword}</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        <div className="account-language-row">
+          <span>{t.account.language}</span>
+          <StaffLanguageSwitcher current={user.language} />
+        </div>
+        <DropdownMenuSeparator />
         <DropdownMenuItem disabled={leaving} onSelect={logout} className="text-destructive focus:text-destructive">
           <LogOut className="size-4" />
           {leaving ? t.account.loggingOut : t.account.logout}
@@ -137,7 +142,6 @@ export function AppShell({
           })}
         </nav>
         <div className="top-shell-actions">
-          <StaffLanguageSwitcher current={user.language} />
           {workflowStatus ? <div className="top-workflow-status">{workflowStatus}</div> : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

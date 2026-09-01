@@ -194,24 +194,26 @@ export default async function HomePage({
           )}
           <strong>{branding.organizationName}</strong>
         </a>
-        <PublicLanguageSwitcher current={language} hrefs={languageHrefs} />
-        <Dialog>
-          <DialogTrigger asChild>
-            <button type="button" className="staff-login-trigger">
-              <LogIn aria-hidden="true" />
-              {t.public.staffLogin}
-            </button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[92vh] max-w-md overflow-y-auto">
-            <DialogHeader>
+        <div className="public-header-actions">
+          <PublicLanguageSwitcher current={language} hrefs={languageHrefs} />
+          <Dialog>
+            <DialogTrigger asChild>
+              <button type="button" className="staff-login-trigger">
+                <LogIn aria-hidden="true" />
+                {t.public.staffLogin}
+              </button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[92vh] max-w-md overflow-y-auto">
+              <DialogHeader>
                 <DialogTitle>{t.public.staffLoginTitle}</DialogTitle>
-              <DialogDescription>
-                {t.public.staffLoginDescription}
-              </DialogDescription>
-            </DialogHeader>
+                <DialogDescription>
+                  {t.public.staffLoginDescription}
+                </DialogDescription>
+              </DialogHeader>
               <LoginForm language={language} />
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </header>
 
       <section

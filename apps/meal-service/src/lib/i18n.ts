@@ -35,7 +35,7 @@ const translations = {
     },
     role: { ADMIN: "Quản trị", DIETITIAN: "Dinh dưỡng", NURSE: "Điều dưỡng", KITCHEN: "Nhà bếp" },
     public: {
-      staffLogin: "Đăng nhập nhân viên",
+      staffLogin: "Đăng nhập",
       staffLoginTitle: "Đăng nhập nhân viên",
       staffLoginDescription: "Dùng tài khoản do bệnh viện cấp để vào khu vực làm việc.",
       staffEmail: "Email nhân viên",
@@ -117,7 +117,7 @@ const translations = {
     },
     role: { ADMIN: "Admin", DIETITIAN: "Dietitian", NURSE: "Nurse", KITCHEN: "Kitchen" },
     public: {
-      staffLogin: "Staff login",
+      staffLogin: "Login",
       staffLoginTitle: "Staff login",
       staffLoginDescription: "Use the account provided by the hospital to enter the staff workspace.",
       staffEmail: "Staff email",
