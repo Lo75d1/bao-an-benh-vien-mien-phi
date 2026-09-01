@@ -2,6 +2,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, BookOpen, ChefHat, ClipboardCheck, Download, FileSpreadsheet, FolderOpen, GitFork, GitFork as Github, HeartPulse, Home, LifeBuoy, MessageCircle, Settings2, ShieldCheck, Soup, Utensils } from "lucide-react";
 import { DemoEntry, type DemoEntryAccount } from "@/components/demo-entry";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { demoRoleGalleryItems } from "@/lib/demo-role-gallery";
+import { getTranslations } from "@/lib/locale";
+import { readLocale } from "@/lib/locale-server";
 
 const roles = [
   { key: "nurse", icon: ClipboardCheck, title: "Điều dưỡng của khoa", description: "Báo suất đúng chế độ, gửi bổ sung sau chốt và xác nhận khoa đã nhận đủ hay còn thiếu.", action: "Vào màn báo suất", badge: undefined, account: { label: "Điều dưỡng", email: "nurse@demo.local", password: "Demo-Nurse-2026!" } },
@@ -22,7 +26,11 @@ function RoleDialog({ role }: { role: (typeof roles)[number] }) {
   return <article id={role.key === "dietitian" ? "dinh-duong" : undefined} className={`demo-journey-item ${role.key}`}><div className="demo-journey-icon"><Icon aria-hidden="true"/></div><div className="demo-journey-copy"><span>{role.badge ?? `Vai trò ${role.title}`}</span><h3>{role.title}</h3><p>{role.description}</p><DemoEntry accounts={demoEntries} compactAccount={{ ...entry, label: role.action }}/></div></article>;
 }
 
-export default function DemoLandingPage() {
+export default async function DemoLandingPage() {
+  const locale = await readLocale();
+  const t = getTranslations(locale).public.roleGallery;
+  const gallery = demoRoleGalleryItems(t, demoEntries);
+
   return <main className="demo-product-home">
     <header className="demo-product-header"><Link href="/demo" className="demo-product-brand"><span>SA</span><strong>Suất ăn bệnh viện miễn phí</strong></Link><nav aria-label="Điều hướng trang Demo"><a className="demo-guide-action" href="#dinh-duong" aria-label="Xem hướng dẫn dành cho dinh dưỡng viên"><BookOpen aria-hidden="true"/><span>Hướng dẫn dùng</span></a><a href="#ho-tro">Hỗ trợ</a><a className="demo-github-action" href="https://github.com/Lo75d1/bao-an-benh-vien-mien-phi/blob/main/docs/DEPLOY.md" target="_blank" rel="noreferrer" aria-label="Hướng dẫn cài đặt hệ thống dành cho IT bệnh viện"><GitFork aria-hidden="true"/><span>IT cài đặt</span></a><DemoEntry accounts={demoEntries} triggerLabel="Vào Demo" triggerClassName="demo-header-action"/></nav></header>
 
@@ -34,6 +42,39 @@ export default function DemoLandingPage() {
         <div className="demo-relationship-canvas"><Image src="/demo-quan-he-phoi-hop-suat-an.png" width={1536} height={1024} sizes="(max-width: 820px) 900px, 1180px" alt="Sơ đồ quan hệ phối hợp giữa người bệnh, khoa điều dưỡng, dinh dưỡng, bếp và quản trị trong hệ thống suất ăn bệnh viện" priority={false}/></div>
         <figcaption><span>Luồng hai chiều giúp mỗi bên biết dữ liệu mình nhận, việc mình cần làm và kết quả phải bàn giao.</span><small>Trên điện thoại, vuốt ngang để xem rõ toàn bộ sơ đồ.</small></figcaption>
       </figure>
+    </section>
+
+    <section className="demo-role-gallery" aria-labelledby="demo-role-gallery-title">
+      <header>
+        <p>{t.eyebrow}</p>
+        <h2 id="demo-role-gallery-title">{t.title}</h2>
+        <span>{t.description}</span>
+      </header>
+      <div className="demo-role-gallery-track">
+        {gallery.map((item) => (
+          <article key={item.role} className="demo-role-gallery-card">
+            <Dialog>
+              <DialogTrigger asChild>
+                <button type="button" className="demo-role-gallery-image" aria-label={t.openPreview.replace("{role}", item.title)}>
+                  <Image src={item.image} alt={item.alt} width={960} height={960} sizes="(max-width: 720px) 82vw, 32vw"/>
+                </button>
+              </DialogTrigger>
+              <DialogContent className="demo-role-preview-dialog">
+                <DialogHeader>
+                  <DialogTitle>{item.title}</DialogTitle>
+                  <DialogDescription>{item.description}</DialogDescription>
+                </DialogHeader>
+                <Image src={item.image} alt={item.alt} width={1200} height={1200} sizes="92vw"/>
+              </DialogContent>
+            </Dialog>
+            <div>
+              <h3>{item.title}</h3>
+              <p>{item.description}</p>
+              {item.entry ? <DemoEntry accounts={demoEntries} compactAccount={{ ...item.entry, label: t.openDemo }}/> : null}
+            </div>
+          </article>
+        ))}
+      </div>
     </section>
 
     <section id="huong-dan" className="demo-guide-section" aria-labelledby="guide-title"><header><p>Hướng dẫn trải nghiệm</p><h2 id="guide-title">Đi qua hệ thống theo đúng người thực hiện</h2><span>Bắt đầu ở trang bệnh nhân, sau đó thử năm vị trí làm việc. Mỗi tài khoản có dữ liệu và hướng dẫn riêng.</span></header>

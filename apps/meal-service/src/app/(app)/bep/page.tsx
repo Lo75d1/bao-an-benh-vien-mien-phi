@@ -17,7 +17,6 @@ import { LivePhaseRefresh } from "@/components/live-phase-refresh";
 import { readKitchenWorkspace } from "./workspace-data";
 import { PhaseTransitionNotice } from "@/components/phase-transition-notice";
 import { materializeServingCutoffSnapshot } from "@/lib/serving-report";
-import { VoiceNotificationControl } from "@/components/voice-notification-control";
 import { getTranslations } from "@/lib/locale";
 import { readLocale } from "@/lib/locale-server";
 
@@ -60,13 +59,7 @@ export default async function KitchenPage({ searchParams }: { searchParams: Prom
   const pendingAdditions = meal?.additions.filter((item) => item.ackStatus === "PENDING").length ?? 0;
   const unreadNotes = notes.filter((note) => !note.acknowledged).length;
   const notifications = [...(pendingAdditions ? [{ id: "pending-additions", label: t.pendingAdditionsLabel.replace("{count}", String(pendingAdditions)), detail: t.pendingAdditionsDetail }] : []), ...(unreadNotes ? [{ id: "unread-notes", label: t.unreadNotesLabel.replace("{count}", String(unreadNotes)), detail: t.unreadNotesDetail }] : [])];
-  const voiceEvents = [
-    ...(meal && hasActionableWork && phase === "PREPARING" ? [{ key: `phase:${hospitalDayKey(meal.mealDate)}:${meal.id}:${kitchenRoute}:PREPARING`, message: t.preparingVoice, announceOnEnable: true }] : []),
-    ...(meal?.additions.filter((item) => item.ackStatus === "PENDING").map((item) => ({ key: `addition:${hospitalDayKey(meal.mealDate)}:${meal.id}:${kitchenRoute}:${item.id}`, message: t.additionVoice })) ?? []),
-  ];
-  const voiceControl = <VoiceNotificationControl workspace="kitchen" scope={kitchenRoute} events={voiceEvents}/>;
-
-  return <AppShell user={user} adminNotifications={notifications} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined} workflowStatus={<div className="workspace-voice-status">{serviceAt ? <KitchenHeaderStatus serviceAt={serviceAt} initialNowIso={clock.now.toISOString()} liveClock={!clock.simulated}/> : null}{voiceControl}</div>}><main className="kitchen-page kitchen-v2">
+  return <AppShell user={user} adminNotifications={notifications} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined} workflowStatus={serviceAt ? <KitchenHeaderStatus serviceAt={serviceAt} initialNowIso={clock.now.toISOString()} liveClock={!clock.simulated}/> : null}><main className="kitchen-page kitchen-v2">
     <LivePhaseRefresh enabled={!clock.simulated}/>
     {meal && phase ? <PhaseTransitionNotice scope={`kitchen:${kitchenRoute}`} mealName={meal.mealType.name} phase={phase}/> : null}
     <CurrentMealLifecycle role={user.role} selectedMealId={meal?.id} now={clock.now} liveClock={!clock.simulated}/>

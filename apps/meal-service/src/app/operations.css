@@ -1011,5 +1011,219 @@ body:has(.nutrition-menu-page) .top-shell,body:has(.nutrition-menu-page) [role="
 @media(max-width:760px){.official-source-actions{grid-template-columns:1fr}.official-sync-preview{grid-template-columns:1fr}.official-sync-preview form{grid-template-columns:1fr}.official-sync-actions{align-items:stretch;flex-direction:column}.official-sync-actions a{justify-content:center}.official-sync-status{margin-inline:8px}.official-sync-status-heading{grid-template-columns:auto 1fr}.official-sync-percent{grid-column:2}.official-sync-summary{flex-wrap:wrap}.official-sync-jobs{max-width:100%}}
 .kitchen-handoff-card{display:grid;gap:.65rem;padding:.8rem;border:1px solid #cbdbe5;border-radius:.8rem;background:#f7fbff}.kitchen-handoff-card>header{display:flex;align-items:center;justify-content:space-between;gap:1rem}.kitchen-handoff-card>header span{font-size:.76rem;color:#526575;text-transform:uppercase;letter-spacing:.06em}.kitchen-handoff-card>header h3{margin:.12rem 0 0;font-size:1rem}.kitchen-handoff-card>header b{color:#174e70}.kitchen-handoff-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:.45rem}.kitchen-handoff-list article{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.58rem .65rem;border:1px solid #d9e3ea;border-radius:.65rem;background:#fff}.kitchen-handoff-list article>div{display:grid;gap:.1rem}.kitchen-handoff-list article>div span{font-size:.82rem;color:#526575}.kitchen-handoff-list article p{margin:0;font-size:.8rem;color:#7a5a14}.kitchen-handoff-list article p.is-complete{display:flex;align-items:flex-start;gap:.32rem;color:#126b55}.kitchen-handoff-list article p svg{width:1rem;height:1rem;flex:none}.kitchen-handoff-list article p span{display:grid}.kitchen-handoff-list article p small{font-size:.7rem;color:#526575}.kitchen-handoff-card form{display:flex;align-items:center;justify-content:flex-end;gap:.65rem;flex-wrap:wrap}.kitchen-handoff-card .action-feedback{margin:0}
 @media(max-width:720px){.kitchen-handoff-list{grid-template-columns:1fr}.kitchen-handoff-card form{align-items:stretch}.kitchen-handoff-card form .primary-action{width:100%}}
-.workspace-voice-status{display:flex;align-items:center;gap:8px}.workspace-voice-status>span{min-width:0}.voice-notification-toggle{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:34px;padding:0 9px;border:1px solid rgb(255 255 255/.25);border-radius:8px;background:rgb(255 255 255/.08);color:var(--brand-foreground);font:inherit;font-size:12px;font-weight:650;cursor:pointer;white-space:nowrap}.voice-notification-toggle[aria-pressed="true"]{background:rgb(255 255 255/.18)}.voice-notification-toggle svg{width:16px;height:16px}
-@media(max-width:720px){.voice-notification-toggle span{display:none}.voice-notification-toggle{width:34px;padding:0}.workspace-voice-status{gap:4px}}
+.demo-role-gallery {
+  margin: 0 auto;
+  max-width: 1180px;
+  padding: 18px clamp(18px, 3vw, 28px) 48px;
+}
+
+.demo-role-gallery > header {
+  display: grid;
+  max-width: 820px;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.demo-role-gallery > header p {
+  margin: 0;
+  color: #0f766e;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.demo-role-gallery > header h2 {
+  margin: 0;
+  color: #0f2f29;
+  font-size: clamp(1.6rem, 2.3vw, 2.25rem);
+}
+
+.demo-role-gallery > header span {
+  color: #48665f;
+  line-height: 1.65;
+}
+
+.demo-role-gallery-track {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.demo-role-gallery-card {
+  display: grid;
+  align-content: start;
+  overflow: hidden;
+  border: 1px solid #d8e7df;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 42px rgba(12, 55, 48, 0.08);
+}
+
+.demo-role-gallery-card > div:last-child {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.demo-role-gallery-card h3,
+.demo-role-gallery-card p {
+  margin: 0;
+}
+
+.demo-role-gallery-card h3 {
+  color: #0f2f29;
+  font-size: 1.05rem;
+}
+
+.demo-role-gallery-card p {
+  color: #48665f;
+  line-height: 1.55;
+}
+
+.demo-role-gallery-image {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.demo-role-gallery-image img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.demo-role-preview-dialog {
+  max-width: min(92vw, 880px);
+  max-height: 92vh;
+  overflow-y: auto;
+}
+
+.demo-role-preview-dialog img {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.feedback-management-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.feedback-management-card {
+  display: grid;
+  gap: 14px;
+  border: 1px solid #dce6e1;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 18px;
+  box-shadow: 0 14px 34px rgba(20, 60, 52, 0.07);
+}
+
+.feedback-management-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.feedback-management-card p {
+  margin: 0;
+  color: #24423b;
+  line-height: 1.55;
+}
+
+.feedback-management-card dl,
+.feedback-detail-body dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.feedback-management-card dt,
+.feedback-detail-body dt {
+  color: #6b7d78;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.feedback-management-card dd,
+.feedback-detail-body dd {
+  margin: 2px 0 0;
+  color: #0f2f29;
+}
+
+.feedback-management-card dd a,
+.feedback-detail-body a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.feedback-status {
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: #e5f4ee;
+  color: #0f766e;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.feedback-status.approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.feedback-status.rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.feedback-detail-dialog {
+  max-height: 90vh;
+  max-width: min(92vw, 720px);
+  overflow-y: auto;
+}
+
+.feedback-detail-body {
+  display: grid;
+  gap: 16px;
+}
+
+.feedback-detail-body p {
+  margin: 0;
+  color: #173c34;
+  line-height: 1.65;
+}
+
+@media (max-width: 820px) {
+  .demo-role-gallery {
+    max-width: 100vw;
+    padding-inline: 18px 0;
+    overflow: hidden;
+  }
+
+  .demo-role-gallery > header {
+    padding-right: 18px;
+  }
+
+  .demo-role-gallery-track {
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    padding: 0 18px 14px 0;
+    scroll-snap-type: x mandatory;
+  }
+
+  .demo-role-gallery-card {
+    flex: 0 0 min(82vw, 360px);
+    scroll-snap-align: start;
+  }
+}

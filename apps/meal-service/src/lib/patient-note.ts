@@ -91,6 +91,32 @@ export async function readPendingPatientNotes(userId: string) {
   return prisma.patientNote.findMany({ where: { departmentId: { in: departmentIds }, status: "RECEIVED" }, orderBy: { createdAt: "asc" }, select: { id: true, note: true, contactName: true, attachmentPath: true, attachmentMimeType: true, attachmentSize: true, mealDate: true, createdAt: true, department: { select: { name: true } } } });
 }
 
+export function canManagePatientFeedback(role: Role): boolean {
+  return role === "ADMIN";
+}
+
+export async function readPatientNoteManagement() {
+  return prisma.patientNote.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 100,
+    select: {
+      id: true,
+      note: true,
+      contactName: true,
+      attachmentPath: true,
+      attachmentMimeType: true,
+      attachmentSize: true,
+      mealDate: true,
+      createdAt: true,
+      status: true,
+      reviewedAt: true,
+      reviewNote: true,
+      department: { select: { name: true } },
+      reviewedBy: { select: { displayName: true } },
+    },
+  });
+}
+
 export async function reviewPatientNote(input: { id: string; status: "APPROVED" | "REJECTED"; reviewNote: unknown }, actor: { id: string; displayName: string; role: Role }, now = new Date()) {
   if (actor.role !== "NURSE") throw new Error("Chỉ điều dưỡng được duyệt ghi chú bệnh nhân.");
   const reviewNote = normalizeContactName(input.reviewNote);

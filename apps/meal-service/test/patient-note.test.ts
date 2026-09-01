@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { publicMealEvidenceUrl, staffMealEvidenceUrl } from "../src/lib/evidence-storage";
-import { approvedNotesOnly, clientIpFromHeaders, hashClientIp, isPatientNoteRateLimited, publicDietMeal, publicPatientNotes, selectPublicMealWindow } from "../src/lib/patient-note";
+import { approvedNotesOnly, canManagePatientFeedback, clientIpFromHeaders, hashClientIp, isPatientNoteRateLimited, publicDietMeal, publicPatientNotes, selectPublicMealWindow } from "../src/lib/patient-note";
 
 test("chỉ ghi chú APPROVED được chuyển tới bếp", () => {
   const visible = approvedNotesOnly([
@@ -57,4 +57,12 @@ test("trang bệnh nhân tách đúng suất hiện tại và suất kế tiếp
   const afterLunch = selectPublicMealWindow(meals, new Date("2026-08-29T05:00:00.000Z"));
   assert.equal(afterLunch.current?.id, "trua");
   assert.equal(afterLunch.next?.id, "chieu");
+});
+
+
+test("only admins can manage patient feedback", () => {
+  assert.equal(canManagePatientFeedback("ADMIN"), true);
+  assert.equal(canManagePatientFeedback("NURSE"), false);
+  assert.equal(canManagePatientFeedback("DIETITIAN"), false);
+  assert.equal(canManagePatientFeedback("KITCHEN"), false);
 });

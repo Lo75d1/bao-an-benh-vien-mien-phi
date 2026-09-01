@@ -28,6 +28,7 @@ type NavItem = { href: string; labelKey: keyof ReturnType<typeof getTranslations
 const NAVIGATION: Record<SessionUser["role"], NavItem[]> = {
   ADMIN: [
     { href: "/quan-ly", labelKey: "operations" },
+    { href: "/quan-ly/phan-anh", labelKey: "feedback" },
     { href: "/thuc-don", labelKey: "menu" },
     { href: "/lich", labelKey: "weekly" },
     { href: "/kho", labelKey: "warehouse" },
