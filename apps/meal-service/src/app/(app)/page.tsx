@@ -33,6 +33,14 @@ const dateLabel = new Intl.DateTimeFormat("vi-VN", {
 });
 const numberFormat = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
 
+const ROLE_GUIDE_IMAGES = {
+  patient: "/demo/role-guides/patient.jpg",
+  nurse: "/demo/role-guides/nurse.jpg",
+  dietitian: "/demo/role-guides/dietitian.jpg",
+  kitchen: "/demo/role-guides/kitchen.jpg",
+  admin: "/demo/role-guides/admin.jpg",
+} as const;
+
 export default async function HomePage({
   searchParams,
 }: {
@@ -81,6 +89,14 @@ export default async function HomePage({
     return nextQuery ? `/?${nextQuery}` : "/";
   };
   const localeHrefs = { vi: hrefForLocale("vi"), en: hrefForLocale("en") };
+  const roleGuides = (["patient", "nurse", "dietitian", "kitchen", "admin"] as const).map((role) => ({
+    role,
+    image: ROLE_GUIDE_IMAGES[role],
+    title: t.roleGallery.roles[role].title,
+    description: t.roleGallery.roles[role].description,
+    alt: t.roleGallery.roles[role].alt,
+    href: role === "patient" ? "#public-menu-browser" : null,
+  }));
 
   return (
     <main className="public-menu-home" style={publicStyle}>
@@ -190,6 +206,39 @@ export default async function HomePage({
         </article>
       </section>
 
+      <section className="public-role-gallery" aria-labelledby="public-role-gallery-title">
+        <header>
+          <p className="eyebrow">{t.roleGallery.eyebrow}</p>
+          <h2 id="public-role-gallery-title">{t.roleGallery.title}</h2>
+          <p>{t.roleGallery.description}</p>
+        </header>
+        <div className="public-role-gallery-scroll" role="list">
+          {roleGuides.map((guide) => (
+            <article className="public-role-card" key={guide.role} role="listitem">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <button type="button" className="public-role-image-button" aria-label={t.roleGallery.openPreview.replace("{role}", guide.title)}>
+                    <Image src={guide.image} alt={guide.alt} width={1024} height={1280} sizes="(max-width: 760px) 82vw, (max-width: 1100px) 42vw, 320px" />
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="public-role-preview-dialog max-h-[92vh] max-w-4xl overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>{guide.title}</DialogTitle>
+                    <DialogDescription>{guide.description}</DialogDescription>
+                  </DialogHeader>
+                  <Image src={guide.image} alt={guide.alt} width={1024} height={1280} sizes="(max-width: 900px) 92vw, 760px" />
+                </DialogContent>
+              </Dialog>
+              <div>
+                <h3>{guide.title}</h3>
+                <p>{guide.description}</p>
+                {guide.href ? <a href={guide.href}>{t.roleGallery.openRole}</a> : null}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section className="public-menu-results" aria-labelledby="public-menu-result-title">
         <header>
           <div>
@@ -212,7 +261,10 @@ export default async function HomePage({
               <article key={meal.id}>
                 {menu.showImages ? (
                   meal.evidence[0]?.publicUrl ? (
-                    <img src={meal.evidence[0].publicUrl} alt={t.mealPhoto.replace("{meal}", meal.mealType.name).replace("{diet}", menu.selectedDiet?.name ?? t.noDietCode)} />
+                    <figure className="public-menu-photo-frame">
+                      <img src={meal.evidence[0].publicUrl} alt={t.mealPhoto.replace("{meal}", meal.mealType.name).replace("{diet}", menu.selectedDiet?.name ?? t.noDietCode)} />
+                      {meal.evidence[0].demoBot ? <figcaption>{t.demoMealPhoto}</figcaption> : null}
+                    </figure>
                   ) : (
                     <div className="public-menu-photo-empty">
                       <ImageOff aria-hidden="true" />

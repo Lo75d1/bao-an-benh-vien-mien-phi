@@ -1,8 +1,7 @@
 import type { MenuItemInput, MenuNutrientKey } from "@/lib/menu-logic";
-
-export type FoodResult = { id: string; name: string; source: string | null; foodType: string | null; foodGroup: string | null; wastePercent: number | null } & Record<MenuNutrientKey, number | null>;
+export type FoodResult = { id: string; name: string; source: string | null; sourceBadge?: string | null; foodType: string | null; foodGroup: string | null; wastePercent: number | null } & Record<MenuNutrientKey, number | null>;
 export type DishIngredientResult = { id: string; foodNameRaw: string; quantityG: number; food: FoodResult | null };
-export type DishResult = { id: string; name: string; totalWeightG: number | null; servingUnit: string | null; ingredients: DishIngredientResult[] };
+export type DishResult = { id: string; name: string; source?: string | null; sourceBadge?: string | null; totalWeightG: number | null; servingUnit: string | null; ingredients: DishIngredientResult[] };
 export type DishNode = { dish: string; rows: MenuItemInput[] };
 
 export function buildTree(rows: MenuItemInput[]): DishNode[] {

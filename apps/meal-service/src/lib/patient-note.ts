@@ -6,6 +6,8 @@ import { hospitalDate } from "./serving-report";
 import { readOperationalSettings } from "./settings";
 import { parseMenuItems } from "./menu-logic";
 import { deleteSubmissionAttachment, storeSubmissionAttachment } from "./submission-attachment-storage";
+import { readDemoSession } from "./demo-session";
+import { demoMealPhotoFor } from "./demo-meal-photo-bot";
 
 export const PATIENT_NOTE_LIMIT = 3;
 export const PATIENT_NOTE_WINDOW_MS = 60 * 60 * 1000;
@@ -146,6 +148,7 @@ export async function readPublicDepartment(token: string, selectedDate?: string,
 
 export async function readPublicDietMenu(dietCode?: string, selectedDate?: string, now = new Date()) {
   const settings = await readOperationalSettings();
+  const demo = await readDemoSession();
   const [diets, departments] = await Promise.all([
     prisma.dietType.findMany({ where: { status: "ACTIVE", ...(settings.sondeEnabled ? {} : { feedingRoute: "NORMAL" }) }, orderBy: { sortOrder: "asc" }, select: { id: true, code: true, name: true, feedingRoute: true } }),
     prisma.department.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true, publicToken: true } }),
@@ -156,7 +159,7 @@ export async function readPublicDietMenu(dietCode?: string, selectedDate?: strin
   const requested = /^\d{4}-\d{2}-\d{2}$/.test(selectedDate ?? "") ? new Date(`${selectedDate}T00:00:00.000Z`) : start;
   const selected = Number.isFinite(requested.getTime()) && requested >= start && requested <= end ? requested : start;
   const timelineMeals = selectedDiet ? await prisma.dietMeal.findMany({ where: { dietTypeId: selectedDiet.id, voidedAt: null, menuSnapshotJson: { not: Prisma.DbNull }, mealEvent: { mealDate: { gte: start, lte: end } } }, orderBy: [{ mealEvent: { mealDate: "asc" } }, { mealEvent: { mealType: { sortOrder: "asc" } } }], select: { id: true, status: true, menuSnapshotJson: true, patientVisibleNote: true, mealEvent: { select: { mealDate: true, mealType: { select: { name: true, serviceTime: true } } } }, evidence: { where: { kind: "MEAL_PHOTO" }, orderBy: { uploadedAt: "desc" }, take: 1, select: { id: true, storagePath: true, note: true } } } }) : [];
-  const shapedMeals = timelineMeals.map((meal) => { const items = parseMenuItems(meal.menuSnapshotJson); const publicMeal = publicDietMeal(meal); return { id: meal.id, status: meal.status, mealDate: meal.mealEvent.mealDate, at: serviceAt(meal.mealEvent.mealDate, meal.mealEvent.mealType.serviceTime), mealType: meal.mealEvent.mealType, dishes: [...new Set(items.map((item) => item.dishName))], ingredients: items.map((item) => ({ dishName: item.dishName, name: item.itemName.split(" (")[0].trim() || item.itemName, grams: Number.isFinite(item.grams) && item.grams > 0 ? item.grams : null })), patientVisibleNote: publicMeal.patientVisibleNote, evidence: settings.publicMenuImages ? meal.evidence.map((item) => ({ id: item.id, note: item.note, publicUrl: evidenceStorage.publicUrl(item.storagePath) })) : [] }; });
+  const shapedMeals = timelineMeals.map((meal) => { const items = parseMenuItems(meal.menuSnapshotJson); const publicMeal = publicDietMeal(meal); const evidence: Array<{ id: string; note: string | null; publicUrl: string | null; demoBot?: boolean }> = settings.publicMenuImages ? meal.evidence.map((item) => ({ id: item.id, note: item.note, publicUrl: evidenceStorage.publicUrl(item.storagePath), demoBot: false })) : []; if (settings.publicMenuImages && demo && !evidence.some((item) => item.publicUrl)) { const botPhoto = demoMealPhotoFor({ demoSessionId: demo.id, date: meal.mealEvent.mealDate, mealTypeId: meal.mealEvent.mealType.name, route: selectedDiet?.feedingRoute ?? null }); if (botPhoto) evidence.push({ id: botPhoto.id, note: botPhoto.note, publicUrl: botPhoto.publicUrl, demoBot: true }); } return { id: meal.id, status: meal.status, mealDate: meal.mealEvent.mealDate, at: serviceAt(meal.mealEvent.mealDate, meal.mealEvent.mealType.serviceTime), mealType: meal.mealEvent.mealType, dishes: [...new Set(items.map((item) => item.dishName))], ingredients: items.map((item) => ({ dishName: item.dishName, name: item.itemName.split(" (")[0].trim() || item.itemName, grams: Number.isFinite(item.grams) && item.grams > 0 ? item.grams : null })), patientVisibleNote: publicMeal.patientVisibleNote, evidence }; });
   const selectedKey = selected.toISOString().slice(0, 10);
   const mealWindow = selectPublicMealWindow(shapedMeals, now);
   return { diets, departments: departments.map((department) => ({ id: department.id, name: department.name, token: department.publicToken })), selectedDiet, selectedDate: selectedKey, minDate: start.toISOString().slice(0, 10), maxDate: end.toISOString().slice(0, 10), advanceEntryDays: settings.advanceEntryDays, showImages: settings.publicMenuImages, showViewCount: settings.publicViewCountVisible, currentMeal: mealWindow.current, nextMeal: mealWindow.next, meals: shapedMeals.filter((meal) => meal.mealDate.toISOString().slice(0, 10) === selectedKey) };

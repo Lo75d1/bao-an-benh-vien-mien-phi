@@ -7,6 +7,7 @@ import { readOperationalSettings } from "@/lib/settings";
 import { foodRetentionLabel } from "@/lib/food-retention";
 import { readDemoSession } from "@/lib/demo-session";
 import { deriveHandoffSnapshots } from "@/lib/meal-handoff";
+import { demoMealPhotoFor } from "@/lib/demo-meal-photo-bot";
 
 
 const eventInclude = {
@@ -126,5 +127,12 @@ export async function readKitchenWorkspace(requestedMealId?: string, feedingRout
     const demoHandoff = demoHandoffs.get(snapshot.departmentId);
     return { departmentId: snapshot.departmentId, departmentName: existing?.department.name ?? departmentNames.get(snapshot.departmentId) ?? "—", quantity: demoHandoff?.quantity ?? existing?.quantity ?? snapshot.quantity, handedOffAt: demoHandoff?.handedOffAt ?? existing?.handedOffAt.toISOString() ?? null, handedOffBy: demoHandoff?.handedOffBy ?? existing?.handedOffBy.displayName ?? null };
   });
-  return { events: summaries, selected: { ...selected, dietMeals: selected.dietMeals.map((meal) => ({ ...meal, evidence: meal.evidence.map((item) => ({ ...item, publicUrl: item.storagePath ? staffMealEvidenceUrl(item.id) : null })) })), shopping, evidence, handoffs }, canOperate: hasActionableWork && isKitchenPreparationOpen(selected.mealDate, selected.mealType.cutoffTime, selected.mealType.serviceTime, now, settings.serviceCompletionMinutes), hasActionableWork, foodRetention24hRequired: settings.foodRetention24hRequired };
+  return { events: summaries, selected: { ...selected, dietMeals: selected.dietMeals.map((meal) => {
+    const mappedEvidence: Array<(typeof meal.evidence)[number] & { publicUrl: string | null; demoBot?: boolean }> = meal.evidence.map((item) => ({ ...item, publicUrl: item.storagePath ? staffMealEvidenceUrl(item.id) : null, demoBot: false }));
+    if (demo && !mappedEvidence.some((item) => item.kind === "MEAL_PHOTO" && item.publicUrl)) {
+      const botPhoto = demoMealPhotoFor({ demoSessionId: demo.id, date: selected.mealDate, mealTypeId: selected.mealTypeId, mealTypeCode: selected.mealType.code, route: meal.feedingRoute });
+      if (botPhoto) mappedEvidence.push({ id: botPhoto.id, dietMealId: meal.id, mealEventId: null, kind: "MEAL_PHOTO" as const, storagePath: "", uploadedById: "demo-photo-bot", uploadedAt: new Date(botPhoto.uploadedAt), note: botPhoto.note, publicUrl: botPhoto.publicUrl, demoBot: true as const });
+    }
+    return { ...meal, evidence: mappedEvidence };
+  }), shopping, evidence, handoffs }, canOperate: hasActionableWork && isKitchenPreparationOpen(selected.mealDate, selected.mealType.cutoffTime, selected.mealType.serviceTime, now, settings.serviceCompletionMinutes), hasActionableWork, foodRetention24hRequired: settings.foodRetention24hRequired };
 }

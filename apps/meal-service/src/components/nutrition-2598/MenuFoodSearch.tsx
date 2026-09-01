@@ -4,6 +4,10 @@ import { useEffect, useState, type Ref } from "react";
 import { getTranslations, readClientLocale } from "@/lib/locale";
 import type { DishResult, FoodResult } from "./types";
 
+function SourceBadge({ source, titlePrefix }: { source?: string | null; titlePrefix: string }) {
+  return source ? <em className="source-badge-2598" title={`${titlePrefix} ${source.replaceAll(" + ", ", ")}`}>{source}</em> : null;
+}
+
 export function MenuFoodSearch({
   kind,
   onPickFood,
@@ -75,6 +79,7 @@ export function MenuFoodSearch({
   const placeholderText =
     placeholder ??
     (kind === "food" ? t.searchFoodPlaceholder : t.searchDishPlaceholder);
+  const sourceTitlePrefix = t.searchSourceTitlePrefix;
 
   return (
     <div className="search-2598">
@@ -143,7 +148,7 @@ export function MenuFoodSearch({
                   }}
                 >
                   <span>
-                    <strong>{item.name}</strong>
+                    <strong>{item.name}<SourceBadge source={(item as FoodResult).sourceBadge} titlePrefix={sourceTitlePrefix}/></strong>
                     <small>
                       {(item as FoodResult).source || t.searchUnknownSourceLabel} ·{" "}
                       {(item as FoodResult).energyKcal ?? "—"} kcal/100g
@@ -161,7 +166,7 @@ export function MenuFoodSearch({
                   }}
                 >
                   <span>
-                    <strong>{item.name}</strong>
+                    <strong>{item.name}<SourceBadge source={(item as DishResult).sourceBadge} titlePrefix={sourceTitlePrefix}/></strong>
                     <small>
                       {(item as DishResult).ingredients.filter((ingredient) => ingredient.food).length}/
                       {(item as DishResult).ingredients.length} {t.searchDishIngredientsLabel}

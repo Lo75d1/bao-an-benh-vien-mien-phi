@@ -10,7 +10,7 @@ import { KitchenHandoffControl } from "./kitchen-handoff-control";
 
 type MenuItem = { name: string; dishName: string; grams: number | null };
 type DepartmentServing = { id: string; name: string; original: number | null; additions: number | null; total: number | null };
-type Evidence = { publicUrl: string; note: string | null; uploadedAt: string } | null;
+type Evidence = { publicUrl: string; note: string | null; uploadedAt: string; demoBot?: boolean } | null;
 type Meal = { id: string; code: string; name: string; planned: number | null; additions: number | null; total: number | null; items: MenuItem[]; status: DietMealStatus; departments: DepartmentServing[]; evidence: Evidence };
 type Shopping = { foodId: string; foodName: string; edible: string; waste: string; raw: string };
 type HandoffRow = { departmentId: string; departmentName: string; quantity: number; handedOffAt: string | null; handedOffBy: string | null };

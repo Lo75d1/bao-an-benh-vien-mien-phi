@@ -3,6 +3,7 @@ import { evidenceStorage } from "./evidence-storage";
 import { buildDietMealShopping } from "./kitchen";
 import { prisma } from "./prisma";
 import { readOperationalSettings } from "./settings";
+import { demoWarehouseBotEvents, demoWarehouseStockBalances } from "./demo-warehouse-bot";
 
 export type WarehouseMode = "A" | "B";
 export type WarehouseActor = { id: string; displayName: string; role: Role };
@@ -199,12 +200,13 @@ export function expectedIssueForMeal(meal: { id: string; dietTypeId: string; die
   return { items: result.items, warnings: result.incomplete.map((item) => item.reason) };
 }
 
-export async function readWarehousePage() {
+export async function readWarehousePage(input?: { demoSessionId?: string | null; date?: string | Date; now?: Date }) {
   const mode = await readMode();
   const warehouses = await prisma.warehouse.findMany({ where: { status: "ACTIVE", kind: mode === "A" ? "GENERAL" : { in: ["KITCHEN", "SONDE"] } }, orderBy: { kind: "asc" } });
-  const [transactions, meals] = await Promise.all([
+  const [transactions, meals, foods] = await Promise.all([
     prisma.inventoryTransaction.findMany({ orderBy: { occurredAt: "desc" }, take: 30, include: { warehouse: true, createdBy: { select: { displayName: true } }, lines: { orderBy: { id: "asc" } }, documents: true, relatedDietMeal: { select: { id: true, feedingRoute: true, servingsPlanned: true, menuSnapshotJson: true, dietTypeId: true, dietType: { select: { name: true } }, mealEvent: { select: { mealDate: true, mealType: { select: { name: true } } } } } } } }),
     prisma.dietMeal.findMany({ where: { voidedAt: null, status: { in: ["PLANNED", "LOCKED", "PREPARING", "PREPARED"] } }, orderBy: { mealEvent: { mealDate: "desc" } }, take: 30, select: { id: true, feedingRoute: true, servingsPlanned: true, menuSnapshotJson: true, dietTypeId: true, dietType: { select: { name: true } }, mealEvent: { select: { mealDate: true, mealType: { select: { name: true } } } } } }),
+    input?.demoSessionId ? prisma.food.findMany({ select: { id: true, name: true, nameNormalized: true, aliases: { select: { alias: true, aliasNormalized: true } } } }) : Promise.resolve([]),
   ]);
   const comparisons = transactions.filter((item) => item.type === "OUT" && item.status === "ACTIVE" && item.relatedDietMeal).map((transaction) => {
     const meal = transaction.relatedDietMeal!;
@@ -212,5 +214,7 @@ export async function readWarehousePage() {
     const expectedByFood = new Map(expected.items.map((item) => [item.foodId, item.rawGrams]));
     return { transactionId: transaction.id, warnings: expected.warnings, lines: transaction.lines.map((line) => { const actual = line.unit.toLowerCase() === "g" ? Number(line.quantity) : null; const expectedQuantity = line.foodId ? expectedByFood.get(line.foodId) ?? null : null; return { id: line.id, itemName: line.itemName, unit: line.unit, expected: expectedQuantity, actual, variance: inventoryVariance(expectedQuantity, actual) }; }) };
   });
-  return { mode, warehouses, transactions, meals, comparisons };
+  const botEvents = demoWarehouseBotEvents({ demoSessionId: input?.demoSessionId, date: input?.date ?? input?.now ?? new Date(), now: input?.now ?? new Date(), foods });
+  const botStockBalances = demoWarehouseStockBalances(botEvents);
+  return { mode, warehouses, transactions, meals, comparisons, botEvents, botStockBalances };
 }

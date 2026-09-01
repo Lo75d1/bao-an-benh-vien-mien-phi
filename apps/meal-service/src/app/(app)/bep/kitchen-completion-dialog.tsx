@@ -11,7 +11,7 @@ import { optimizeFormImages } from "@/lib/client-image-upload";
 import { getTranslations, readClientLocale } from "@/lib/locale";
 import { completeKitchenEventAction, reopenKitchenEventAction, saveFoodRetentionAction } from "./actions";
 
-type Evidence = { publicUrl: string; note: string | null; uploadedAt: string } | null;
+type Evidence = { publicUrl: string; note: string | null; uploadedAt: string; demoBot?: boolean } | null;
 
 function useOptimizedImageSubmit() {
   const t = getTranslations(readClientLocale()).management.kitchenCompletion;
@@ -67,7 +67,7 @@ function ImagePicker({ baseName, existing, label }: { baseName: string; existing
       <label><Camera/> {t.takePhoto}<input ref={camera} name={`camera-${baseName}`} type="file" accept="image/*" capture="environment" onChange={(event) => preview(event.target.files?.[0], library)}/></label>
       <label><Upload/> {t.chooseFromLibrary}<input ref={library} name={`library-${baseName}`} type="file" accept="image/*" onChange={(event) => preview(event.target.files?.[0], camera)}/></label>
     </div>
-    {existing && !previewUrl ? <small className="kitchen-saved-proof"><CheckCircle2/> {t.savedPhotoHint}</small> : null}
+    {existing && !previewUrl ? <small className={existing.demoBot ? "kitchen-saved-proof demo-bot" : "kitchen-saved-proof"}><CheckCircle2/> {existing.demoBot ? t.demoPhotoHint : t.savedPhotoHint}</small> : null}
   </>;
 }
 
@@ -77,7 +77,7 @@ function ProofField({ meal }: { meal: { id: string; code: string; name: string; 
     <input type="hidden" name="dietMealId" value={meal.id}/>
     <legend><b translate="no">{meal.code}</b><span>{meal.name}</span></legend>
     <ImagePicker baseName={meal.id} existing={meal.evidence} label={meal.code}/>
-    <input name={`note-${meal.id}`} maxLength={500} defaultValue={meal.evidence?.note ?? ""} placeholder={t.mealPhotoNotePlaceholder}/>
+    <input name={`note-${meal.id}`} maxLength={500} defaultValue={meal.evidence?.demoBot ? "" : meal.evidence?.note ?? ""} placeholder={t.mealPhotoNotePlaceholder}/>
   </fieldset>;
 }
 
