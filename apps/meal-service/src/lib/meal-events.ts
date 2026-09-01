@@ -120,6 +120,20 @@ export type LifecycleMeal = { cutoffTime: string; serviceTime: string; mealDate:
 
 export type ReportingMeal = { cutoffTime: string; serviceTime: string; mealDate: Date };
 
+export function pickActiveReportingMeal<T extends ReportingMeal>(meals: T[], now = new Date(), completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES): T | null {
+  const todayKey = hospitalDayKey(now);
+  for (const meal of meals) {
+    if (toDateKey(meal.mealDate) !== todayKey) continue;
+    const milestones = mealTimeMilestones(meal.mealDate, meal.cutoffTime, meal.serviceTime, completionMinutes);
+    if (milestones === null) continue;
+    const cutoffAt = milestones.cutoffAt.getTime();
+    const completionAt = milestones.completionAt.getTime();
+    if (now.getTime() < cutoffAt) return meal;
+    if (now.getTime() < completionAt) return meal;
+  }
+  return null;
+}
+
 /** Trong giờ phục vụ, điều dưỡng giữ bữa hiện tại ở trạng thái khóa. Hết thời lượng phục vụ mới chuyển sang bữa còn nhận báo tiếp theo. */
 export function pickReportingMeal<T extends ReportingMeal>(meals: T[], now = new Date(), completionMinutes = DEFAULT_SERVICE_COMPLETION_MINUTES): T | null {
   if (meals.length === 0) return null;

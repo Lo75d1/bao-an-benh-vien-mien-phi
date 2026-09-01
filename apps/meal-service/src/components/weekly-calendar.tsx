@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { MealDetailDialog } from "@/components/meal-detail-dialog";
 import { EmptyState } from "@/components/presentation";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { addDays, displayMealState, nextMealTimelineEvent, rollupMealEventStatus, startOfIsoWeek, toDateKey, type CalendarEvent, type DisplayMealState } from "@/lib/meal-events";
+import { addDays, displayMealState, nextMealTimelineEvent, pickActiveReportingMeal, rollupMealEventStatus, startOfIsoWeek, toDateKey, type CalendarEvent, type DisplayMealState } from "@/lib/meal-events";
 import type { ManagementDay } from "@/lib/management";
 import { formatVnDay } from "@/lib/presentation";
 import { hasMealBusinessData } from "@/lib/meal-state";
@@ -86,6 +86,21 @@ export function WeeklyCalendar({ events, details, weekStart, dataStartDate, role
     date: addDays(weekStart, index),
   }));
   const mealTypes = [...new Map(events.map((event) => [event.mealType.id, event.mealType])).values()];
+  const activeReportingMealByDay = new Map(
+    days.map((day) => {
+      const activeMealId = pickActiveReportingMeal(
+        mealTypes.map((mealType) => ({
+          id: mealType.id,
+          mealDate: day.date,
+          cutoffTime: mealType.cutoffTime,
+          serviceTime: mealType.serviceTime,
+        })),
+        now,
+        serviceCompletionMinutes,
+      )?.id ?? null;
+      return [toDateKey(day.date), activeMealId] as const;
+    }),
+  );
   const byCell = new Map(events.map((event) => [`${toDateKey(event.mealDate)}:${event.mealTypeId}`, event]));
   const routeValue = route ?? "NORMAL";
   const routeParam = `&route=${routeValue}`;
@@ -207,9 +222,15 @@ export function WeeklyCalendar({ events, details, weekStart, dataStartDate, role
                       })
                         ? candidate
                         : null;
+                    const activeReportingMealId = activeReportingMealByDay.get(dayKey) ?? null;
                     const state = detail ? timeState : null;
+                    const displayState: DisplayMealState | null = state?.key === "REPORTING" && dayKey === todayKey && activeReportingMealId !== mealType.id
+                      ? { key: "UPCOMING", label: language === "en" ? "Not yet" : "Chưa tới", tone: "muted", isCurrent: false }
+                      : state;
                     const status = detail
-                      ? simpleState(state, language)
+                      ? displayState
+                        ? simpleState(displayState, language)
+                        : { label: t.noData, tone: "empty", Icon: CalendarDays }
                       : {
                           label: t.noData,
                           tone: "empty",
@@ -235,7 +256,7 @@ export function WeeklyCalendar({ events, details, weekStart, dataStartDate, role
                         </span>
                         {detail ? (
                           <div className="calendar-cell-facts">
-                            {state?.key === "REPORTING" ? (
+                            {displayState?.key === "REPORTING" ? (
                               <span className="reporting-open">
                                 {language === "en" ? "Department reported" : "Khoa báo"}{" "}
                                 <b>
@@ -260,8 +281,8 @@ export function WeeklyCalendar({ events, details, weekStart, dataStartDate, role
                       </div>
                     );
                     return (
-                      <td key={dayKey} className={`${dayKey === todayKey ? "calendar-today" : dayKey < todayKey ? "calendar-past" : "calendar-future"} ${state?.isCurrent ? "calendar-current-meal" : ""} ${state?.tone === "danger" ? "calendar-incomplete" : ""}`}>
-                        {detail && state ? (
+                      <td key={dayKey} className={`${dayKey === todayKey ? "calendar-today" : dayKey < todayKey ? "calendar-past" : "calendar-future"} ${displayState?.isCurrent ? "calendar-current-meal" : ""} ${displayState?.tone === "danger" ? "calendar-incomplete" : ""}`}>
+                        {detail && displayState ? (
                           <MealDetailDialog
                             meal={detail}
                             date={formatVnDay(day.date)}
