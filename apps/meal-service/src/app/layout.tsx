@@ -9,12 +9,10 @@ import { blendHex, readBrandingSettings, readableForeground } from "@/lib/brandi
 import { readRequestClock } from "@/lib/request-clock";
 import { DemoClockProvider } from "@/components/demo-clock-context";
 import { readLocale } from "@/lib/locale-server";
-import { getTranslations } from "@/lib/locale";
+import { buildSocialMetadata } from "@/lib/social-metadata";
 
 export async function generateMetadata() {
-  const [branding, locale] = await Promise.all([readBrandingSettings(), readLocale()]);
-  const t = getTranslations(locale).public;
-  return { title: branding.organizationName, description: t.metadataDescription.replace("{organization}", branding.organizationName) };
+  return buildSocialMetadata();
 }
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const [branding, clock, locale] = await Promise.all([readBrandingSettings(), readRequestClock(), readLocale()]);
