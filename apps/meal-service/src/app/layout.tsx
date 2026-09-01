@@ -6,10 +6,10 @@ import "./globals.css";
 import type { CSSProperties } from "react";
 import { BrandingProvider } from "@/components/branding-context";
 import { blendHex, readBrandingSettings, readableForeground } from "@/lib/branding";
+import { buildSocialMetadata } from "@/lib/social-metadata";
 
 export async function generateMetadata() {
-  const branding = await readBrandingSettings();
-  return { title: branding.organizationName, description: `Nền tảng quản lý suất ăn · ${branding.organizationName}` };
+  return buildSocialMetadata();
 }
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
