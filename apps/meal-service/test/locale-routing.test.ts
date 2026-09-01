@@ -11,6 +11,18 @@ test("VI selected renders Vietnamese management page resources", () => {
   assert.equal(t.warehousePage.title, "Hóa đơn đã lưu");
 });
 
+test("VI selected renders Vietnamese demo workspace labels", () => {
+  const t = getTranslations("vi").management;
+  assert.equal(t.thucDonPage.excelImportTriggerLabel, "Nhập Excel");
+  assert.equal(t.multiCodeMenuBoard.workflowEntryStep, "1 \u2014 Sửa thực đơn");
+  assert.equal(t.multiCodeMenuBoard.copyMenuTrigger, "Sao chép từ ngày khác");
+  assert.equal(t.multiCodeMenuBoard.addDish, "Thêm món");
+  assert.equal(t.kitchenBoard.mainTitle, "Suất ăn & tiến độ");
+  assert.equal(t.kitchenDialogs.additionsTrigger, "Suất bổ sung");
+  assert.equal(t.brandingForm.systemColorTitle, "Màu hệ thống");
+  assert.equal(t.brandingForm.publicHomeTitle, "Trang công khai");
+});
+
 test("EN selected renders English management page resources", () => {
   const t = getTranslations("en").management;
   assert.equal(t.reportsPage.title, "Preview before exporting exact data");
