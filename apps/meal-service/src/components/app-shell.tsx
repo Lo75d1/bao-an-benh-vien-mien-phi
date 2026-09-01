@@ -22,7 +22,7 @@ import { DemoGuide } from "@/components/demo-guide";
 import { useDemoClock } from "@/components/demo-clock-context";
 import { DemoWorkspaceSwitcher } from "@/components/demo-workspace-switcher";
 import { StaffLanguageSwitcher } from "@/components/language-switcher";
-import { getTranslations, readClientLocale } from "@/lib/locale";
+import { getTranslations, type Locale } from "@/lib/locale";
 
 type NavItem = { href: string; labelKey: keyof ReturnType<typeof getTranslations>["nav"] };
 const NAVIGATION: Record<SessionUser["role"], NavItem[]> = {
@@ -55,7 +55,7 @@ const NAVIGATION: Record<SessionUser["role"], NavItem[]> = {
   ],
 };
 
-function AccountMenu({ user, locale }: { user: SessionUser; locale: ReturnType<typeof readClientLocale> }) {
+function AccountMenu({ user, locale }: { user: SessionUser; locale: Locale }) {
   const [leaving, setLeaving] = useState(false);
   const t = getTranslations(locale);
 
@@ -128,18 +128,19 @@ export function AppShell({
   workflowStatus,
   adminNotifications = [],
   demoClock,
+  locale,
 }: {
   user: SessionUser;
   children: ReactNode;
   workflowStatus?: ReactNode;
   adminNotifications?: Array<{ id: string; label: string; detail: string }>;
   demoClock?: { nowIso: string; simulated: boolean };
+  locale: Locale;
 }) {
   const pathname = usePathname();
   const branding = useBranding();
   const inheritedDemoClock = useDemoClock();
   const activeDemoClock = demoClock ?? inheritedDemoClock ?? undefined;
-  const [locale] = useState(() => readClientLocale());
   const t = getTranslations(locale);
   const operationsHome = activeDemoClock
     ? "/demo"

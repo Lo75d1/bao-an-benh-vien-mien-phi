@@ -27,7 +27,7 @@ export default async function PatientFeedbackManagementPage() {
   const t = getTranslations(locale).management.patientFeedback;
   const notes = await readPatientNoteManagement();
 
-  return <AppShell user={user}><main className="workspace feedback-management-page"><Separator className="page-separator" aria-hidden="true"/>
+  return <AppShell user={user} locale={locale}><main className="workspace feedback-management-page"><Separator className="page-separator" aria-hidden="true"/>
     <PageHeader eyebrow={t.eyebrow} title={t.title} description={t.description} actions={<p className="scope-note">{t.adminOnly}</p>}/>
     <section className="feedback-management-list" aria-label={t.title}>
       {notes.length ? notes.map((note) => {

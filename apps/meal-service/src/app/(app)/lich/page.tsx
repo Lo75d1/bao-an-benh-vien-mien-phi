@@ -32,7 +32,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     Promise.all(Array.from({ length: 7 }, (_, index) => readManagementDay(toDateKey(addDays(weekStart, index)), clock.now, user.role === "NURSE" ? departmentIds : undefined, route, settings.serviceCompletionMinutes))),
   ]);
   return (
-    <AppShell user={user} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined}>
+    <AppShell user={user} locale={locale} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined}>
       <main className="workspace calendar-page">
         <WeeklyCalendar events={events} details={details} weekStart={weekStart} dataStartDate={settings.dataStartDate} role={user.role} route={route} sondeEnabled={settings.sondeEnabled} serviceCompletionMinutes={settings.serviceCompletionMinutes} initialNowIso={clock.now.toISOString()} liveClock={!clock.simulated} />
         {user.role === "NURSE" && !memberships.length ? <p className="calendar-scope-warning">{t.calendarScopeWarning}</p> : null}

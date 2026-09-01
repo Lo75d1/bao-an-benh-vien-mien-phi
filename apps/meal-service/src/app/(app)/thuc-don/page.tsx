@@ -58,7 +58,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   const nutrientsByFood = new Map(foods.map((food) => [food.id, { energyKcal: food.energyKcal === null ? null : Number(food.energyKcal), proteinG: food.proteinG === null ? null : Number(food.proteinG), lipidG: food.lipidG === null ? null : Number(food.lipidG), glucidG: food.glucidG === null ? null : Number(food.glucidG), sodiumMg: food.sodiumMg === null ? null : Number(food.sodiumMg), potassiumMg: food.potassiumMg === null ? null : Number(food.potassiumMg), waterG: food.waterG === null ? null : Number(food.waterG) } ]));
   const fallbackNutrients = { energyKcal: null, proteinG: null, lipidG: null, glucidG: null, sodiumMg: null, potassiumMg: null, waterG: null };
   const message = params.saved === "menus" || params.saved === "menu" ? t.savedMenus : params.saved === "template" ? t.savedTemplate : null;
-  return <AppShell user={user} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined}><main className="nutrition-menu-page">
+  return <AppShell user={user} locale={locale} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined}><main className="nutrition-menu-page">
     {message ? <p className="success-banner" role="status">{message}</p> : null}
     <section className="nutrition-meal-context" aria-label={t.currentMealPrefix}>
       <div><CalendarDays aria-hidden="true"/><span><small>{t.currentMealPrefix} · {selected.feedingRoute === "SONDE" ? t.routeSonde : t.routeOral}</small><strong>{formatVnDay(selected.mealEvent.mealDate)} · {selected.mealEvent.mealType.name}</strong></span></div>

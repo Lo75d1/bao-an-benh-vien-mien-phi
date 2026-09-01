@@ -14,9 +14,10 @@ export default async function AuditPage() {
   const user = await getSessionUser();
   if (!user) redirect("/");
   if (user.role !== "ADMIN") redirect("/");
-  const t = getTranslations(await readLocale()).management.auditLog;
+  const locale = await readLocale();
+  const t = getTranslations(locale).management.auditLog;
   const logs = await readAuditLogs();
-  return <AppShell user={user}><main className="workspace audit-page admin-workspace"><Separator className="page-separator" aria-hidden="true"/>
+  return <AppShell user={user} locale={locale}><main className="workspace audit-page admin-workspace"><Separator className="page-separator" aria-hidden="true"/>
     <PageHeader eyebrow={t.eyebrow} title={t.title} description={t.description} actions={<p className="scope-note">{t.scopeNote}</p>}/>
     <section className="audit-panel" aria-labelledby="audit-heading"><div className="audit-head"><strong id="audit-heading">{t.heading}</strong><span>{t.headingHelp}</span></div>
       <AuditTable data={logs.map((log) => ({ id: log.id, createdAt: log.createdAt.toISOString(), actorName: log.actorName || "-", action: log.action || "-", entityType: log.entityType || "-", entityId: log.entityId || "-", reason: log.reason || "-", before: json(log.beforeJson), after: json(log.afterJson) }))} />

@@ -46,6 +46,7 @@ export default async function ManagementPage({ searchParams }: { searchParams: P
   return (
     <AppShell
       user={user}
+      locale={locale}
       adminNotifications={notifications}
       demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined}
     >

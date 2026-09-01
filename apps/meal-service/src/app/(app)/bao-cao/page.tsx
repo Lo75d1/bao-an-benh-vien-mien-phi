@@ -37,7 +37,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     ...(user.role !== "NURSE" ? [{ id: "report-nhap-xuat-va-dieu-chinh-kho", content: "warehouse", title: t.navigationWarehouseTitle, description: t.navigationWarehouseDescription }] : []),
   ];
   const scopeLabel = user.role === "NURSE" ? t.nurseScope : t.hospitalScope;
-  return <AppShell user={user}><main className="workspace report-page report-workbench"><Separator className="page-separator" aria-hidden="true"/>
+  return <AppShell user={user} locale={locale}><main className="workspace report-page report-workbench"><Separator className="page-separator" aria-hidden="true"/>
     <PageHeader eyebrow={t.eyebrow} title={t.title} description={t.description} actions={<p className="scope-note">{scopeLabel}</p>}/>
     <form id="report-scope-form" action="/bao-cao/xuat" method="get" target="_blank" className="report-scope-bar">
       <div><span>{t.scopeLabel}</span><strong>{scopeLabel}</strong></div>
