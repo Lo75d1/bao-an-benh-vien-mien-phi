@@ -103,6 +103,11 @@ function AccountMenu({ user, locale }: { user: SessionUser; locale: ReturnType<t
           </>
         ) : null}
         <DropdownMenuSeparator />
+        <div className="account-language-row">
+          <span>{t.account.language}</span>
+          <StaffLanguageSwitcher current={locale} />
+        </div>
+        <DropdownMenuSeparator />
         <DropdownMenuItem
           disabled={leaving}
           onSelect={logout}
@@ -193,7 +198,6 @@ export function AppShell({
               <ExternalLink aria-hidden="true" />
             </a>
           ) : null}
-          <StaffLanguageSwitcher current={locale} />
           {activeDemoClock ? <DemoClockControl {...activeDemoClock} /> : null}
           {workflowStatus ? (
             <div className="top-workflow-status">{workflowStatus}</div>
