@@ -14,6 +14,7 @@ import { submitPublicPatientNoteAction } from "@/app/patient-note-actions";
 import { getTranslations } from "@/lib/locale";
 import { readLocale } from "@/lib/locale-server";
 import { PublicLanguageSwitcher } from "@/components/language-switcher";
+import { hrefWithLocale } from "@/lib/locale-url";
 
 const DEMO_ACCOUNTS = process.env.DEMO_LOGIN_BUTTONS === "1"
   ? [
@@ -84,9 +85,8 @@ export default async function HomePage({
     if (query.diet) params.set("diet", query.diet);
     if (query.date) params.set("date", query.date);
     if (query.patient) params.set("patient", query.patient);
-    params.set("lang", nextLocale);
     const nextQuery = params.toString();
-    return nextQuery ? `/?${nextQuery}` : "/";
+    return hrefWithLocale(nextQuery ? `/?${nextQuery}` : "/", nextLocale);
   };
   const localeHrefs = { vi: hrefForLocale("vi"), en: hrefForLocale("en") };
   const roleGuides = (["patient", "nurse", "dietitian", "kitchen", "admin"] as const).map((role) => ({

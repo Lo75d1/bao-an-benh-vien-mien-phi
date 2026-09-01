@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import type { MouseEvent } from "react";
 import type { Locale } from "@/lib/locale";
 import { setLocaleCookie } from "@/lib/locale";
+import { hrefWithLocale } from "@/lib/locale-url";
 
 const OPTIONS: Array<{ value: Locale; label: string }> = [
   { value: "vi", label: "VI" },
@@ -12,12 +12,10 @@ const OPTIONS: Array<{ value: Locale; label: string }> = [
 ];
 
 export function StaffLanguageSwitcher({ current }: { current: Locale }) {
-  const router = useRouter();
-  const [, startTransition] = useTransition();
-
   function update(next: Locale) {
     setLocaleCookie(next);
-    startTransition(() => router.refresh());
+    const nextHref = hrefWithLocale(`${window.location.pathname}${window.location.search}${window.location.hash}`, next);
+    window.location.assign(nextHref);
   }
 
   return (
@@ -44,6 +42,12 @@ export function PublicLanguageSwitcher({
   current: Locale;
   hrefs: Record<Locale, string>;
 }) {
+  function update(event: MouseEvent<HTMLAnchorElement>, next: Locale) {
+    event.preventDefault();
+    setLocaleCookie(next);
+    window.location.assign(hrefs[next]);
+  }
+
   return (
     <nav className="language-segmented-control public-language-switcher" aria-label="Language">
       {OPTIONS.map((option) => (
@@ -52,7 +56,7 @@ export function PublicLanguageSwitcher({
           href={hrefs[option.value]}
           className="language-segment"
           aria-current={current === option.value ? "page" : undefined}
-          onClick={() => setLocaleCookie(option.value)}
+          onClick={(event) => update(event, option.value)}
         >
           {option.label}
         </Link>

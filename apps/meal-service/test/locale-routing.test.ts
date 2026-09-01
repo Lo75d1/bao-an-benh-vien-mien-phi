@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getTranslations } from "../src/lib/locale";
 import { localeCookieSyncValue, localeFromSearchParam } from "../src/lib/locale-routing";
+import { hrefWithLocale } from "../src/lib/locale-url";
 import { workspaceHrefWithDemoTime } from "../src/lib/demo-workspace-url";
 
 test("VI selected renders Vietnamese management page resources", () => {
@@ -43,4 +44,9 @@ test("demo role switch hrefs preserve demo time without resetting locale", () =>
   const demoNow = "2026-08-29T11:00:00.000Z";
   assert.equal(workspaceHrefWithDemoTime("/kho", demoNow), `/kho?demoNow=${encodeURIComponent(demoNow)}`);
   assert.equal(workspaceHrefWithDemoTime("/quan-tri", demoNow), `/quan-tri?demoNow=${encodeURIComponent(demoNow)}`);
+});
+
+test("locale switch href preserves current route query and hash", () => {
+  assert.equal(hrefWithLocale("/?patient=1&date=2026-09-02#public-menu-browser", "en"), "/?patient=1&date=2026-09-02&lang=en#public-menu-browser");
+  assert.equal(hrefWithLocale("/thuc-don?meal=breakfast&demoNow=2026-09-02T01%3A00%3A00.000Z", "vi"), "/thuc-don?meal=breakfast&demoNow=2026-09-02T01%3A00%3A00.000Z&lang=vi");
 });
