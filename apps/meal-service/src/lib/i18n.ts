@@ -179,3 +179,7 @@ const translations = {
 export function getTranslations(language: unknown) {
   return translations[normalizeLanguage(language)];
 }
+
+export function nutritionSourceTitle(sourceBadge: string, language: Language) {
+  return language === "en" ? `Data sources: ${sourceBadge.replaceAll(" + ", ", ")}` : `Nguồn dữ liệu: ${sourceBadge.replaceAll(" + ", ", ")}`;
+}

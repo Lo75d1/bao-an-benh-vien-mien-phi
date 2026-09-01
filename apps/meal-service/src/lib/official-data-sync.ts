@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { DataSyncSource, Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
+import { normalizeNutritionSource } from "./nutrition-source";
 
 const SOURCE_LABEL: Record<DataSyncSource, string> = {
   VDD_FOOD: "Viện Dinh dưỡng · thực phẩm",
@@ -20,6 +21,21 @@ const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u0
 const stableId = (prefix: string, code: string) => `${prefix}_${createHash("sha256").update(code).digest("hex").slice(0, 24)}`;
 const numberOrNull = (value: unknown) => { const parsed = typeof value === "number" ? value : Number(String(value ?? "").replace(",", ".")); return Number.isFinite(parsed) ? parsed : null; };
 const json = (value: unknown) => value as Prisma.InputJsonValue;
+
+export function importSourceFromSyncSource(source: DataSyncSource | string) {
+  const raw = String(source);
+  const label = raw.startsWith("VDD_") ? "VDD" : raw.startsWith("RNI_") ? "RNI" : raw;
+  return normalizeNutritionSource(label) ?? label;
+}
+
+export function sourceForImportUpdate(existingSource: string | null | undefined, importSource: string) {
+  const normalizedImportSource = normalizeNutritionSource(importSource) ?? importSource.trim();
+  const normalizedExistingSource = normalizeNutritionSource(existingSource);
+  if (!normalizedImportSource) return { source: existingSource ?? null, action: "missing-import-source" as const };
+  if (!normalizedExistingSource) return { source: normalizedImportSource, action: "assigned-missing-source" as const };
+  if (normalizedExistingSource.toUpperCase() === normalizedImportSource.toUpperCase()) return { source: normalizedExistingSource, action: "same-source" as const };
+  return { source: normalizedExistingSource, action: "preserved-conflicting-source" as const };
+}
 
 class HttpResponseError extends Error {
   constructor(public readonly status: number, public readonly retryAfterMs: number | null) {
@@ -129,20 +145,20 @@ export async function retrySyncJob(id: string, actor: { id: string; displayName:
 }
 
 async function upsertVddFood(item: Record<string, unknown>) {
-  const source = "VDD"; const code = text(item.code); const nameVi = text(item.name_vi); if (!code || !nameVi) return "skipped" as const;
+  const source = importSourceFromSyncSource("VDD_FOOD"); const code = text(item.code); const nameVi = text(item.name_vi); if (!code || !nameVi) return "skipped" as const;
   const nameEn = text(item.name_en); const nutrition = array(item.nutrition);
   const data = { name: nameEn ? `${nameVi} (${nameEn})` : nameVi, nameNormalized: normalize(nameVi), source, sourceCode: code, sourceNote: "Viện Dinh dưỡng Quốc gia", foodGroup: text(item.category) || null, energyKcal: numberOrNull(item.energy), proteinG: nutrient(nutrition, ["protein", "chất đạm", "đạm"], "value"), lipidG: nutrient(nutrition, ["lipid", "chất béo", "béo"], "value"), glucidG: nutrient(nutrition, ["glucid", "carbohydrate", "bột đường"], "value"), sodiumMg: nutrient(nutrition, ["natri", "sodium"], "value"), potassiumMg: nutrient(nutrition, ["kali", "potassium"], "value"), waterG: nutrient(nutrition, ["nước", "water"], "value"), rawJson: json(item) };
-  const existing = await prisma.food.findFirst({ where: { source, sourceCode: code }, select: { id: true } });
-  if (existing) { await prisma.food.update({ where: { id: existing.id }, data }); return "updated" as const; }
+  const existing = await prisma.food.findFirst({ where: { sourceCode: code, OR: [{ source }, { source: null }, { source: "" }] }, orderBy: { source: "desc" }, select: { id: true, source: true } });
+  if (existing) { await prisma.food.update({ where: { id: existing.id }, data: { ...data, source: sourceForImportUpdate(existing.source, source).source } }); return "updated" as const; }
   await prisma.food.create({ data: { id: stableId("vdd_food", code), ...data } }); return "created" as const;
 }
 
 async function upsertDish(source: "VDD" | "RNI", item: Record<string, unknown>) {
-  const code = text(item.code ?? item.id); const nameVi = text(item.name_vi ?? item.tenVi); if (!code || !nameVi) return { result: "skipped" as const, dishId: null };
-  const data = { name: nameVi, nameNormalized: normalize(nameVi), source, sourceCode: code, totalWeightG: numberOrNull(item.khoiLuongAuto), servingUnit: text((item.kickThuocKhauPhanMacDinh as Record<string, unknown> | undefined)?.tenDonVi) || null, isActive: item.isActive !== false, rawJson: json(item) };
-  const existing = await prisma.dish.findFirst({ where: { source, sourceCode: code }, select: { id: true } });
-  if (existing) { await prisma.dish.update({ where: { id: existing.id }, data }); return { result: "updated" as const, dishId: existing.id }; }
-  const dishId = stableId(source === "VDD" ? "vdd_dish" : "rni_dish", code); await prisma.dish.create({ data: { id: dishId, ...data } }); return { result: "created" as const, dishId };
+  const importSource = importSourceFromSyncSource(source); const code = text(item.code ?? item.id); const nameVi = text(item.name_vi ?? item.tenVi); if (!code || !nameVi) return { result: "skipped" as const, dishId: null };
+  const data = { name: nameVi, nameNormalized: normalize(nameVi), source: importSource, sourceCode: code, totalWeightG: numberOrNull(item.khoiLuongAuto), servingUnit: text((item.kickThuocKhauPhanMacDinh as Record<string, unknown> | undefined)?.tenDonVi) || null, isActive: item.isActive !== false, rawJson: json(item) };
+  const existing = await prisma.dish.findFirst({ where: { sourceCode: code, OR: [{ source: importSource }, { source: null }, { source: "" }] }, orderBy: { source: "desc" }, select: { id: true, source: true } });
+  if (existing) { await prisma.dish.update({ where: { id: existing.id }, data: { ...data, source: sourceForImportUpdate(existing.source, importSource).source } }); return { result: "updated" as const, dishId: existing.id }; }
+  const dishId = stableId(importSource === "VDD" ? "vdd_dish" : "rni_dish", code); await prisma.dish.create({ data: { id: dishId, ...data } }); return { result: "created" as const, dishId };
 }
 
 async function syncRniIngredients(dishId: string, sourceCode: string) {
