@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { RotateCcw, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import type { DemoWorkspace } from "@/lib/demo-session";
 import { workspaceHrefWithDemoTime } from "@/lib/demo-workspace-url";
+
+const PATIENT_DEMO_HREF = "/?patient=1";
 
 const ITEMS: Array<{ value: DemoWorkspace; label: string }> = [
   { value: "NURSE", label: "Điều dưỡng" },
@@ -44,6 +47,7 @@ export function DemoWorkspaceSwitcher({ active }: { active: DemoWorkspace }) {
   }
 
   return <div className="demo-workspace-switcher" aria-label="Chuyển khu vực Demo">
+    <Link href={workspaceHrefWithDemoTime(PATIENT_DEMO_HREF, searchParams.get("demoNow"))}>Bệnh nhân</Link>
     {ITEMS.map((item) => <button key={item.value} type="button" aria-current={item.value === active ? "page" : undefined} disabled={pending !== null} onClick={() => action("switch", item.value)}>{pending === item.value ? "…" : item.label}</button>)}
     <button type="button" title="Đặt lại dữ liệu phiên Demo" disabled={pending !== null} onClick={() => action("reset")}><RotateCcw/><span>Reset</span></button>
     <button type="button" title="Thoát Demo" disabled={pending !== null} onClick={exit}><X/><span>Thoát</span></button>
