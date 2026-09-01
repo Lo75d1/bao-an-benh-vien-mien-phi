@@ -11,6 +11,8 @@ import { readRequestClock } from "@/lib/request-clock";
 import { clampDateToDataStart, readOperationalSettings } from "@/lib/settings";
 import { synchronizeSystemTimeline } from "@/lib/system-timeline";
 import { readDemoSession } from "@/lib/demo-session";
+import { getTranslations } from "@/lib/locale";
+import { readLocale } from "@/lib/locale-server";
 import { ManagementBoard } from "./management-board";
 
 const shortDate = new Intl.DateTimeFormat("vi-VN", { timeZone: "UTC", weekday: "short", day: "2-digit", month: "2-digit" });
@@ -19,6 +21,8 @@ export default async function ManagementPage({ searchParams }: { searchParams: P
   const user = await getSessionUser();
   if (!user || !["ADMIN", "DIETITIAN"].includes(user.role)) redirect("/");
   const query = await searchParams;
+  const locale = await readLocale();
+  const t = getTranslations(locale).management;
   const [settings, clock] = await Promise.all([readOperationalSettings(), readRequestClock(query.demoNow)]);
   if (!clock.simulated) await synchronizeSystemTimeline(user, clock.now);
   const selected = clampDateToDataStart(query.date ?? hospitalDayKey(clock.now), settings.dataStartDate);
@@ -38,27 +42,48 @@ export default async function ManagementPage({ searchParams }: { searchParams: P
   ]) : [[], [], []];
   const demo = await readDemoSession();
   const demoVoiceEvents = demo ? [
-    ...demo.state.additions.filter((item) => eventIds.includes(item.mealEventId) && item.ackStatus === "PENDING").map((item) => ({ key: `${item.feedingRoute}:demo:addition:${item.id}`, message: "Có báo bổ sung suất ăn mới. Vui lòng kiểm tra." })),
-    ...demo.state.reports.filter((item) => eventIds.includes(item.mealEventId)).map((item) => ({ key: `demo:report:${item.mealEventId}:${item.departmentId}`, message: "Có khoa vừa gửi báo suất ăn. Vui lòng kiểm tra." })),
-    ...demo.state.handoffs.filter((item) => eventIds.includes(item.mealEventId)).map((item) => ({ key: `demo:handoff:${item.mealEventId}:${item.departmentId}`, message: "Bếp vừa bàn giao suất ăn cho khoa. Vui lòng kiểm tra." })),
+    ...demo.state.additions.filter((item) => eventIds.includes(item.mealEventId) && item.ackStatus === "PENDING").map((item) => ({ key: `${item.feedingRoute}:demo:addition:${item.id}`, message: t.voiceAddition })),
+    ...demo.state.reports.filter((item) => eventIds.includes(item.mealEventId)).map((item) => ({ key: `demo:report:${item.mealEventId}:${item.departmentId}`, message: t.voiceReport })),
+    ...demo.state.handoffs.filter((item) => eventIds.includes(item.mealEventId)).map((item) => ({ key: `demo:handoff:${item.mealEventId}:${item.departmentId}`, message: t.voiceHandoff })),
   ] : [];
   const voiceEvents = [
-    ...pendingVoiceEvents.map((item) => ({ key: `${item.mealEvent.mealType.feedingRoute}:addition:${item.id}`, message: "Có báo bổ sung suất ăn mới. Vui lòng kiểm tra." })),
-    ...reportVoiceEvents.map((item) => ({ key: `${item.mealEvent.mealType.feedingRoute}:report:${item.id}`, message: "Có khoa vừa gửi báo suất ăn. Vui lòng kiểm tra." })),
-    ...handoffVoiceEvents.map((item) => ({ key: `${item.mealEvent.mealType.feedingRoute}:handoff:${item.id}`, message: "Bếp vừa bàn giao suất ăn cho khoa. Vui lòng kiểm tra." })),
+    ...pendingVoiceEvents.map((item) => ({ key: `${item.mealEvent.mealType.feedingRoute}:addition:${item.id}`, message: t.voiceAddition })),
+    ...reportVoiceEvents.map((item) => ({ key: `${item.mealEvent.mealType.feedingRoute}:report:${item.id}`, message: t.voiceReport })),
+    ...handoffVoiceEvents.map((item) => ({ key: `${item.mealEvent.mealType.feedingRoute}:handoff:${item.id}`, message: t.voiceHandoff })),
     ...demoVoiceEvents,
   ];
   const notifications = dayData?.meals.flatMap((meal) => {
     const items = [];
     const missing = meal.totalDepartmentCount - meal.reportedDepartmentCount;
-    if (missing > 0) items.push({ id: `${meal.id}-reports`, label: `${meal.name}: ${missing} khoa chưa chốt`, detail: `Giờ chốt ${meal.cutoffTime}` });
-    if (meal.unapprovedDiets > 0) items.push({ id: `${meal.id}-menus`, label: `${meal.name}: thiếu ${meal.unapprovedDiets} thực đơn`, detail: "Cần bổ sung thực đơn trước giờ khóa" });
+    if (missing > 0) items.push({ id: `${meal.id}-reports`, label: t.notificationReports.replace("{name}", meal.name).replace("{count}", String(missing)), detail: t.notificationReportsDetail.replace("{cutoff}", meal.cutoffTime) });
+    if (meal.unapprovedDiets > 0) items.push({ id: `${meal.id}-menus`, label: t.notificationMenus.replace("{name}", meal.name).replace("{count}", String(meal.unapprovedDiets)), detail: t.notificationMenusDetail });
     const pending = meal.additions.filter((item) => item.ackStatus === "PENDING").length;
-    if (pending > 0) items.push({ id: `${meal.id}-additions`, label: `${meal.name}: ${pending} phát sinh chờ bếp`, detail: "Cần bếp xác nhận khả năng chuẩn bị" });
+    if (pending > 0) items.push({ id: `${meal.id}-additions`, label: t.notificationAdditions.replace("{name}", meal.name).replace("{count}", String(pending)), detail: t.notificationAdditionsDetail });
     const phase = mealTimePhase(center, meal.cutoffTime, meal.serviceTime, new Date(dayData.generatedAt), dayData.serviceCompletionMinutes);
     const missingReceipts = meal.reportedDepartmentCount - meal.deliveryReceiptCount;
-    if ((phase === "SERVING" || phase === "PASSED") && missingReceipts > 0) items.push({ id: `${meal.id}-receipts`, label: `${meal.name}: ${missingReceipts} khoa chưa xác nhận nhận suất`, detail: "Theo dõi đủ/thiếu trong giai đoạn phục vụ" });
+    if ((phase === "SERVING" || phase === "PASSED") && missingReceipts > 0) items.push({ id: `${meal.id}-receipts`, label: t.notificationReceipts.replace("{name}", meal.name).replace("{count}", String(missingReceipts)), detail: t.notificationReceiptsDetail });
     return items;
   }) ?? [];
-  return <AppShell user={user} adminNotifications={notifications} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined} workflowStatus={<VoiceNotificationControl workspace="admin" scope={selected} events={voiceEvents}/> }><main className="management-page">{dayData ? <ManagementBoard data={dayData} dates={dates} initialMealTime={mealOverrideForClock(query.meal, clock.simulated)} role={user.role} liveClock={!clock.simulated}/> : <ErrorState title="Chưa tải được vận hành hôm nay" description="Không có dữ liệu nào được thay đổi."/>}</main></AppShell>;
+  return (
+    <AppShell
+      user={user}
+      adminNotifications={notifications}
+      demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined}
+      workflowStatus={<VoiceNotificationControl workspace="admin" scope={selected} events={voiceEvents} />}
+    >
+      <main className="management-page">
+        {dayData ? (
+          <ManagementBoard
+            data={dayData}
+            dates={dates}
+            initialMealTime={mealOverrideForClock(query.meal, clock.simulated)}
+            role={user.role}
+            liveClock={!clock.simulated}
+          />
+        ) : (
+          <ErrorState title={t.noDayTitle} description={t.noDayDescription} />
+        )}
+      </main>
+    </AppShell>
+  );
 }

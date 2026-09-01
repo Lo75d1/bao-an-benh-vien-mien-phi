@@ -18,24 +18,29 @@ import { readActionClock } from "@/lib/request-clock";
 import { actionFailure, actionSuccess, type ActionResult } from "@/lib/action-result";
 import { readDemoSession } from "@/lib/demo-session";
 import { handoffMealEvent } from "@/lib/meal-handoff";
+import { getTranslations } from "@/lib/locale";
+import { readLocale } from "@/lib/locale-server";
 
-async function requireKitchen() {
+async function getActionTexts() {
+  return getTranslations(await readLocale()).management.kitchenAction;
+}
+
+async function requireKitchen(t: Awaited<ReturnType<typeof getActionTexts>>) {
   const user = await getSessionUser();
   if (!user || user.role !== "KITCHEN" || !user.kitchenRoute)
-    throw new Error(
-      "Tài khoản bếp chưa được gán phạm vi Ăn thường hoặc Sonde.",
-    );
+    throw new Error(t.kitchenRouteRequired);
   return user;
 }
 async function requirePreparationOpen(
   input: { eventId?: string; dietMealId?: string; additionId?: string },
   kitchenRoute: "NORMAL" | "SONDE",
+  t: Awaited<ReturnType<typeof getActionTexts>>,
 ) {
   const demoAddition = input.additionId
     ? (await readDemoSession())?.state.additions.find((item) => item.id === input.additionId)
     : null;
   if (demoAddition && demoAddition.feedingRoute !== kitchenRoute)
-    throw new Error("Suất bổ sung không thuộc phạm vi bếp đang thao tác.");
+    throw new Error(t.additionWrongRoute);
   const event = await prisma.mealEvent.findFirst({
     where: {
       ...(demoAddition ? { id: demoAddition.mealEventId } : {}),
@@ -72,7 +77,7 @@ async function requirePreparationOpen(
       mealType: { select: { id: true, cutoffTime: true, serviceTime: true } },
     },
   });
-  if (!event) throw new Error("Không tìm thấy bữa ăn đang xử lý.");
+  if (!event) throw new Error(t.mealNotFound);
   const settings = await readOperationalSettings();
   const clock = await readActionClock();
   if (
@@ -84,15 +89,14 @@ async function requirePreparationOpen(
       settings.serviceCompletionMinutes,
     )
   )
-    throw new Error(
-      `Bếp chỉ được thao tác từ giờ chuẩn bị ${event.mealType.cutoffTime}.`,
-    );
+    throw new Error(t.preparationNotOpen.replace("{cutoff}", event.mealType.cutoffTime));
 }
 export async function transitionMealAction(formData: FormData) {
-  const user = await requireKitchen();
-  if (user.demoSessionId) throw new Error("Dùng checklist xác nhận sẵn sàng trong Demo Session.");
+  const t = await getActionTexts();
+  const user = await requireKitchen(t);
+  if (user.demoSessionId) throw new Error(t.demoUseCompletionFlow);
   const dietMealId = String(formData.get("dietMealId") ?? "");
-  await requirePreparationOpen({ dietMealId }, user.kitchenRoute!);
+  await requirePreparationOpen({ dietMealId }, user.kitchenRoute!, t);
   await transitionDietMeal(
     dietMealId,
     String(formData.get("target") ?? "") as DietMealStatus,
@@ -108,16 +112,17 @@ const EVIDENCE_KINDS = new Set<EvidenceKind>([
   "INVOICE",
 ]);
 export async function uploadEvidenceAction(formData: FormData) {
-  const user = await requireKitchen();
-  if (user.demoSessionId) throw new Error("Dùng luồng ảnh món trong checklist Demo.");
+  const t = await getActionTexts();
+  const user = await requireKitchen(t);
+  if (user.demoSessionId) throw new Error(t.demoUsePhotoChecklist);
   const kind = String(formData.get("kind") ?? "") as EvidenceKind;
   const file = formData.get("file");
   const dietMealId = String(formData.get("dietMealId") ?? "");
-  await requirePreparationOpen({ dietMealId }, user.kitchenRoute!);
+  await requirePreparationOpen({ dietMealId }, user.kitchenRoute!, t);
   if (!EVIDENCE_KINDS.has(kind) || !(file instanceof File) || file.size === 0)
-    throw new Error("Cần chọn loại và tệp ảnh hợp lệ.");
+    throw new Error(t.invalidEvidenceFile);
   if (!file.type.startsWith("image/") || file.size > 10 * 1024 * 1024)
-    throw new Error("Chỉ nhận ảnh tối đa 10 MB.");
+    throw new Error(t.imageTooLarge);
   const note =
     String(formData.get("note") ?? "")
       .trim()
@@ -132,9 +137,10 @@ export async function uploadEvidenceAction(formData: FormData) {
   );
 }
 export async function acknowledgeAdditionAction(formData: FormData) {
-  const user = await requireKitchen();
+  const t = await getActionTexts();
+  const user = await requireKitchen(t);
   const additionId = String(formData.get("additionId") ?? "");
-  await requirePreparationOpen({ additionId }, user.kitchenRoute!);
+  await requirePreparationOpen({ additionId }, user.kitchenRoute!, t);
   await acknowledgeLateMealAddition(
     {
       additionId,
@@ -151,10 +157,11 @@ export async function acknowledgeAdditionAction(formData: FormData) {
 }
 
 async function completeKitchenEventSubmission(formData: FormData) {
-  const user = await requireKitchen();
+  const t = await getActionTexts();
+  const user = await requireKitchen(t);
   const eventId = String(formData.get("eventId") ?? "");
   const mealIds = formData.getAll("dietMealId").map(String);
-  await requirePreparationOpen({ eventId }, user.kitchenRoute!);
+  await requirePreparationOpen({ eventId }, user.kitchenRoute!, t);
   const files = mealIds.map((dietMealId) => ({
     dietMealId,
     file: [formData.get(`library-${dietMealId}`), formData.get(`camera-${dietMealId}`)].find((value) => value instanceof File && value.size > 0),
@@ -180,56 +187,61 @@ async function completeKitchenEventSubmission(formData: FormData) {
 
 export async function saveFoodRetentionAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
   if (!await getSessionUser()) redirect("/");
+  const t = await getActionTexts();
   try {
-    const user = await requireKitchen();
+    const user = await requireKitchen(t);
     const eventId = String(formData.get("eventId") ?? "");
-    await requirePreparationOpen({ eventId }, user.kitchenRoute!);
+    await requirePreparationOpen({ eventId }, user.kitchenRoute!, t);
     const file = [formData.get("library-retention"), formData.get("camera-retention")].find((value) => value instanceof File && value.size > 0);
-    if (!(file instanceof File)) throw new Error("Cần chụp hoặc chọn ảnh mẫu lưu 24 giờ.");
+    if (!(file instanceof File)) throw new Error(t.retentionImageRequired);
     const result = await saveFoodRetentionEvidence({ eventId, feedingRoute: user.kitchenRoute!, file, note: String(formData.get("retentionNote") ?? "").trim().slice(0, 500) || null }, user);
     revalidatePath("/bep"); revalidatePath("/lich"); revalidatePath("/quan-ly");
-    return result.stored ? actionSuccess("Đã ghi nhận mẫu lưu 24 giờ cho toàn bữa.") : actionFailure(new Error("Không thể lưu ảnh vào bộ nhớ."));
+    return result.stored ? actionSuccess(t.retentionSaved) : actionFailure(new Error(t.storageFailed));
   } catch (error) { return actionFailure(error); }
 }
 
 export async function completeKitchenEventAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
   if (!await getSessionUser()) redirect("/");
+  const t = await getActionTexts();
   try {
     const stored = await completeKitchenEventSubmission(formData);
-    return stored ? actionSuccess("Đã lưu bằng chứng và xác nhận toàn bộ bữa đã chuẩn bị xong.") : actionFailure(new Error("Không thể lưu ảnh vào bộ nhớ. Dữ liệu chưa được xác nhận."));
+    return stored ? actionSuccess(t.completionSaved) : actionFailure(new Error(t.completionStorageFailed));
   } catch (error) { return actionFailure(error); }
 }
 
 export async function handoffMealEventAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
   if (!await getSessionUser()) redirect("/");
+  const t = await getActionTexts();
   try {
-    const user = await requireKitchen();
+    const user = await requireKitchen(t);
     const handoffs = await handoffMealEvent({ mealEventId: String(formData.get("eventId") ?? ""), feedingRoute: user.kitchenRoute! }, user);
     revalidatePath("/bep"); revalidatePath("/bao-suat"); revalidatePath("/quan-ly"); revalidatePath("/lich");
-    return actionSuccess(`Đã bàn giao suất ăn cho ${handoffs.length} khoa.`);
+    return actionSuccess(t.handoffSaved.replace("{count}", String(handoffs.length)));
   } catch (error) { return actionFailure(error); }
 }
 export async function reopenKitchenEventAction(formData: FormData) {
-  const user = await requireKitchen();
+  const t = await getActionTexts();
+  const user = await requireKitchen(t);
   const eventId = String(formData.get("eventId") ?? "");
-  await requirePreparationOpen({ eventId }, user.kitchenRoute!);
+  await requirePreparationOpen({ eventId }, user.kitchenRoute!, t);
   await reopenKitchenEvent(eventId, user.kitchenRoute!, user);
   revalidatePath("/bep");
   revalidatePath("/lich");
   redirect("/bep?updated=reopened");
 }
 export async function acknowledgeKitchenNoteAction(formData: FormData) {
-  const user = await requireKitchen();
-  if (user.demoSessionId) throw new Error("Demo Session không ghi xác nhận đọc vào dữ liệu nền.");
+  const t = await getActionTexts();
+  const user = await requireKitchen(t);
+  if (user.demoSessionId) throw new Error(t.demoNoteAckBlocked);
   const noteId = String(formData.get("noteId") ?? "");
   await requirePreparationOpen({
     eventId: String(formData.get("eventId") ?? ""),
-  }, user.kitchenRoute!);
+  }, user.kitchenRoute!, t);
   const note = await prisma.patientNote.findFirst({
     where: { id: noteId, status: "APPROVED" },
     select: { id: true },
   });
-  if (!note) throw new Error("Không tìm thấy ghi chú đã duyệt.");
+  if (!note) throw new Error(t.approvedNoteNotFound);
   await prisma.auditLog.create({
     data: {
       entityType: "PatientNote",

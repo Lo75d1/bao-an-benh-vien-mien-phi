@@ -29,35 +29,42 @@ import {
 } from "@/components/ui/dialog";
 import { ActionButton, ActionFeedback } from "@/components/action-feedback";
 import { INITIAL_ACTION_RESULT, type ActionResult } from "@/lib/action-result";
+import { getTranslations, readClientLocale } from "@/lib/locale";
 
-const lineSchema = z.object({
-  dietTypeId: z.string(),
-  name: z.string(),
-  code: z.string(),
-  route: z.string(),
-  quantity: z.string().regex(/^\d+$/, "Nhập số nguyên không âm."),
-  internalNote: z.string().max(500),
-  patientVisibleNote: z.string().max(500),
-  previousQuantity: z.number().nullable(),
-  menuItems: z.array(
-    z.object({
-      dishName: z.string(),
-      name: z.string(),
-      grams: z.number().nullable(),
-    }),
-  ),
-  criteria: z.array(
-    z.object({
-      label: z.string(),
-      status: z.string(),
-      actual: z.number().nullable(),
-      target: z.string(),
-    }),
-  ),
-});
-const schema = z.object({ lines: z.array(lineSchema) });
-type Fields = z.infer<typeof schema>;
+type Fields = z.infer<ReturnType<typeof buildSchema>>;
 const number = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
+
+function buildSchema(quantityInvalid: string) {
+  return z.object({
+    lines: z.array(
+      z.object({
+        dietTypeId: z.string(),
+        name: z.string(),
+        code: z.string(),
+        route: z.string(),
+        quantity: z.string().regex(/^\d+$/, quantityInvalid),
+        internalNote: z.string().max(500),
+        patientVisibleNote: z.string().max(500),
+        previousQuantity: z.number().nullable(),
+        menuItems: z.array(
+          z.object({
+            dishName: z.string(),
+            name: z.string(),
+            grams: z.number().nullable(),
+          }),
+        ),
+        criteria: z.array(
+          z.object({
+            label: z.string(),
+            status: z.string(),
+            actual: z.number().nullable(),
+            target: z.string(),
+          }),
+        ),
+      }),
+    ),
+  });
+}
 
 export function ServingForm({
   route,
@@ -86,6 +93,9 @@ export function ServingForm({
   deliveryReceiptTrigger?: ReactNode;
   action: (previous: ActionResult, data: FormData) => Promise<ActionResult>;
 }) {
+  const [locale] = useState(() => readClientLocale());
+  const t = getTranslations(locale).management.baoSuatForm;
+  const schema = useMemo(() => buildSchema(t.quantityInvalid), [t.quantityInvalid]);
   const [result, formAction, pending] = useActionState(
     action,
     INITIAL_ACTION_RESULT,
@@ -138,13 +148,11 @@ export function ServingForm({
       data.append("dietTypeId", line.dietTypeId);
       data.set(`quantity:${line.dietTypeId}`, line.quantity);
       data.set(`internalNote:${line.dietTypeId}`, line.internalNote);
-      data.set(
-        `patientVisibleNote:${line.dietTypeId}`,
-        line.patientVisibleNote,
-      );
+      data.set(`patientVisibleNote:${line.dietTypeId}`, line.patientVisibleNote);
     });
     startTransition(() => formAction(data));
   });
+
   return (
     <form
       id="nurse-serving-form"
@@ -155,27 +163,25 @@ export function ServingForm({
       <section className="nurse-serving-master">
         <header className="nurse-serving-head">
           <div>
-            <span>Khoa phụ trách</span>
+            <span>{t.wardLabel}</span>
             <strong>{departmentName}</strong>
           </div>
           <div className="nurse-head-actions">
             {notesTrigger}
-            <span>
-              {visible.length}/{lines.length} mã
-            </span>
-            <b>{number.format(total)} suất</b>
+            <span>{t.visibleCount.replace("{visible}", String(visible.length)).replace("{total}", String(lines.length))}</span>
+            <b>{t.totalServingCount.replace("{count}", number.format(total))}</b>
           </div>
         </header>
         <div className="nurse-serving-table-scroll">
           <table className="nurse-serving-table">
             <thead>
               <tr>
-                <th>Mã chế độ ăn</th>
-                <th>Bữa trước</th>
-                <th>Bữa hiện tại</th>
-                <th>Thay đổi</th>
+                <th>{t.dietCode}</th>
+                <th>{t.previousMeal}</th>
+                <th>{t.currentMeal}</th>
+                <th>{t.change}</th>
                 <th>
-                  <span className="sr-only">Chi tiết</span>
+                  <span className="sr-only">{t.details}</span>
                 </th>
               </tr>
             </thead>
@@ -200,7 +206,7 @@ export function ServingForm({
                     <td className="numeric">{previous ?? "—"}</td>
                     <td>
                       <label>
-                        <span className="sr-only">Số suất {line.name}</span>
+                        <span className="sr-only">{t.totalServingCount.replace("{count}", line.name)}</span>
                         <input
                           type="number"
                           min="0"
@@ -216,7 +222,8 @@ export function ServingForm({
                     <td>
                       {delta === null ? (
                         <span className="trend neutral">
-                          <ArrowRight />—
+                          <ArrowRight />
+                          —
                         </span>
                       ) : delta > 0 ? (
                         <span className="trend up">
@@ -229,7 +236,8 @@ export function ServingForm({
                         </span>
                       ) : (
                         <span className="trend neutral">
-                          <ArrowRight />0
+                          <ArrowRight />
+                          0
                         </span>
                       )}
                     </td>
@@ -237,7 +245,7 @@ export function ServingForm({
                       <button
                         type="button"
                         className="row-more"
-                        aria-label={`Xem chi tiết ${line.code}`}
+                        aria-label={t.openDetails.replace("{code}", line.code)}
                         onClick={() => setSelected(index)}
                       >
                         •••
@@ -249,7 +257,7 @@ export function ServingForm({
             </tbody>
             <tfoot>
               <tr>
-                <th scope="row">Tổng suất</th>
+                <th scope="row">{t.totalTitle}</th>
                 <td>
                   {lines.reduce(
                     (sum, line) => sum + (line.previousQuantity ?? 0),
@@ -257,7 +265,7 @@ export function ServingForm({
                   ) || "—"}
                 </td>
                 <td>{total || "—"}</td>
-                <td>{changed ? `${changed} mã đổi` : "Không đổi"}</td>
+                <td>{changed ? t.changedCount.replace("{count}", String(changed)) : t.noChange}</td>
                 <td />
               </tr>
             </tfoot>
@@ -272,7 +280,7 @@ export function ServingForm({
                 onClick={() => setShowAll((value) => !value)}
               >
                 <Plus aria-hidden="true" />
-                {showAll ? "Ẩn mã chưa dùng" : "Thêm mã chế độ ăn"}
+                {showAll ? t.hideUnusedCodes : t.addDietCode}
               </button>
               <Dialog>
                 <DialogTrigger asChild>
@@ -282,32 +290,27 @@ export function ServingForm({
                     disabled={pending}
                   >
                     <ClipboardCheck aria-hidden="true" />
-                    {submitted ? "Xác nhận cập nhật" : "Xác nhận báo suất"}
+                    {submitted ? t.updateReport : t.submitReport}
                   </button>
                 </DialogTrigger>
                 <DialogContent className="max-w-lg">
                   <DialogHeader>
                     <DialogTitle>
-                      {submitted
-                        ? "Xác nhận cập nhật báo suất"
-                        : "Xác nhận báo suất"}
+                      {submitted ? t.updateTitle : t.submitTitle}
                     </DialogTitle>
-                    <DialogDescription>
-                      Kiểm tra tổng số và nhập tên điều dưỡng trực tiếp báo để
-                      khoa đối chiếu.
-                    </DialogDescription>
+                    <DialogDescription>{t.submitDescription}</DialogDescription>
                   </DialogHeader>
                   <div className="nurse-confirm-summary">
-                    <span>Tổng bữa hiện tại</span>
-                    <strong>{number.format(total)} suất</strong>
+                    <span>{t.summaryTitle}</span>
+                    <strong>{number.format(total)} {t.servingCount}</strong>
                     <small>
                       {changed
-                        ? `${changed} mã thay đổi so với bữa trước`
-                        : "Giữ nguyên như bữa trước"}
+                        ? t.comparedToPrevious.replace("{count}", String(changed))
+                        : t.keepPrevious}
                     </small>
                   </div>
                   <label className="nurse-reporter-name">
-                    Tên người trực tiếp báo
+                    {t.reporterLabel}
                     <input
                       form="nurse-serving-form"
                       name="reportedByName"
@@ -316,7 +319,7 @@ export function ServingForm({
                       autoComplete="name"
                       required
                       defaultValue={submittedByName ?? ""}
-                      placeholder="Ví dụ: Nguyễn Thị Lan"
+                      placeholder={t.reporterPlaceholder}
                     />
                   </label>
                   <ActionButton
@@ -324,9 +327,9 @@ export function ServingForm({
                     type="submit"
                     className="primary-action"
                     pending={pending}
-                    pendingLabel="Đang gửi báo suất…"
+                    pendingLabel={t.sending}
                   >
-                    {submitted ? "Lưu cập nhật cho bếp" : "Lưu và gửi cho bếp"}
+                    {submitted ? t.updateToKitchen : t.sendToKitchen}
                   </ActionButton>
                   <ActionFeedback result={result} actionId="serving-report" />
                 </DialogContent>
@@ -336,14 +339,15 @@ export function ServingForm({
             <>
               <span className="nurse-submitted-state">
                 <Check aria-hidden="true" />
-                Đã xác nhận{submittedByName ? ` · ${submittedByName}` : ""}
+                {t.submittedState}
+                {submittedByName ? ` · ${submittedByName}` : ""}
               </span>
               <button
                 type="button"
                 className="primary-action"
                 onClick={() => setEditing(true)}
               >
-                Chỉnh sửa
+                {t.edit}
               </button>
             </>
           ) : null}
@@ -354,24 +358,24 @@ export function ServingForm({
         {active ? (
           <>
             <header>
-              <span>Chi tiết mã</span>
+              <span>{t.mealDetail}</span>
               <h2>
                 <span translate="no">{active.code}</span> · {active.name}
               </h2>
-              <strong>{active.quantity || "—"} suất</strong>
+              <strong>{active.quantity || "—"} {t.servingCount}</strong>
             </header>
             <section className="floating-block">
               <h3>
                 <Utensils aria-hidden="true" />
-                Thực đơn
+                {t.menuTitle}
               </h3>
               {active.menuItems.length ? (
                 <table>
                   <thead>
                     <tr>
-                      <th>Món</th>
-                      <th>Thực phẩm</th>
-                      <th>Định lượng</th>
+                      <th>{t.dish}</th>
+                      <th>{t.foodItem}</th>
+                      <th>{t.portion}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -389,21 +393,21 @@ export function ServingForm({
                   </tbody>
                 </table>
               ) : (
-                <p>— · Chưa có thực đơn được duyệt.</p>
+                <p>{t.noMenu}</p>
               )}
             </section>
             <section className="floating-block">
               <h3>
                 <Check aria-hidden="true" />
-                Đánh giá thực đơn
+                {t.criteriaTitle}
               </h3>
               {active.criteria.length ? (
                 <table>
                   <thead>
                     <tr>
-                      <th>Chỉ tiêu</th>
-                      <th>Kết quả</th>
-                      <th>Đối chiếu</th>
+                      <th>{t.criterion}</th>
+                      <th>{t.result}</th>
+                      <th>{t.compare}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -425,21 +429,21 @@ export function ServingForm({
                   </tbody>
                 </table>
               ) : (
-                <p>— · Chưa đủ dữ liệu đánh giá.</p>
+                <p>{t.noCriteria}</p>
               )}
             </section>
             <section className="floating-block nurse-code-notes">
-              <h3>Ghi chú bếp</h3>
+              <h3>{t.kitchenNotesTitle}</h3>
               <input
                 type="hidden"
                 {...register(`lines.${selected}.internalNote`)}
               />
               <label>
-                Ghi chú bếp
+                {t.kitchenNotesLabel}
                 <textarea
                   disabled={!editable}
                   {...register(`lines.${selected}.patientVisibleNote`)}
-                  placeholder="Ghi chú đã duyệt sẽ chuyển đến bếp…"
+                  placeholder={t.kitchenNotesPlaceholder}
                 />
               </label>
             </section>
@@ -447,8 +451,8 @@ export function ServingForm({
         ) : (
           <div className="nurse-detail-empty">
             <Utensils />
-            <h2>Chọn một mã chế độ ăn</h2>
-            <p>Chi tiết số suất, thực đơn và đánh giá sẽ hiện tại đây.</p>
+            <h2>{t.chooseDietCode}</h2>
+            <p>{t.detailHint}</p>
           </div>
         )}
       </aside>
@@ -457,23 +461,21 @@ export function ServingForm({
           <div>
             {deliveryReceiptTrigger ? (
               <>
-                <strong>Giao nhận suất ăn</strong>
-                <span>Bữa đang phục vụ · xác nhận ngay khi khoa nhận suất</span>
+                <strong>{t.handoffTitle}</strong>
+                <span>{t.handoffDescription}</span>
                 <div className="nurse-service-primary">
                   {deliveryReceiptTrigger}
                 </div>
                 <details className="nurse-late-exception">
-                  <summary>Phát sinh sau chốt</summary>
-                  <p>
-                    Chỉ dùng khi khoa cần bổ sung thêm suất ngoài bảng đã chốt.
-                  </p>
+                  <summary>{t.lateSummaryTitle}</summary>
+                  <p>{t.lateSummaryDescription}</p>
                   {lateAdditionTrigger}
                 </details>
               </>
             ) : (
               <>
-                <strong>Đã chốt báo ăn</strong>
-                <span>Cần báo bổ sung, nhấn vào đây</span>
+                <strong>{t.lateSummaryTitle}</strong>
+                <span>{t.lateSummaryDescription}</span>
                 <div className="nurse-locked-actions">
                   {lateAdditionTrigger}
                 </div>

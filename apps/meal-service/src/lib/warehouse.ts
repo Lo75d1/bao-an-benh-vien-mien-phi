@@ -7,9 +7,57 @@ import { readOperationalSettings } from "./settings";
 export type WarehouseMode = "A" | "B";
 export type WarehouseActor = { id: string; displayName: string; role: Role };
 export type TransactionLineInput = { id?: string; foodId?: string | null; itemName: string; quantity: number; unit: string; unitPrice?: number | null };
+export type WarehouseMessages = {
+  noDelete: string;
+  itemNameLength: string;
+  unitLength: string;
+  quantityPositive: string;
+  invalidUnitPrice: string;
+  warehouseNotFound: string;
+  linkedMealNotFound: string;
+  routeMismatch: string;
+  modeAGeneralOnly: string;
+  modeBKitchenOnly: string;
+  invalidTransactionType: string;
+  invalidOccurredAt: string;
+  atLeastOneFoodLine: string;
+  keepOneFoodLine: string;
+  editActiveOnly: string;
+  lineMismatch: string;
+  noSavedLineDelete: string;
+  adminOnlyCancel: string;
+  cancelReasonLength: string;
+  transactionNotFound: string;
+  activeTransactionNotFound: string;
+  invalidInvoiceDate: string;
+};
 
 const ALLOWED_ROLES = new Set<Role>(["ADMIN", "DIETITIAN", "KITCHEN"]);
 const TRANSACTION_TYPES = new Set<InventoryType>(["IN", "OUT", "ADJUST"]);
+const DEFAULT_MESSAGES: WarehouseMessages = {
+  noDelete: "Giao dịch kho không được xóa. Hãy hủy hoặc tạo điều chỉnh.",
+  itemNameLength: "Tên thực phẩm phải có từ 1 đến 200 ký tự.",
+  unitLength: "Đơn vị phải có từ 1 đến 30 ký tự.",
+  quantityPositive: "Số lượng của {item} phải lớn hơn 0.",
+  invalidUnitPrice: "Đơn giá của {item} không hợp lệ.",
+  warehouseNotFound: "Kho không tồn tại hoặc đã vô hiệu.",
+  linkedMealNotFound: "Bữa ăn liên kết không tồn tại.",
+  routeMismatch: "Kho không phù hợp với đường nuôi của bữa ăn.",
+  modeAGeneralOnly: "Mode A chỉ sử dụng kho tổng.",
+  modeBKitchenOnly: "Mode B phải chọn kho bếp hoặc kho sonde.",
+  invalidTransactionType: "Loại giao dịch kho không hợp lệ.",
+  invalidOccurredAt: "Thời điểm giao dịch không hợp lệ.",
+  atLeastOneFoodLine: "Cần ít nhất một dòng thực phẩm.",
+  keepOneFoodLine: "Cần giữ ít nhất một dòng thực phẩm.",
+  editActiveOnly: "Chỉ sửa được giao dịch đang hoạt động.",
+  lineMismatch: "Dòng giao dịch không thuộc chứng từ này.",
+  noSavedLineDelete: "Không được xóa dòng đã lưu. Hãy hủy hoặc tạo giao dịch điều chỉnh.",
+  adminOnlyCancel: "Chỉ quản trị viên được hủy giao dịch kho.",
+  cancelReasonLength: "Lý do hủy phải có từ 3 đến 500 ký tự.",
+  transactionNotFound: "Giao dịch không tồn tại hoặc đã hủy.",
+  activeTransactionNotFound: "Không tìm thấy giao dịch đang hoạt động.",
+  invalidInvoiceDate: "Ngày hóa đơn không hợp lệ.",
+};
 
 export function requireWarehouseRole(role: Role): void {
   if (!ALLOWED_ROLES.has(role)) throw new Error("Bạn không có quyền thao tác kho.");
@@ -32,16 +80,16 @@ export function inventoryVariance(expected: number | null | undefined, actual: n
 }
 
 export function assertNoHardDelete(operation: string): void {
-  if (operation.toUpperCase() === "DELETE") throw new Error("Giao dịch kho không được xóa. Hãy hủy hoặc tạo điều chỉnh.");
+  if (operation.toUpperCase() === "DELETE") throw new Error(DEFAULT_MESSAGES.noDelete);
 }
 
-function normalizeLine(line: TransactionLineInput): TransactionLineInput {
+function normalizeLine(line: TransactionLineInput, messages: WarehouseMessages): TransactionLineInput {
   const itemName = line.itemName.trim();
   const unit = line.unit.trim();
-  if (!itemName || itemName.length > 200) throw new Error("Tên thực phẩm phải có từ 1 đến 200 ký tự.");
-  if (!unit || unit.length > 30) throw new Error("Đơn vị phải có từ 1 đến 30 ký tự.");
-  if (!Number.isFinite(line.quantity) || line.quantity <= 0) throw new Error(`Số lượng của ${itemName} phải lớn hơn 0.`);
-  if (line.unitPrice != null && (!Number.isFinite(line.unitPrice) || line.unitPrice < 0)) throw new Error(`Đơn giá của ${itemName} không hợp lệ.`);
+  if (!itemName || itemName.length > 200) throw new Error(messages.itemNameLength);
+  if (!unit || unit.length > 30) throw new Error(messages.unitLength);
+  if (!Number.isFinite(line.quantity) || line.quantity <= 0) throw new Error(messages.quantityPositive.replace("{item}", itemName));
+  if (line.unitPrice != null && (!Number.isFinite(line.unitPrice) || line.unitPrice < 0)) throw new Error(messages.invalidUnitPrice.replace("{item}", itemName));
   return { ...line, itemName, unit, foodId: line.foodId || null, quantity: line.quantity, unitPrice: line.unitPrice ?? null };
 }
 
@@ -53,46 +101,46 @@ async function readMode(client: Prisma.TransactionClient | typeof prisma = prism
   return (await readOperationalSettings(client)).warehouseMode;
 }
 
-async function assertWarehouseRoute(client: Prisma.TransactionClient, warehouseId: string, relatedDietMealId: string | null) {
+async function assertWarehouseRoute(client: Prisma.TransactionClient, warehouseId: string, relatedDietMealId: string | null, messages: WarehouseMessages) {
   const [mode, warehouse, meal] = await Promise.all([
     readMode(client),
     client.warehouse.findFirst({ where: { id: warehouseId, status: "ACTIVE" }, select: { id: true, kind: true } }),
     relatedDietMealId ? client.dietMeal.findFirst({ where: { id: relatedDietMealId, voidedAt: null }, select: { id: true, feedingRoute: true } }) : null,
   ]);
-  if (!warehouse) throw new Error("Kho không tồn tại hoặc đã vô hiệu.");
+  if (!warehouse) throw new Error(messages.warehouseNotFound);
   const expectedKind = meal ? warehouseKindForRoute(mode, meal.feedingRoute) : null;
-  if (relatedDietMealId && !meal) throw new Error("Bữa ăn liên kết không tồn tại.");
-  if (expectedKind && warehouse.kind !== expectedKind) throw new Error("Kho không phù hợp với đường nuôi của bữa ăn.");
-  if (!meal && mode === "A" && warehouse.kind !== "GENERAL") throw new Error("Mode A chỉ sử dụng kho tổng.");
-  if (!meal && mode === "B" && warehouse.kind === "GENERAL") throw new Error("Mode B phải chọn kho bếp hoặc kho sonde.");
+  if (relatedDietMealId && !meal) throw new Error(messages.linkedMealNotFound);
+  if (expectedKind && warehouse.kind !== expectedKind) throw new Error(messages.routeMismatch);
+  if (!meal && mode === "A" && warehouse.kind !== "GENERAL") throw new Error(messages.modeAGeneralOnly);
+  if (!meal && mode === "B" && warehouse.kind === "GENERAL") throw new Error(messages.modeBKitchenOnly);
 }
 
-export async function createInventoryTransaction(input: { warehouseId: string; type: InventoryType; occurredAt: Date; relatedDietMealId?: string | null; note?: string | null; lines: TransactionLineInput[] }, actor: WarehouseActor) {
+export async function createInventoryTransaction(input: { warehouseId: string; type: InventoryType; occurredAt: Date; relatedDietMealId?: string | null; note?: string | null; lines: TransactionLineInput[] }, actor: WarehouseActor, messages: WarehouseMessages = DEFAULT_MESSAGES) {
   requireWarehouseRole(actor.role);
-  if (!TRANSACTION_TYPES.has(input.type)) throw new Error("Loại giao dịch kho không hợp lệ.");
-  if (!(input.occurredAt instanceof Date) || Number.isNaN(input.occurredAt.getTime())) throw new Error("Thời điểm giao dịch không hợp lệ.");
-  const lines = input.lines.map(normalizeLine);
-  if (lines.length === 0) throw new Error("Cần ít nhất một dòng thực phẩm.");
+  if (!TRANSACTION_TYPES.has(input.type)) throw new Error(messages.invalidTransactionType);
+  if (!(input.occurredAt instanceof Date) || Number.isNaN(input.occurredAt.getTime())) throw new Error(messages.invalidOccurredAt);
+  const lines = input.lines.map((line) => normalizeLine(line, messages));
+  if (lines.length === 0) throw new Error(messages.atLeastOneFoodLine);
   return prisma.$transaction(async (tx) => {
-    await assertWarehouseRoute(tx, input.warehouseId, input.relatedDietMealId ?? null);
+    await assertWarehouseRoute(tx, input.warehouseId, input.relatedDietMealId ?? null, messages);
     const transaction = await tx.inventoryTransaction.create({ data: { warehouseId: input.warehouseId, type: input.type, occurredAt: input.occurredAt, createdById: actor.id, relatedDietMealId: input.relatedDietMealId || null, note: input.note?.trim().slice(0, 500) || null, lines: { create: lines.map((line) => ({ foodId: line.foodId, itemName: line.itemName, quantity: line.quantity, unit: line.unit, unitPrice: line.unitPrice })) } }, include: { lines: true } });
     await tx.auditLog.create({ data: { entityType: "InventoryTransaction", entityId: transaction.id, action: "CREATE", actorId: actor.id, actorName: actor.displayName, afterJson: { warehouseId: transaction.warehouseId, type: transaction.type, occurredAt: transaction.occurredAt, relatedDietMealId: transaction.relatedDietMealId, note: transaction.note, status: transaction.status, lines: lineSnapshot(transaction.lines) } as unknown as Prisma.InputJsonValue, reason: `Lưu nhanh giao dịch ${transaction.type}` } });
     return transaction;
   });
 }
 
-export async function updateInventoryTransaction(input: { id: string; occurredAt: Date; note?: string | null; lines: TransactionLineInput[] }, actor: WarehouseActor) {
+export async function updateInventoryTransaction(input: { id: string; occurredAt: Date; note?: string | null; lines: TransactionLineInput[] }, actor: WarehouseActor, messages: WarehouseMessages = DEFAULT_MESSAGES) {
   requireWarehouseRole(actor.role);
-  const lines = input.lines.map(normalizeLine);
-  if (!lines.length) throw new Error("Cần giữ ít nhất một dòng thực phẩm.");
+  const lines = input.lines.map((line) => normalizeLine(line, messages));
+  if (!lines.length) throw new Error(messages.keepOneFoodLine);
   return prisma.$transaction(async (tx) => {
     const existing = await tx.inventoryTransaction.findUnique({ where: { id: input.id }, include: { lines: true } });
-    if (!existing || existing.status !== "ACTIVE") throw new Error("Chỉ sửa được giao dịch đang hoạt động.");
+    if (!existing || existing.status !== "ACTIVE") throw new Error(messages.editActiveOnly);
     const known = new Set(existing.lines.map((line) => line.id));
-    for (const line of lines) if (line.id && !known.has(line.id)) throw new Error("Dòng giao dịch không thuộc chứng từ này.");
+    for (const line of lines) if (line.id && !known.has(line.id)) throw new Error(messages.lineMismatch);
     for (const current of existing.lines) {
       const line = lines.find((item) => item.id === current.id);
-      if (!line) throw new Error("Không được xóa dòng đã lưu. Hãy hủy hoặc tạo giao dịch điều chỉnh.");
+      if (!line) throw new Error(messages.noSavedLineDelete);
       await tx.inventoryTransactionLine.update({ where: { id: current.id }, data: { foodId: line.foodId, itemName: line.itemName, quantity: line.quantity, unit: line.unit, unitPrice: line.unitPrice } });
     }
     const additions = lines.filter((line) => !line.id);
@@ -103,41 +151,41 @@ export async function updateInventoryTransaction(input: { id: string; occurredAt
   });
 }
 
-export async function voidInventoryTransaction(id: string, reason: string, actor: WarehouseActor) {
+export async function voidInventoryTransaction(id: string, reason: string, actor: WarehouseActor, messages: WarehouseMessages = DEFAULT_MESSAGES) {
   requireWarehouseRole(actor.role);
-  if (actor.role !== "ADMIN") throw new Error("Chỉ quản trị viên được hủy giao dịch kho.");
+  if (actor.role !== "ADMIN") throw new Error(messages.adminOnlyCancel);
   const cleanReason = reason.trim();
-  if (cleanReason.length < 3 || cleanReason.length > 500) throw new Error("Lý do hủy phải có từ 3 đến 500 ký tự.");
+  if (cleanReason.length < 3 || cleanReason.length > 500) throw new Error(messages.cancelReasonLength);
   return prisma.$transaction(async (tx) => {
     const existing = await tx.inventoryTransaction.findUnique({ where: { id }, include: { lines: true } });
-    if (!existing || existing.status !== "ACTIVE") throw new Error("Giao dịch không tồn tại hoặc đã hủy.");
+    if (!existing || existing.status !== "ACTIVE") throw new Error(messages.transactionNotFound);
     const updated = await tx.inventoryTransaction.update({ where: { id }, data: { status: "CANCELLED", voidedById: actor.id, voidedAt: new Date(), voidedReason: cleanReason } });
     await tx.auditLog.create({ data: { entityType: "InventoryTransaction", entityId: id, action: "CANCEL", actorId: actor.id, actorName: actor.displayName, beforeJson: { status: existing.status, lines: lineSnapshot(existing.lines) } as unknown as Prisma.InputJsonValue, afterJson: { status: updated.status, voidedById: actor.id, voidedAt: updated.voidedAt, voidedReason: cleanReason } as unknown as Prisma.InputJsonValue, reason: cleanReason } });
     return updated;
   });
 }
 
-export async function attachInventoryDocument(input: { transactionId: string; kind: DocumentKind; file: File; note?: string | null }, actor: WarehouseActor) {
+export async function attachInventoryDocument(input: { transactionId: string; kind: DocumentKind; file: File; note?: string | null }, actor: WarehouseActor, messages: WarehouseMessages = DEFAULT_MESSAGES) {
   requireWarehouseRole(actor.role);
   const stored = await evidenceStorage.store(input.file);
   if (!stored) return { stored: false as const };
   await prisma.$transaction(async (tx) => {
     const transaction = await tx.inventoryTransaction.findFirst({ where: { id: input.transactionId, status: "ACTIVE" }, select: { id: true } });
-    if (!transaction) throw new Error("Không tìm thấy giao dịch đang hoạt động.");
+    if (!transaction) throw new Error(messages.activeTransactionNotFound);
     const document = await tx.document.create({ data: { transactionId: transaction.id, kind: input.kind, storagePath: stored.storagePath, note: input.note?.trim().slice(0, 500) || null } });
     await tx.auditLog.create({ data: { entityType: "Document", entityId: document.id, action: "UPLOAD", actorId: actor.id, actorName: actor.displayName, afterJson: { transactionId: transaction.id, kind: document.kind, storagePath: document.storagePath, note: document.note } as Prisma.InputJsonValue, reason: "Đính kèm chứng từ kho" } });
   });
   return { stored: true as const };
 }
 
-export async function saveWarehouseInvoice(input: { warehouseId: string; occurredAt: Date; file: File; note?: string | null }, actor: WarehouseActor) {
+export async function saveWarehouseInvoice(input: { warehouseId: string; occurredAt: Date; file: File; note?: string | null }, actor: WarehouseActor, messages: WarehouseMessages = DEFAULT_MESSAGES) {
   requireWarehouseRole(actor.role);
-  if (!(input.occurredAt instanceof Date) || Number.isNaN(input.occurredAt.getTime())) throw new Error("Ngày hóa đơn không hợp lệ.");
+  if (!(input.occurredAt instanceof Date) || Number.isNaN(input.occurredAt.getTime())) throw new Error(messages.invalidInvoiceDate);
   const stored = await evidenceStorage.store(input.file);
   if (!stored) return { stored: false as const };
   const cleanNote = input.note?.trim().slice(0, 500) || null;
   const result = await prisma.$transaction(async (tx) => {
-    await assertWarehouseRoute(tx, input.warehouseId, null);
+    await assertWarehouseRoute(tx, input.warehouseId, null, messages);
     const transaction = await tx.inventoryTransaction.create({ data: { warehouseId: input.warehouseId, type: "IN", occurredAt: input.occurredAt, createdById: actor.id, note: cleanNote } });
     const document = await tx.document.create({ data: { transactionId: transaction.id, kind: "INVOICE", storagePath: stored.storagePath, note: cleanNote } });
     await tx.auditLog.create({ data: { entityType: "Document", entityId: document.id, action: "UPLOAD", actorId: actor.id, actorName: actor.displayName, afterJson: { transactionId: transaction.id, kind: document.kind, storagePath: document.storagePath, note: document.note } as Prisma.InputJsonValue, reason: "Lưu hóa đơn kho" } });

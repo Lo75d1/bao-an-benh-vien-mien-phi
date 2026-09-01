@@ -5,6 +5,8 @@ import { WeeklyCalendar } from "@/components/weekly-calendar";
 import { getSessionUser } from "@/lib/auth";
 import { addDays, ensureEmptyMealEvents, parseWeek, readCalendarWeek, restrictWeekForRole, toDateKey } from "@/lib/meal-events";
 import { readManagementDay } from "@/lib/management";
+import { getTranslations } from "@/lib/locale";
+import { readLocale } from "@/lib/locale-server";
 import { prisma } from "@/lib/prisma";
 import { clampDateToDataStart, readOperationalSettings } from "@/lib/settings";
 import { readRequestClock } from "@/lib/request-clock";
@@ -13,6 +15,8 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const user = await getSessionUser();
   if (!user) redirect("/");
   const params = await searchParams;
+  const locale = await readLocale();
+  const t = getTranslations(locale).management;
   const [settings, clock] = await Promise.all([readOperationalSettings(), readRequestClock(params.demoNow)]);
   const earliestWeek = parseWeek(settings.dataStartDate, clock.now);
   const parsedRequested = parseWeek(params.week ? clampDateToDataStart(params.week, settings.dataStartDate) : undefined, clock.now);
@@ -31,7 +35,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     <AppShell user={user} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined}>
       <main className="workspace calendar-page">
         <WeeklyCalendar events={events} details={details} weekStart={weekStart} dataStartDate={settings.dataStartDate} role={user.role} route={route} sondeEnabled={settings.sondeEnabled} serviceCompletionMinutes={settings.serviceCompletionMinutes} initialNowIso={clock.now.toISOString()} liveClock={!clock.simulated} />
-        {user.role === "NURSE" && !memberships.length ? <p className="calendar-scope-warning">Chưa được gán khoa; dữ liệu phạm vi khoa hiển thị —.</p> : null}
+        {user.role === "NURSE" && !memberships.length ? <p className="calendar-scope-warning">{t.calendarScopeWarning}</p> : null}
       </main>
     </AppShell>
   );

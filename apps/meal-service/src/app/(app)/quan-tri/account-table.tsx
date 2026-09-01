@@ -1,14 +1,10 @@
 "use client";
+
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { getTranslations, readClientLocale } from "@/lib/locale";
+
 type Action = (data: FormData) => Promise<void>;
 type Option = { id: string; name: string };
 export type AccountRow = {
@@ -24,153 +20,50 @@ export type AccountRow = {
   status: "ACTIVE" | "INACTIVE";
   statusLabel: string;
 };
-const roleLabels = {
-  ADMIN: "Quản trị",
-  DIETITIAN: "Dinh dưỡng",
-  NURSE: "Điều dưỡng",
-  KITCHEN: "Nhà bếp",
-} as const;
-export function AccountTable({
-  data,
-  departments,
-  saveAction,
-  statusAction,
-}: {
-  data: AccountRow[];
-  departments: Option[];
-  saveAction: Action;
-  statusAction: Action;
-}) {
+
+export function AccountTable({ data, departments, saveAction, statusAction }: { data: AccountRow[]; departments: Option[]; saveAction: Action; statusAction: Action }) {
+  const locale = readClientLocale();
+  const t = getTranslations(locale).management.adminTables;
+  const roleLabels = getTranslations(locale).role;
   const columns: ColumnDef<AccountRow, unknown>[] = [
-    {
-      accessorKey: "name",
-      header: "Họ tên",
-      cell: ({ row }) => <strong>{row.original.name}</strong>,
-    },
+    { accessorKey: "name", header: t.fullName, cell: ({ row }) => <strong>{row.original.name}</strong> },
     { accessorKey: "email", header: "Email" },
-    { accessorKey: "roleLabel", header: "Vai trò" },
-    { accessorKey: "department", header: "Khoa" },
-    { accessorKey: "kitchenScope", header: "Phạm vi bếp" },
-    { accessorKey: "statusLabel", header: "Trạng thái" },
+    { accessorKey: "roleLabel", header: t.role },
+    { accessorKey: "department", header: t.department },
+    { accessorKey: "kitchenScope", header: t.kitchenScope },
+    { accessorKey: "statusLabel", header: t.status },
     {
       id: "actions",
-      header: "Thao tác",
+      header: t.actions,
       enableSorting: false,
       cell: ({ row }) => {
         const account = row.original;
         const reasonId = `account-status-reason-${account.id}`;
         return (
           <Dialog>
-            <DialogTrigger asChild>
-              <button type="button" className="secondary-button">
-                Sửa
-              </button>
-            </DialogTrigger>
+            <DialogTrigger asChild><button type="button" className="secondary-button">{t.edit}</button></DialogTrigger>
             <DialogContent className="admin-dialog max-h-[90vh] max-w-3xl overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Sửa tài khoản {account.name}</DialogTitle>
-                <DialogDescription>
-                  Cập nhật thông tin hoặc đổi trạng thái. Mọi thay đổi vẫn được
-                  ghi nhật ký.
-                </DialogDescription>
+                <DialogTitle>{t.editAccount.replace("{name}", account.name)}</DialogTitle>
+                <DialogDescription>{t.editAccountDescription}</DialogDescription>
               </DialogHeader>
               <div className="admin-detail">
                 <form action={saveAction} className="admin-grid">
                   <input type="hidden" name="userId" value={account.id} />
-                  <label>
-                    Họ tên
-                    <input
-                      name="displayName"
-                      defaultValue={account.name}
-                      autoComplete="name"
-                      required
-                    />
-                  </label>
-                  <label>
-                    Email
-                    <input
-                      name="email"
-                      type="email"
-                      defaultValue={account.email}
-                      autoComplete="email"
-                      spellCheck={false}
-                      required
-                    />
-                  </label>
-                  <label>
-                    Vai trò
-                    <select name="role" defaultValue={account.role}>
-                      {Object.entries(roleLabels).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Khoa
-                    <select
-                      name="departmentId"
-                      defaultValue={account.departmentId}
-                    >
-                      <option value="">—</option>
-                      {departments.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Phạm vi bếp
-                    <select name="kitchenRoute" defaultValue={account.kitchenRoute}>
-                      <option value="">—</option>
-                      <option value="NORMAL">Bếp ăn thường</option>
-                      <option value="SONDE">Bếp Sonde</option>
-                    </select>
-                  </label>
-                  <label>
-                    Mật khẩu mới (để trống nếu giữ nguyên)
-                    <input
-                      name="password"
-                      type="password"
-                      minLength={10}
-                      maxLength={256}
-                      autoComplete="new-password"
-                    />
-                  </label>
-                  <button className="secondary-button">Lưu sửa đổi</button>
+                  <label>{t.fullName}<input name="displayName" defaultValue={account.name} autoComplete="name" required /></label>
+                  <label>Email<input name="email" type="email" defaultValue={account.email} autoComplete="email" spellCheck={false} required /></label>
+                  <label>{t.role}<select name="role" defaultValue={account.role}>{Object.entries(roleLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+                  <label>{t.department}<select name="departmentId" defaultValue={account.departmentId}><option value="">-</option>{departments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+                  <label>{t.kitchenScope}<select name="kitchenRoute" defaultValue={account.kitchenRoute}><option value="">-</option><option value="NORMAL">{t.normalKitchen}</option><option value="SONDE">{t.sondeKitchen}</option></select></label>
+                  <label>{t.newPasswordOptional}<input name="password" type="password" minLength={10} maxLength={256} autoComplete="new-password" /></label>
+                  <button className="secondary-button">{t.saveChanges}</button>
                 </form>
                 <form action={statusAction} className="status-form">
                   <input type="hidden" name="userId" value={account.id} />
-                  <input
-                    type="hidden"
-                    name="status"
-                    value={account.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"}
-                  />
-                  <label className="sr-only" htmlFor={reasonId}>
-                    Lý do đổi trạng thái
-                  </label>
-                  <input
-                    id={reasonId}
-                    name="reason"
-                    minLength={3}
-                    maxLength={500}
-                    autoComplete="off"
-                    required
-                    placeholder="Lý do bắt buộc"
-                  />
-                  <button
-                    className={
-                      account.status === "ACTIVE"
-                        ? "danger-button"
-                        : "secondary-button"
-                    }
-                  >
-                    {account.status === "ACTIVE"
-                      ? "Vô hiệu hóa"
-                      : "Kích hoạt lại"}
-                  </button>
+                  <input type="hidden" name="status" value={account.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"} />
+                  <label className="sr-only" htmlFor={reasonId}>{t.statusReason}</label>
+                  <input id={reasonId} name="reason" minLength={3} maxLength={500} autoComplete="off" required placeholder={t.requiredReason} />
+                  <button className={account.status === "ACTIVE" ? "danger-button" : "secondary-button"}>{account.status === "ACTIVE" ? t.deactivate : t.reactivate}</button>
                 </form>
               </div>
             </DialogContent>
@@ -179,14 +72,5 @@ export function AccountTable({
       },
     },
   ];
-  return (
-    <DataTable
-      className="admin-data-table"
-      columns={columns}
-      data={data}
-      getRowId={(row) => row.id}
-      filterPlaceholder="Lọc họ tên, email, khoa…"
-      emptyMessage="Chưa có tài khoản."
-    />
-  );
+  return <DataTable className="admin-data-table" columns={columns} data={data} getRowId={(row) => row.id} filterPlaceholder={t.accountFilter} emptyMessage={t.noAccounts} />;
 }

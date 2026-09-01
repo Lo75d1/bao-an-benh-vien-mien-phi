@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { MultiCodeMenuBoard } from "@/components/multi-code-menu-board";
@@ -11,9 +11,11 @@ import { prisma } from "@/lib/prisma";
 import { entryWindowEnd, readOperationalSettings } from "@/lib/settings";
 import { formatVnDay } from "@/lib/presentation";
 import { readRequestClock } from "@/lib/request-clock";
-import { saveMenusAction, saveTemplateAction } from "./actions";
 import { readDemoSession } from "@/lib/demo-session";
+import { getTranslations } from "@/lib/locale";
+import { readLocale } from "@/lib/locale-server";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { saveMenusAction, saveTemplateAction } from "./actions";
 
 function thresholdsOf(code: { energyKcalMin: number | null; energyKcalMax: number | null; proteinGMin: number | null; proteinGMax: number | null; lipidGMin: number | null; lipidGMax: number | null; glucidGMin: number | null; glucidGMax: number | null; sodiumMgMin: number | null; sodiumMgMax: number | null; potassiumMgMin: number | null; potassiumMgMax: number | null; waterGMin: number | null; waterGMax: number | null; mealsMin: number | null; mealsMax: number | null } | null) {
   return code ? { ...code } : null;
@@ -26,6 +28,8 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   if (!user) redirect("/");
   if (user.role !== "DIETITIAN" && user.role !== "ADMIN") redirect("/");
   const params = await searchParams;
+  const locale = await readLocale();
+  const t = getTranslations(locale).management.thucDonPage;
   const [settings, clock] = await Promise.all([readOperationalSettings(), readRequestClock(params.demoNow)]);
   let [meals, templates] = await Promise.all([
     prisma.dietMeal.findMany({ where: { voidedAt: null, mealEvent: { mealDate: { lte: entryWindowEnd(clock.now, settings.advanceEntryDays) } }, ...(settings.sondeEnabled ? {} : { feedingRoute: "NORMAL" }) }, orderBy: [{ mealEvent: { mealDate: "asc" } }, { mealEvent: { mealType: { sortOrder: "asc" } } }, { dietType: { sortOrder: "asc" } }], include: { mealEvent: { include: { mealType: true } }, dietType: { include: { dietCodeRef: true } } } }),
@@ -53,25 +57,25 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   const foods = foodIds.length ? await prisma.food.findMany({ where: { id: { in: foodIds } }, select: { id: true, energyKcal: true, proteinG: true, lipidG: true, glucidG: true, sodiumMg: true, potassiumMg: true, waterG: true } }) : [];
   const nutrientsByFood = new Map(foods.map((food) => [food.id, { energyKcal: food.energyKcal === null ? null : Number(food.energyKcal), proteinG: food.proteinG === null ? null : Number(food.proteinG), lipidG: food.lipidG === null ? null : Number(food.lipidG), glucidG: food.glucidG === null ? null : Number(food.glucidG), sodiumMg: food.sodiumMg === null ? null : Number(food.sodiumMg), potassiumMg: food.potassiumMg === null ? null : Number(food.potassiumMg), waterG: food.waterG === null ? null : Number(food.waterG) } ]));
   const fallbackNutrients = { energyKcal: null, proteinG: null, lipidG: null, glucidG: null, sodiumMg: null, potassiumMg: null, waterG: null };
-  const message = params.saved === "menus" || params.saved === "menu" ? "Đã lưu thực đơn. Hệ thống sẽ tự khóa khi tới giờ chốt." : params.saved === "template" ? "Đã lưu mẫu cá nhân." : null;
+  const message = params.saved === "menus" || params.saved === "menu" ? t.savedMenus : params.saved === "template" ? t.savedTemplate : null;
   return <AppShell user={user} demoClock={clock.enabled ? { nowIso: clock.now.toISOString(), simulated: clock.simulated } : undefined}><main className="nutrition-menu-page">
     {message ? <p className="success-banner" role="status">{message}</p> : null}
-    <section className="nutrition-meal-context" aria-label="Bữa đang lên thực đơn">
-      <div><CalendarDays aria-hidden="true"/><span><small>Bữa đang làm · {selected.feedingRoute === "SONDE" ? "Bếp Sonde" : "Bếp ăn thường"}</small><strong>{formatVnDay(selected.mealEvent.mealDate)} · {selected.mealEvent.mealType.name}</strong></span></div>
-      <Dialog><DialogTrigger asChild><button type="button" className="secondary-button">Chọn bữa</button></DialogTrigger><DialogContent className="nutrition-meal-dialog"><DialogHeader><DialogTitle>Chọn ngày và bữa cần lên thực đơn</DialogTitle><DialogDescription>Hai lịch ăn thường và Sonde vận hành độc lập. Chọn một ô để chuyển bàn làm việc.</DialogDescription></DialogHeader><nav className="nutrition-route-tabs" aria-label="Chọn đường nuôi"><Link href="/thuc-don?route=NORMAL" aria-current={selected.feedingRoute === "NORMAL" ? "page" : undefined}>Bếp ăn thường</Link>{settings.sondeEnabled ? <Link href="/thuc-don?route=SONDE" aria-current={selected.feedingRoute === "SONDE" ? "page" : undefined}>Bếp Sonde</Link> : null}</nav><div className="nutrition-meal-options">{eventGroups.filter((group) => group[0].feedingRoute === selected.feedingRoute).map((group) => {
+    <section className="nutrition-meal-context" aria-label={t.currentMealPrefix}>
+      <div><CalendarDays aria-hidden="true"/><span><small>{t.currentMealPrefix} · {selected.feedingRoute === "SONDE" ? t.routeSonde : t.routeOral}</small><strong>{formatVnDay(selected.mealEvent.mealDate)} · {selected.mealEvent.mealType.name}</strong></span></div>
+      <Dialog><DialogTrigger asChild><button type="button" className="secondary-button">{t.chooseMeal}</button></DialogTrigger><DialogContent className="nutrition-meal-dialog"><DialogHeader><DialogTitle>{t.selectMealTitle}</DialogTitle><DialogDescription>{t.selectMealDescription}</DialogDescription></DialogHeader><nav className="nutrition-route-tabs" aria-label={t.routeLabel}><Link href="/thuc-don?route=NORMAL" aria-current={selected.feedingRoute === "NORMAL" ? "page" : undefined}>{t.routeOral}</Link>{settings.sondeEnabled ? <Link href="/thuc-don?route=SONDE" aria-current={selected.feedingRoute === "SONDE" ? "page" : undefined}>{t.routeSonde}</Link> : null}</nav><div className="nutrition-meal-options">{eventGroups.filter((group) => group[0].feedingRoute === selected.feedingRoute).map((group) => {
         const first = group[0];
         const filled = group.filter((meal) => parseMenuItems(meal.menuSnapshotJson).length > 0).length;
         const phase = mealTimePhase(first.mealEvent.mealDate, first.mealEvent.mealType.cutoffTime, first.mealEvent.mealType.serviceTime, clock.now);
         const locked = phase !== "BEFORE_CUTOFF";
         const complete = filled === group.length;
-        return <Link key={first.mealEventId} href={`/thuc-don?meal=${encodeURIComponent(first.id)}`} aria-current={first.mealEventId === selected.mealEventId ? "true" : undefined}><span><strong>{formatVnDay(first.mealEvent.mealDate)}</strong><small>{first.mealEvent.mealType.name}</small></span><span className={complete ? "meal-picker-state complete" : "meal-picker-state missing"}>{complete ? <CheckCircle2 aria-hidden="true"/> : <CircleAlert aria-hidden="true"/>}{filled}/{group.length} mã</span><span className={locked ? "meal-picker-lock locked" : "meal-picker-lock"}>{locked ? <LockKeyhole aria-hidden="true"/> : null}{locked ? "Đã khóa" : "Còn sửa"}</span></Link>;
+        return <Link key={first.mealEventId} href={`/thuc-don?meal=${encodeURIComponent(first.id)}`} aria-current={first.mealEventId === selected.mealEventId ? "true" : undefined}><span><strong>{formatVnDay(first.mealEvent.mealDate)}</strong><small>{first.mealEvent.mealType.name}</small></span><span className={complete ? "meal-picker-state complete" : "meal-picker-state missing"}>{complete ? <CheckCircle2 aria-hidden="true"/> : <CircleAlert aria-hidden="true"/>}{t.mealCount.replace("{filled}", String(filled)).replace("{total}", String(group.length))}</span><span className={locked ? "meal-picker-lock locked" : "meal-picker-lock"}>{locked ? <LockKeyhole aria-hidden="true"/> : null}{locked ? t.lockedLabel : t.editableLabel}</span></Link>;
       })}</div></DialogContent></Dialog>
     </section>
-    {!relatedMeals.length ? <EmptyState icon={Utensils} title="Bữa chưa có mã chế độ ăn" description="Quay lại lịch tuần hoặc nhờ quản trị bổ sung mã cho bữa này."/> : <MultiCodeMenuBoard
+    {!relatedMeals.length ? <EmptyState icon={Utensils} title={t.noMenuTitle} description={t.noMenuDescription}/> : <MultiCodeMenuBoard
       context={{ eventId: selected.mealEventId, date: formatVnDay(selected.mealEvent.mealDate), mealName: selected.mealEvent.mealType.name, feedingRoute: selected.feedingRoute }} dataStartDate={settings.dataStartDate}
       meals={relatedMeals.map((meal) => ({ id: meal.id, dietTypeId: meal.dietTypeId, code: meal.dietType.code, name: meal.dietType.name, approved: mealTimePhase(meal.mealEvent.mealDate, meal.mealEvent.mealType.cutoffTime, meal.mealEvent.mealType.serviceTime, clock.now) !== "BEFORE_CUTOFF", patientVisibleNote: meal.patientVisibleNote ?? "", thresholds: thresholdsOf(meal.dietType.dietCodeRef), items: parseMenuItems(meal.menuSnapshotJson).map((item) => ({ ...item, nutrients: item.foodId ? nutrientsByFood.get(item.foodId) ?? fallbackNutrients : fallbackNutrients })) }))}
       copies={copyGroups.map((group) => ({ id: group[0].mealEventId, label: `${formatVnDay(group[0].mealEvent.mealDate)} · ${group[0].mealEvent.mealType.name}`, meals: group.map((meal) => ({ code: meal.dietType.code, items: parseMenuItems(meal.menuSnapshotJson).map((item) => ({ ...item, nutrients: item.foodId ? nutrientsByFood.get(item.foodId) ?? fallbackNutrients : fallbackNutrients })) })) }))}
-      templates={templates.map((template) => ({ id: template.id, name: template.name, dietTypeId: template.dietTypeId, items: template.items.map((item) => ({ foodId: item.foodId, itemName: item.itemName, dishName: "Món 1", grams: Number(item.grams), wastePercent: item.wastePercent === null ? null : Number(item.wastePercent), nutrients: item.foodId ? nutrientsByFood.get(item.foodId) ?? fallbackNutrients : fallbackNutrients })) }))}
+      templates={templates.map((template) => ({ id: template.id, name: template.name, dietTypeId: template.dietTypeId, items: template.items.map((item) => ({ foodId: item.foodId, itemName: item.itemName, dishName: t.defaultDish, grams: Number(item.grams), wastePercent: item.wastePercent === null ? null : Number(item.wastePercent), nutrients: item.foodId ? nutrientsByFood.get(item.foodId) ?? fallbackNutrients : fallbackNutrients })) }))}
       saveAction={saveMenusAction}
       saveTemplateAction={saveTemplateAction}
     />}

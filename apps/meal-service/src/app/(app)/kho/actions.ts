@@ -4,18 +4,25 @@ import type { DocumentKind, InventoryType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
+import { validateEvidenceFile } from "@/lib/evidence-storage";
+import { getTranslations } from "@/lib/locale";
+import { readLocale } from "@/lib/locale-server";
 import { attachInventoryDocument, createInventoryTransaction, saveWarehouseInvoice, updateInventoryTransaction, voidInventoryTransaction, type TransactionLineInput } from "@/lib/warehouse";
 
-async function requireActor() {
+async function getWarehouseActionTexts() {
+  return getTranslations(await readLocale()).management.warehouseAction;
+}
+
+async function requireActor(t: Awaited<ReturnType<typeof getWarehouseActionTexts>>) {
   const user = await getSessionUser();
-  if (!user || !["ADMIN", "DIETITIAN", "KITCHEN"].includes(user.role)) throw new Error("Bạn không có quyền thao tác kho.");
-  if (user.demoSessionId) throw new Error("Kho chỉ xem trong Demo; thay đổi không được ghi vào dữ liệu nền.");
+  if (!user || !["ADMIN", "DIETITIAN", "KITCHEN"].includes(user.role)) throw new Error(t.notAuthorized);
+  if (user.demoSessionId) throw new Error(t.demoReadOnly);
   return user;
 }
 
-function occurredAt(value: FormDataEntryValue | null) {
+function occurredAt(value: FormDataEntryValue | null, t: Awaited<ReturnType<typeof getWarehouseActionTexts>>) {
   const date = new Date(String(value ?? ""));
-  if (Number.isNaN(date.getTime())) throw new Error("Thời điểm giao dịch không hợp lệ.");
+  if (Number.isNaN(date.getTime())) throw new Error(t.invalidOccurredAt);
   return date;
 }
 
@@ -33,42 +40,47 @@ function lines(formData: FormData): TransactionLineInput[] {
 }
 
 export async function createTransactionAction(formData: FormData) {
-  const actor = await requireActor();
-  await createInventoryTransaction({ warehouseId: String(formData.get("warehouseId") ?? ""), type: String(formData.get("type") ?? "") as InventoryType, occurredAt: occurredAt(formData.get("occurredAt")), relatedDietMealId: String(formData.get("relatedDietMealId") ?? "") || null, note: String(formData.get("note") ?? "") || null, lines: lines(formData) }, actor);
+  const t = await getWarehouseActionTexts();
+  const actor = await requireActor(t);
+  await createInventoryTransaction({ warehouseId: String(formData.get("warehouseId") ?? ""), type: String(formData.get("type") ?? "") as InventoryType, occurredAt: occurredAt(formData.get("occurredAt"), t), relatedDietMealId: String(formData.get("relatedDietMealId") ?? "") || null, note: String(formData.get("note") ?? "") || null, lines: lines(formData) }, actor, t.lib);
   revalidatePath("/kho");
   redirect("/kho?updated=created");
 }
 
 export async function updateTransactionAction(formData: FormData) {
-  const actor = await requireActor();
-  await updateInventoryTransaction({ id: String(formData.get("transactionId") ?? ""), occurredAt: occurredAt(formData.get("occurredAt")), note: String(formData.get("note") ?? "") || null, lines: lines(formData) }, actor);
+  const t = await getWarehouseActionTexts();
+  const actor = await requireActor(t);
+  await updateInventoryTransaction({ id: String(formData.get("transactionId") ?? ""), occurredAt: occurredAt(formData.get("occurredAt"), t), note: String(formData.get("note") ?? "") || null, lines: lines(formData) }, actor, t.lib);
   revalidatePath("/kho");
   redirect("/kho?updated=edited");
 }
 
 export async function cancelTransactionAction(formData: FormData) {
-  const actor = await requireActor();
-  await voidInventoryTransaction(String(formData.get("transactionId") ?? ""), String(formData.get("reason") ?? ""), actor);
+  const t = await getWarehouseActionTexts();
+  const actor = await requireActor(t);
+  await voidInventoryTransaction(String(formData.get("transactionId") ?? ""), String(formData.get("reason") ?? ""), actor, t.lib);
   revalidatePath("/kho");
   redirect("/kho?updated=cancelled");
 }
 
 const DOCUMENT_KINDS = new Set<DocumentKind>(["BILL", "INVOICE", "PHOTO", "OTHER"]);
 export async function saveInvoiceAction(formData: FormData) {
-  const actor = await requireActor();
+  const t = await getWarehouseActionTexts();
+  const actor = await requireActor(t);
   const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0 || file.size > 10 * 1024 * 1024 || !["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type)) throw new Error("Chỉ nhận ảnh hoặc PDF hóa đơn tối đa 10 MB.");
-  const result = await saveWarehouseInvoice({ warehouseId: String(formData.get("warehouseId") ?? ""), occurredAt: occurredAt(formData.get("occurredAt")), file, note: String(formData.get("note") ?? "") || null }, actor);
+  if (!(file instanceof File) || !await validateEvidenceFile(file)) redirect("/kho?storage=invalid");
+  const result = await saveWarehouseInvoice({ warehouseId: String(formData.get("warehouseId") ?? ""), occurredAt: occurredAt(formData.get("occurredAt"), t), file, note: String(formData.get("note") ?? "") || null }, actor, t.lib);
   revalidatePath("/kho");
   redirect(result.stored ? "/kho?updated=invoice" : "/kho?storage=unavailable");
 }
+
 export async function uploadDocumentAction(formData: FormData) {
-  const actor = await requireActor();
+  const t = await getWarehouseActionTexts();
+  const actor = await requireActor(t);
   const kind = String(formData.get("kind") ?? "") as DocumentKind;
   const file = formData.get("file");
-  if (!DOCUMENT_KINDS.has(kind) || !(file instanceof File) || file.size === 0) throw new Error("Cần chọn loại và tệp chứng từ hợp lệ.");
-  if (!file.type.startsWith("image/") || file.size > 10 * 1024 * 1024) throw new Error("Chỉ nhận ảnh tối đa 10 MB.");
-  const result = await attachInventoryDocument({ transactionId: String(formData.get("transactionId") ?? ""), kind, file, note: String(formData.get("documentNote") ?? "") || null }, actor);
+  if (!DOCUMENT_KINDS.has(kind) || !(file instanceof File) || !await validateEvidenceFile(file)) throw new Error(t.invalidDocumentFile);
+  const result = await attachInventoryDocument({ transactionId: String(formData.get("transactionId") ?? ""), kind, file, note: String(formData.get("documentNote") ?? "") || null }, actor, t.lib);
   revalidatePath("/kho");
   redirect(result.stored ? "/kho?updated=document" : "/kho?storage=unavailable");
 }

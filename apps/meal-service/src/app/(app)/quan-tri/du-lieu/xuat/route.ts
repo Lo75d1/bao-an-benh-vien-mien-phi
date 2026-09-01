@@ -1,4 +1,6 @@
 import { getSessionUser } from "@/lib/auth";
+import { getTranslations } from "@/lib/locale";
+import { readLocale } from "@/lib/locale-server";
 import { prisma } from "@/lib/prisma";
 import { dynamicCsv, flattenOfficialSource } from "@/lib/official-data-export";
 
@@ -6,9 +8,10 @@ const SOURCES = new Set(["VDD_FOOD", "VDD_DISH", "RNI_DISH"]);
 
 export async function GET(request: Request) {
   const user = await getSessionUser();
-  if (!user || user.role !== "ADMIN") return new Response("Không có quyền truy cập.", { status: 403 });
+  const t = getTranslations(await readLocale()).management.adminExport;
+  if (!user || user.role !== "ADMIN") return new Response(t.forbidden, { status: 403 });
   const source = new URL(request.url).searchParams.get("source") ?? "";
-  if (!SOURCES.has(source)) return new Response("Nguồn dữ liệu không hợp lệ.", { status: 400 });
+  if (!SOURCES.has(source)) return new Response(t.invalidSource, { status: 400 });
   let rows: Array<Record<string, unknown>>;
   if (source === "VDD_FOOD") {
     const foods = await prisma.food.findMany({ where: { source: "VDD" }, orderBy: { name: "asc" }, select: { sourceCode: true, name: true, unit: true, foodType: true, foodGroup: true, wastePercent: true, energyKcal: true, proteinG: true, lipidG: true, glucidG: true, sodiumMg: true, potassiumMg: true, waterG: true, rawJson: true } });

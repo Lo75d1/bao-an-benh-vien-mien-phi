@@ -1,10 +1,11 @@
 "use client";
 
 import { AlertTriangle, Check, Pencil, Utensils } from "lucide-react";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { ActionButton, ActionFeedback } from "@/components/action-feedback";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { INITIAL_ACTION_RESULT, type ActionResult } from "@/lib/action-result";
+import { getTranslations, readClientLocale } from "@/lib/locale";
 
 type Action = (previous: ActionResult, data: FormData) => Promise<ActionResult>;
 type Receipt = { status: "FULL" | "SHORT"; expectedQuantity: number; receivedQuantity: number; note: string | null; confirmedAt: string; confirmedBy: string };
@@ -12,23 +13,27 @@ const dateTime = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh"
 
 export function LateAdditionForm({ eventId, route, diets, action }: { eventId: string; route: "NORMAL" | "SONDE"; diets: Array<{ id: string; code: string; name: string }>; action: Action }) {
   const [result, formAction, pending] = useActionState(action, INITIAL_ACTION_RESULT);
+  const [locale] = useState(() => readClientLocale());
+  const t = getTranslations(locale).management.baoSuatForm;
   return <form action={formAction} className="nurse-late-addition-form">
     <input type="hidden" name="mealEventId" value={eventId}/><input type="hidden" name="route" value={route}/>
-    <label>Mã chế độ ăn<select name="dietTypeId" required defaultValue=""><option value="" disabled>Chọn mã chế độ</option>{diets.map((diet) => <option key={diet.id} value={diet.id}>{diet.code} · {diet.name}</option>)}</select></label>
-    <label>Số suất<input type="number" name="quantity" min="1" step="1" inputMode="numeric" required/></label>
-    <label>Lý do<textarea name="reason" minLength={3} maxLength={500} required/></label>
-    <ActionButton type="submit" className="primary-action" pending={pending} pendingLabel="Đang gửi bổ sung…" completed={result.status === "success"} completedLabel="Đã gửi bổ sung">Gửi bổ sung cho bếp</ActionButton>
+    <label>{t.dietTypeLabel}<select name="dietTypeId" required defaultValue=""><option value="" disabled>{t.dietTypePlaceholder}</option>{diets.map((diet) => <option key={diet.id} value={diet.id}>{diet.code} · {diet.name}</option>)}</select></label>
+    <label>{t.quantityLabel}<input type="number" name="quantity" min="1" step="1" inputMode="numeric" required/></label>
+    <label>{t.reasonLabel}<textarea name="reason" minLength={3} maxLength={500} required/></label>
+    <ActionButton type="submit" className="primary-action" pending={pending} pendingLabel={t.pendingAddition} completed={result.status === "success"} completedLabel={t.completedAddition}>{t.sendAddition}</ActionButton>
     <ActionFeedback result={result}/>
   </form>;
 }
 
 function ReceiptForm({ eventId, route, expected, kind, previous, action }: { eventId: string; route: "NORMAL" | "SONDE"; expected: number; kind: "FULL" | "SHORT"; previous?: { status: "FULL" | "SHORT"; receivedQuantity: number; note: string | null } | null; action: Action }) {
   const [result, formAction, pending] = useActionState(action, INITIAL_ACTION_RESULT);
+  const [locale] = useState(() => readClientLocale());
+  const t = getTranslations(locale).management.baoSuatForm;
   return <form action={formAction} className={kind === "SHORT" ? "delivery-short-form" : undefined}>
     <input type="hidden" name="mealEventId" value={eventId}/><input type="hidden" name="route" value={route}/><input type="hidden" name="status" value={kind}/>
-    {kind === "FULL" ? <input type="hidden" name="receivedQuantity" value={expected}/> : <><label>Số suất thực nhận<input name="receivedQuantity" type="number" min="0" max={Math.max(0, expected - 1)} step="1" defaultValue={previous?.status === "SHORT" ? previous.receivedQuantity : ""} required/></label><label>Lý do thiếu<textarea name="note" minLength={3} maxLength={500} defaultValue={previous?.status === "SHORT" ? previous.note ?? "" : ""} required/></label></>}
-    {previous ? <label>Lý do điều chỉnh xác nhận<input name="correctionReason" minLength={3} maxLength={500} required placeholder="Ví dụ: Khoa kiểm đếm lại số suất"/></label> : null}
-    <ActionButton type="submit" className={kind === "FULL" ? "primary-action" : "secondary-button"} disabled={expected < 1} pending={pending} pendingLabel="Đang xác nhận…" completed={result.status === "success"} completedLabel={kind === "FULL" ? "Đã nhận đủ" : "Đã ghi nhận nhận thiếu"}>{kind === "FULL" ? <><Check/>Đã nhận đủ {expected} suất</> : "Xác nhận nhận thiếu"}</ActionButton>
+    {kind === "FULL" ? <input type="hidden" name="receivedQuantity" value={expected}/> : <><label>{t.receivedQuantityLabel}<input name="receivedQuantity" type="number" min="0" max={Math.max(0, expected - 1)} step="1" defaultValue={previous?.status === "SHORT" ? previous.receivedQuantity : ""} required/></label><label>{t.missingReasonLabel}<textarea name="note" minLength={3} maxLength={500} defaultValue={previous?.status === "SHORT" ? previous.note ?? "" : ""} required/></label></>}
+    {previous ? <label>{t.correctionReasonLabel}<input name="correctionReason" minLength={3} maxLength={500} required placeholder={t.correctionReasonPlaceholder}/></label> : null}
+    <ActionButton type="submit" className={kind === "FULL" ? "primary-action" : "secondary-button"} disabled={expected < 1} pending={pending} pendingLabel={t.receiptPendingLabel} completed={result.status === "success"} completedLabel={kind === "FULL" ? t.receiptFullStatus : t.receiptShortRecorded}>{kind === "FULL" ? <><Check/>{t.receiptFullSummary(expected)}</> : t.receiptShortConfirm}</ActionButton>
     <ActionFeedback result={result} actionId="delivery-receipt"/>
   </form>;
 }
@@ -38,13 +43,17 @@ export function DeliveryReceiptForms({ eventId, route, expected, receipt, action
 }
 
 export function DeliveryHandoffWaiting({ eventName }: { eventName: string }) {
-  return <section className="service-receipt-pending"><div><span>Giao nhận · {eventName}</span><strong>Chờ Bếp bàn giao</strong><small>Số suất dự kiến và nút xác nhận đủ/thiếu sẽ hiện sau khi Bếp bàn giao cho khoa.</small></div></section>;
+  const [locale] = useState(() => readClientLocale());
+  const t = getTranslations(locale).management.baoSuatForm;
+  return <section className="service-receipt-pending"><div><span>{t.handoffSectionTitle} · {eventName}</span><strong>{t.handoffWaitingLabel}</strong><small>{t.handoffWaitingDescription}</small></div></section>;
 }
 
 export function DeliveryReceiptControl({ eventId, eventName, route, expected, receipt, action }: { eventId: string; eventName: string; route: "NORMAL" | "SONDE"; expected: number; receipt: Receipt | null; action: Action }) {
+  const [locale] = useState(() => readClientLocale());
+  const t = getTranslations(locale).management.baoSuatForm;
   const missing = receipt ? Math.max(0, receipt.expectedQuantity - receipt.receivedQuantity) : 0;
   const formReceipt = receipt ? { status: receipt.status, receivedQuantity: receipt.receivedQuantity, note: receipt.note } : null;
-  const dialog = <Dialog><DialogTrigger asChild>{receipt ? <button type="button" className="secondary-button receipt-edit"><Pencil/>Sửa xác nhận</button> : <button type="button" className="primary-action receipt-primary"><Utensils/>Xác nhận giao nhận</button>}</DialogTrigger><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>{receipt ? "Sửa xác nhận giao nhận" : "Xác nhận giao nhận"} · {eventName}</DialogTitle><DialogDescription>Dự kiến của khoa: {expected} suất. Chọn nhanh nhận đủ; chỉ nhập chi tiết khi nhận thiếu.{receipt ? " Mọi sửa đổi bắt buộc có lý do và được ghi AuditLog." : ""}</DialogDescription></DialogHeader><DeliveryReceiptForms eventId={eventId} route={route} expected={expected} receipt={formReceipt} action={action}/></DialogContent></Dialog>;
-  if (!receipt) return <section className="service-receipt-pending"><div><span>Nhiệm vụ chính</span><strong>Chưa xác nhận nhận suất</strong><small>Xác nhận ngay khi khoa nhận suất từ bếp.</small></div>{dialog}</section>;
-  return <section className={receipt.status === "SHORT" ? "service-receipt-result is-short" : "service-receipt-result is-full"}><div className="service-receipt-icon">{receipt.status === "SHORT" ? <AlertTriangle/> : <Check/>}</div><div><strong>{receipt.status === "FULL" ? `Đã nhận đủ ${receipt.receivedQuantity}/${receipt.expectedQuantity} suất` : `Nhận thiếu ${receipt.receivedQuantity}/${receipt.expectedQuantity} suất · thiếu ${missing}`}</strong>{receipt.status === "SHORT" ? <p>{receipt.note}</p> : null}<small>{dateTime.format(new Date(receipt.confirmedAt))} · {receipt.confirmedBy}</small></div>{dialog}</section>;
+  const dialog = <Dialog><DialogTrigger asChild>{receipt ? <button type="button" className="secondary-button receipt-edit"><Pencil/>{t.receiptEditButton}</button> : <button type="button" className="primary-action receipt-primary"><Utensils/>{t.receiptConfirmButton}</button>}</DialogTrigger><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>{receipt ? t.receiptEditTitle : t.receiptConfirmTitle} · {eventName}</DialogTitle><DialogDescription>{t.receiptDescriptionPrefix}{expected}{t.receiptDescriptionSuffix}{receipt ? " Mọi sửa đổi bắt buộc có lý do và được ghi AuditLog." : ""}</DialogDescription></DialogHeader><DeliveryReceiptForms eventId={eventId} route={route} expected={expected} receipt={formReceipt} action={action}/></DialogContent></Dialog>;
+  if (!receipt) return <section className="service-receipt-pending"><div><span>{t.handoffSectionTitle}</span><strong>{t.handoffWaitingLabel}</strong><small>{t.handoffWaitingDescription}</small></div>{dialog}</section>;
+  return <section className={receipt.status === "SHORT" ? "service-receipt-result is-short" : "service-receipt-result is-full"}><div className="service-receipt-icon">{receipt.status === "SHORT" ? <AlertTriangle/> : <Check/>}</div><div><strong>{receipt.status === "FULL" ? t.receiptFullSummary(receipt.receivedQuantity) : t.receiptShortSummary(receipt.receivedQuantity, missing)}</strong>{receipt.status === "SHORT" ? <p>{receipt.note}</p> : null}<small>{dateTime.format(new Date(receipt.confirmedAt))} · {receipt.confirmedBy}</small></div>{dialog}</section>;
 }

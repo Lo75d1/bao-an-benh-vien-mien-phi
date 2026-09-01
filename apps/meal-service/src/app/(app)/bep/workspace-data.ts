@@ -33,7 +33,7 @@ const eventInclude = {
   },
 } as const;
 
-export async function readKitchenWorkspace(requestedMealId?: string, feedingRoute: "NORMAL" | "SONDE" = "NORMAL", now = new Date()) {
+export async function readKitchenWorkspace(requestedMealId?: string, feedingRoute: "NORMAL" | "SONDE" = "NORMAL", now = new Date(), wholeMealLabel = "Toàn bữa", retentionLabel: typeof foodRetentionLabel = foodRetentionLabel) {
   const settings = await readOperationalSettings();
   const today = new Date(`${hospitalDayKey(now)}T00:00:00.000Z`);
   let events = await prisma.mealEvent.findMany({
@@ -113,7 +113,7 @@ export async function readKitchenWorkspace(requestedMealId?: string, feedingRout
     ...item,
     dietName: meal.dietType.name,
     publicUrl: item.storagePath ? staffMealEvidenceUrl(item.id) : null,
-  }))), ...selected.evidence.map((item) => ({ ...item, dietName: `Toàn bữa · ${foodRetentionLabel(item.uploadedAt, now)}`, publicUrl: item.storagePath ? staffMealEvidenceUrl(item.id) : null }))];
+  }))), ...selected.evidence.map((item) => ({ ...item, dietName: `${wholeMealLabel} · ${retentionLabel(item.uploadedAt, now)}`, publicUrl: item.storagePath ? staffMealEvidenceUrl(item.id) : null }))];
   const prepared = selected.dietMeals.length > 0 && selected.dietMeals.every((meal) => meal.status === "PREPARED");
   const handoffReports = selected.reports.map((report) => ({ departmentId: report.departmentId, quantities: report.lines.map((line) => line.quantity) }));
   const handoffAdditions = selected.additions.filter((addition) => addition.ackStatus === "RECEIVED" || addition.ackStatus === "SUBSTITUTE").map((addition) => ({ departmentId: addition.departmentId, quantity: addition.quantity }));

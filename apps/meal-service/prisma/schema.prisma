@@ -360,6 +360,9 @@ model PatientNote {
   mealDate     DateTime          @db.Date
   note         String
   contactName  String?
+  attachmentPath String?
+  attachmentMimeType String?
+  attachmentSize Int?
   status       PatientNoteStatus @default(RECEIVED)
   reviewedById String?
   reviewedAt   DateTime?

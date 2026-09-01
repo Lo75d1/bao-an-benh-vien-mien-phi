@@ -7,7 +7,8 @@ import { useEffect, useState } from "react";
 import { MealDetailDialog } from "@/components/meal-detail-dialog";
 import { EmptyState } from "@/components/presentation";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { addDays, displayMealState, nextMealTimelineEvent, rollupMealEventStatus, startOfIsoWeek, toDateKey, type CalendarEvent, type DisplayMealState } from "@/lib/meal-events";
+import { getTranslations, readClientLocale } from "@/lib/locale";
+import { addDays, displayMealState, nextMealTimelineEvent, pickActiveReportingMeal, rollupMealEventStatus, startOfIsoWeek, toDateKey, type CalendarEvent, type DisplayMealState } from "@/lib/meal-events";
 import type { ManagementDay } from "@/lib/management";
 import { formatVnDay } from "@/lib/presentation";
 import { hasMealBusinessData } from "@/lib/meal-state";
@@ -15,16 +16,20 @@ import { hasMealBusinessData } from "@/lib/meal-state";
 const DAY_LABELS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
 function simpleState(state: DisplayMealState | null) {
+  const locale = readClientLocale();
+  const t = getTranslations(locale).management.lichPage;
   if (!state) return { label: "—", tone: "empty", Icon: CalendarDays };
-  if (state.key === "CLOSED") return { label: "Đã đóng", tone: "muted", Icon: CalendarCheck };
-  if (state.key === "INCOMPLETE") return { label: "Chưa hoàn tất", tone: "danger", Icon: TriangleAlert };
-  if (state.key === "PREPARATION") return { label: "Giai đoạn chuẩn bị", tone: "warning", Icon: ChefHat };
-  if (state.key === "SERVICE") return { label: "Đang phục vụ", tone: "active", Icon: Clock3 };
-  if (state.key === "REPORTING") return { label: "Đang nhận báo", tone: "active", Icon: CalendarClock };
-  return { label: "Chưa đến", tone: "muted", Icon: CalendarClock };
+  if (state.key === "CLOSED") return { label: state.label ?? "—", tone: "muted", Icon: CalendarCheck };
+  if (state.key === "INCOMPLETE") return { label: state.label ?? "—", tone: "danger", Icon: TriangleAlert };
+  if (state.key === "PREPARATION") return { label: state.label ?? "—", tone: "warning", Icon: ChefHat };
+  if (state.key === "SERVICE") return { label: state.label ?? "—", tone: "active", Icon: Clock3 };
+  if (state.key === "REPORTING") return { label: state.label ?? "—", tone: "active", Icon: CalendarClock };
+  return { label: t.noData, tone: "muted", Icon: CalendarClock };
 }
 
 export function WeeklyCalendar({ events, details, weekStart, dataStartDate, role, route, sondeEnabled = true, serviceCompletionMinutes, initialNowIso, liveClock = true }: { events: CalendarEvent[]; details: ManagementDay[]; weekStart: Date; dataStartDate: string; role: Role; route?: FeedingRoute; sondeEnabled?: boolean; serviceCompletionMinutes: number; initialNowIso: string; liveClock?: boolean }) {
+  const locale = readClientLocale();
+  const t = getTranslations(locale).management.lichPage;
   const [now, setNow] = useState(() => new Date(initialNowIso));
   useEffect(() => {
     if (!liveClock) return;
@@ -36,6 +41,21 @@ export function WeeklyCalendar({ events, details, weekStart, dataStartDate, role
     date: addDays(weekStart, index),
   }));
   const mealTypes = [...new Map(events.map((event) => [event.mealType.id, event.mealType])).values()];
+  const activeReportingMealByDay = new Map(
+    days.map((day) => {
+      const activeMealId = pickActiveReportingMeal(
+        mealTypes.map((mealType) => ({
+          id: mealType.id,
+          mealDate: day.date,
+          cutoffTime: mealType.cutoffTime,
+          serviceTime: mealType.serviceTime,
+        })),
+        now,
+        serviceCompletionMinutes,
+      )?.id ?? null;
+      return [toDateKey(day.date), activeMealId] as const;
+    }),
+  );
   const byCell = new Map(events.map((event) => [`${toDateKey(event.mealDate)}:${event.mealTypeId}`, event]));
   const routeValue = route ?? "NORMAL";
   const routeParam = `&route=${routeValue}`;
@@ -63,13 +83,13 @@ export function WeeklyCalendar({ events, details, weekStart, dataStartDate, role
     <>
       <div className="calendar-toolbar">
         <Tabs value={routeValue}>
-          <TabsList aria-label="Loại đường ăn">
+          <TabsList aria-label={t.routeLabel}>
             <TabsTrigger value="NORMAL" asChild>
-              <Link href={`?week=${toDateKey(weekStart)}&route=NORMAL`}>Ăn thường</Link>
+              <Link href={`?week=${toDateKey(weekStart)}&route=NORMAL`}>{t.oralRoute}</Link>
             </TabsTrigger>
             {sondeEnabled ? (
               <TabsTrigger value="SONDE" asChild>
-                <Link href={`?week=${toDateKey(weekStart)}&route=SONDE`}>Qua sonde</Link>
+                <Link href={`?week=${toDateKey(weekStart)}&route=SONDE`}>{getTranslations(locale).management.scheduleRouteSonde}</Link>
               </TabsTrigger>
             ) : null}
           </TabsList>
@@ -77,54 +97,54 @@ export function WeeklyCalendar({ events, details, weekStart, dataStartDate, role
         {nextEvent ? (
           <div className="calendar-next-event">
             <Clock3 aria-hidden="true" />
-            <span>Sự kiện tiếp theo</span>
+            <span>{t.nextEvent}</span>
             <strong>
-              {nextEvent.meal.mealType.name} — {nextEvent.kind === "CUTOFF" ? `Chốt suất ăn ${nextEvent.meal.cutoffTime}` : `Phục vụ ${nextEvent.meal.serviceTime}`}
+              {nextEvent.meal.mealType.name} — {nextEvent.kind === "CUTOFF" ? `${t.cutOffPrefix} ${nextEvent.meal.cutoffTime}` : `${t.servicePrefix} ${nextEvent.meal.serviceTime}`}
             </strong>
           </div>
         ) : null}
         <div className="calendar-date-tools">
           <div>
-            <span>Ngày đang xem</span>
+            <span>{t.currentWeek}</span>
             <strong>
-              {formatVnDay(weekStart)} đến {formatVnDay(end)}
+              {t.weekRange.replace("{from}", formatVnDay(weekStart)).replace("{to}", formatVnDay(end))}
             </strong>
           </div>
-          <nav className="week-nav" aria-label="Chuyển tuần">
+          <nav className="week-nav" aria-label={t.routeLabel}>
             {canGoPrevious ? (
-              <Link href={`?week=${toDateKey(addDays(weekStart, -7))}${routeParam}`} aria-label="Tuần trước">
+              <Link href={`?week=${toDateKey(addDays(weekStart, -7))}${routeParam}`} aria-label={t.prevWeek}>
                 <ChevronLeft aria-hidden="true" />
               </Link>
             ) : null}
             {canGoNext ? (
-              <Link href={`?week=${toDateKey(addDays(weekStart, 7))}${routeParam}`} aria-label="Tuần sau">
+              <Link href={`?week=${toDateKey(addDays(weekStart, 7))}${routeParam}`} aria-label={t.nextWeek}>
                 <ChevronRight aria-hidden="true" />
               </Link>
             ) : null}
           </nav>
           <form method="get" action="/lich">
             <input type="hidden" name="route" value={routeValue} />
-            <label htmlFor="calendar-date">Chọn ngày</label>
+            <label htmlFor="calendar-date">{t.chooseDate}</label>
             <input id="calendar-date" name="week" type="date" min={dataStartDate} defaultValue={toDateKey(weekStart)} />
-            <button type="submit">Xem</button>
+            <button type="submit">{getTranslations(locale).management.scheduleView}</button>
           </form>
         </div>
       </div>
       {mealTypes.length === 0 ? (
-        <EmptyState icon={CalendarDays} title="Chưa có loại bữa để hiển thị" description="Hãy kiểm tra dữ liệu loại bữa trước khi mở lịch." />
+        <EmptyState icon={CalendarDays} title={t.emptyTitle} description={t.emptyDescription} />
       ) : (
         <div className="calendar-scroll">
           <table className="calendar-table calendar-status-table">
             <thead>
               <tr>
-                <th scope="col">Bữa</th>
+                <th scope="col">{t.mealColumn}</th>
                 {days.map((day) => {
                   const key = toDateKey(day.date);
                   return (
                     <th scope="col" className={key === todayKey ? "calendar-today" : key < todayKey ? "calendar-past" : "calendar-future"} key={day.label}>
                       <strong>{day.label}</strong>
                       <time dateTime={key}>{formatVnDay(day.date)}</time>
-                      {key === todayKey ? <small>Hôm nay</small> : null}
+                      {key === todayKey ? <small>{t.todayMarker}</small> : null}
                     </th>
                   );
                 })}
@@ -157,11 +177,15 @@ export function WeeklyCalendar({ events, details, weekStart, dataStartDate, role
                       })
                         ? candidate
                         : null;
+                    const activeReportingMealId = activeReportingMealByDay.get(dayKey) ?? null;
                     const state = detail ? timeState : null;
+                    const displayState: DisplayMealState | null = state?.key === "REPORTING" && dayKey === todayKey && activeReportingMealId !== mealType.id
+                      ? { key: "UPCOMING", label: t.notYet, tone: "muted", isCurrent: false }
+                      : state;
                     const status = detail
-                      ? simpleState(state)
+                      ? simpleState(displayState)
                       : {
-                          label: "Không có dữ liệu",
+                          label: t.noData,
                           tone: "empty",
                           Icon: CalendarDays,
                         };
@@ -169,8 +193,8 @@ export function WeeklyCalendar({ events, details, weekStart, dataStartDate, role
                     const menuSaved = detail?.diets.filter((diet) => diet.menuItems.length > 0).length ?? 0;
                     const menuLocked = detail?.diets.filter((diet) => diet.approved && diet.menuItems.length > 0).length ?? 0;
                     const menuComplete = menuTotal > 0 && menuSaved === menuTotal;
-                    const menuStatus = menuTotal === 0 ? "Thực đơn —" : !menuComplete ? `Thiếu thực đơn ${menuTotal - menuSaved}/${menuTotal}` : menuLocked === menuTotal ? `Thực đơn đã chốt ${menuLocked}/${menuTotal}` : `Đã lên thực đơn ${menuSaved}/${menuTotal} · Chờ tự khóa`;
-                    const factWarning = detail && (state?.key === "SERVICE" || state?.key === "CLOSED") ? (detail.businessFacts.kitchen !== "PREPARED" ? "Bếp chưa xác nhận xong" : detail.businessFacts.delivery === "UNCONFIRMED" ? "Khoa chưa xác nhận nhận suất" : null) : null;
+                    const menuStatus = menuTotal === 0 ? t.menuPending : !menuComplete ? t.menuMissing.replace("{missing}", String(menuTotal - menuSaved)).replace("{total}", String(menuTotal)) : menuLocked === menuTotal ? t.menuLocked.replace("{locked}", String(menuLocked)).replace("{total}", String(menuTotal)) : t.menuReady.replace("{saved}", String(menuSaved)).replace("{total}", String(menuTotal));
+                    const factWarning = detail && (displayState?.key === "SERVICE" || displayState?.key === "CLOSED") ? (detail.businessFacts.kitchen !== "PREPARED" ? t.kitchenUnconfirmed : detail.businessFacts.delivery === "UNCONFIRMED" ? t.receiptUnconfirmed : null) : null;
                     const content = (
                       <div className="calendar-status-cell">
                         <span className={`calendar-simple-state ${status.tone}`}>
@@ -179,21 +203,21 @@ export function WeeklyCalendar({ events, details, weekStart, dataStartDate, role
                         </span>
                         {detail ? (
                           <div className="calendar-cell-facts">
-                            {state?.key === "REPORTING" ? (
+                            {displayState?.key === "REPORTING" ? (
                               <span className="reporting-open">
-                                Khoa báo{" "}
+                                {t.departmentReports}{" "}
                                 <b>
                                   {detail.reportedDepartmentCount ?? "—"}/{detail.totalDepartmentCount ?? "—"}
                                 </b>
                               </span>
                             ) : null}
                             <span>
-                              <Utensils aria-hidden="true" /> Tổng suất <b>{detail.reportedServings ?? "—"}</b>
+                              <Utensils aria-hidden="true" /> {t.totalServings} <b>{detail.reportedServings ?? "—"}</b>
                             </span>
                             {factWarning ? <span className="warning">⚠ {factWarning}</span> : null}
                           </div>
                         ) : (
-                          <small>— · Chưa có dữ liệu</small>
+                          <small>{t.noCellData}</small>
                         )}
                         {detail ? (
                           <em className={menuComplete ? "menu-ready" : "menu-missing"}>
@@ -204,15 +228,15 @@ export function WeeklyCalendar({ events, details, weekStart, dataStartDate, role
                       </div>
                     );
                     return (
-                      <td key={dayKey} className={`${dayKey === todayKey ? "calendar-today" : dayKey < todayKey ? "calendar-past" : "calendar-future"} ${state?.isCurrent ? "calendar-current-meal" : ""} ${state?.tone === "danger" ? "calendar-incomplete" : ""}`}>
-                        {detail && state ? (
+                      <td key={dayKey} className={`${dayKey === todayKey ? "calendar-today" : dayKey < todayKey ? "calendar-past" : "calendar-future"} ${displayState?.isCurrent ? "calendar-current-meal" : ""} ${displayState?.tone === "danger" ? "calendar-incomplete" : ""}`}>
+                        {detail && displayState ? (
                           <MealDetailDialog
                             meal={detail}
                             date={formatVnDay(day.date)}
                             stateLabel={status.label}
                             canPlanMenu={role === "DIETITIAN" || role === "ADMIN"}
                             trigger={
-                              <button type="button" className="calendar-cell-button" aria-label={`Xem chi tiết ${mealType.name} ${formatVnDay(day.date)}`}>
+                              <button type="button" className="calendar-cell-button" aria-label={t.cellDetail.replace("{meal}", mealType.name).replace("{date}", formatVnDay(day.date))}>
                                 {content}
                               </button>
                             }
@@ -229,7 +253,7 @@ export function WeeklyCalendar({ events, details, weekStart, dataStartDate, role
           </table>
         </div>
       )}
-      <p className="calendar-note">Lịch tự chuyển trạng thái và bữa hiện tại theo giờ bệnh viện; “—” nghĩa là chưa có dữ liệu, không phải 0.</p>
+      <p className="calendar-note">{t.note}</p>
     </>
   );
 }

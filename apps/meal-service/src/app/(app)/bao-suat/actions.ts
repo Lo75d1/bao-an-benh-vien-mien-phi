@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { createLateMealAddition, normalizeAdditionReason } from "@/lib/late-addition";
 import { confirmMealDelivery } from "@/lib/delivery-receipt";
 import { actionFailure, actionSuccess, type ActionResult } from "@/lib/action-result";
+import { getTranslations } from "@/lib/locale";
+import { readLocale } from "@/lib/locale-server";
 import { readActionClock } from "@/lib/request-clock";
 import { reviewPatientNote } from "@/lib/patient-note";
 import { normalizeReporterName, normalizeServingNote, requireNurseDepartment, saveServingReport, type ServingLineInput } from "@/lib/serving-report";
@@ -16,7 +18,13 @@ function nurseRedirect(formData: FormData, saved: string) {
   redirect(`/bao-suat?route=${route}&saved=${saved}`);
 }
 
+async function actionTexts() {
+  const locale = await readLocale();
+  return getTranslations(locale).management.baoSuatAction;
+}
+
 async function saveServingReportSubmission(formData: FormData) {
+  const t = await actionTexts();
   const user = await getSessionUser();
   if (!user) redirect("/");
   const memberships = await prisma.departmentMembership.findMany({ where: { userId: user.id }, select: { departmentId: true } });
@@ -25,7 +33,7 @@ async function saveServingReportSubmission(formData: FormData) {
   const dietTypeIds = formData.getAll("dietTypeId").map(String);
   const lines: ServingLineInput[] = dietTypeIds.map((dietTypeId) => {
     const raw = String(formData.get(`quantity:${dietTypeId}`) ?? "").trim();
-    if (!/^\d+$/.test(raw)) throw new Error("Cần nhập số suất nguyên không âm cho mọi chế độ.");
+    if (!/^\d+$/.test(raw)) throw new Error(t.invalidServingCount);
     return { dietTypeId, quantity: Number(raw), internalNote: normalizeServingNote(formData.get(`internalNote:${dietTypeId}`)), patientVisibleNote: normalizeServingNote(formData.get(`patientVisibleNote:${dietTypeId}`)) };
   });
   const clock = await readActionClock();
@@ -35,13 +43,14 @@ async function saveServingReportSubmission(formData: FormData) {
 }
 
 async function addLateMeal(formData: FormData) {
+  const t = await actionTexts();
   const user = await getSessionUser();
   if (!user) redirect("/");
   const memberships = await prisma.departmentMembership.findMany({ where: { userId: user.id }, select: { departmentId: true } });
   const departmentId = requireNurseDepartment(user.role, memberships.map((item) => item.departmentId));
   const rawQuantity = String(formData.get("quantity") ?? "").trim();
   const feedingRoute = formData.get("route") === "SONDE" ? "SONDE" : "NORMAL";
-  if (!/^\d+$/.test(rawQuantity) || Number(rawQuantity) <= 0) throw new Error("Số suất bổ sung phải là số nguyên dương.");
+  if (!/^\d+$/.test(rawQuantity) || Number(rawQuantity) <= 0) throw new Error(t.invalidAdditionCount);
   const clock = await readActionClock();
   await createLateMealAddition({ mealEventId: String(formData.get("mealEventId") ?? ""), departmentId, dietTypeId: String(formData.get("dietTypeId") ?? ""), feedingRoute, quantity: Number(rawQuantity), reason: normalizeAdditionReason(formData.get("reason")) }, user, clock.now);
   revalidatePath("/bao-suat");
@@ -50,11 +59,12 @@ async function addLateMeal(formData: FormData) {
 }
 
 export async function reviewPatientNoteAction(formData: FormData) {
+  const t = await actionTexts();
   const user = await getSessionUser();
   if (!user) redirect("/");
-  if (user.demoSessionId) throw new Error("Demo Session không thay đổi ghi chú bệnh nhân trong dữ liệu nền.");
+  if (user.demoSessionId) throw new Error(t.demoPatientNoteBlocked);
   const status = String(formData.get("status") ?? "");
-  if (status !== "APPROVED" && status !== "REJECTED") throw new Error("Trạng thái duyệt không hợp lệ.");
+  if (status !== "APPROVED" && status !== "REJECTED") throw new Error(t.invalidReviewStatus);
   await reviewPatientNote({ id: String(formData.get("noteId") ?? ""), status, reviewNote: formData.get("reviewNote") }, user);
   revalidatePath("/bao-suat");
   revalidatePath("/bep");
@@ -62,6 +72,7 @@ export async function reviewPatientNoteAction(formData: FormData) {
 }
 
 async function confirmDeliveryReceipt(formData: FormData) {
+  const t = await actionTexts();
   const user = await getSessionUser();
   if (!user) redirect("/");
   const memberships = await prisma.departmentMembership.findMany({ where: { userId: user.id }, select: { departmentId: true } });
@@ -75,13 +86,13 @@ async function confirmDeliveryReceipt(formData: FormData) {
 
 export async function saveServingReportAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
   if (!await getSessionUser()) redirect("/");
-  try { await saveServingReportSubmission(formData); return actionSuccess("Đã lưu và gửi báo suất cho bếp."); }
+  try { await saveServingReportSubmission(formData); const t = await actionTexts(); return actionSuccess(t.servingSaved); }
   catch (error) { return actionFailure(error); }
 }
 
 export async function addLateMealAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
   if (!await getSessionUser()) redirect("/");
-  try { await addLateMeal(formData); return actionSuccess("Đã gửi báo bổ sung cho bếp."); }
+  try { await addLateMeal(formData); const t = await actionTexts(); return actionSuccess(t.additionSaved); }
   catch (error) { return actionFailure(error); }
 }
 
@@ -89,6 +100,7 @@ export async function confirmDeliveryReceiptAction(_previous: ActionResult, form
   if (!await getSessionUser()) redirect("/");
   try {
     await confirmDeliveryReceipt(formData);
-    return actionSuccess(formData.get("status") === "SHORT" ? "Đã ghi nhận số suất nhận thiếu." : "Đã xác nhận khoa nhận đủ suất.");
+    const t = await actionTexts();
+    return actionSuccess(formData.get("status") === "SHORT" ? t.receiptShortSaved : t.receiptFullSaved);
   } catch (error) { return actionFailure(error); }
 }
