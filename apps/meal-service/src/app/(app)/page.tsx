@@ -171,6 +171,10 @@ export default async function HomePage({
     params.set("lang", nextLanguage);
     return `?${params.toString()}`;
   };
+  const languageHrefs = {
+    vi: languageHref("vi"),
+    en: languageHref("en"),
+  };
 
   return (
     <main className="public-menu-home" style={publicStyle}>
@@ -190,7 +194,7 @@ export default async function HomePage({
           )}
           <strong>{branding.organizationName}</strong>
         </a>
-        <PublicLanguageSwitcher current={language} hrefFor={languageHref} />
+        <PublicLanguageSwitcher current={language} hrefs={languageHrefs} />
         <Dialog>
           <DialogTrigger asChild>
             <button type="button" className="staff-login-trigger">

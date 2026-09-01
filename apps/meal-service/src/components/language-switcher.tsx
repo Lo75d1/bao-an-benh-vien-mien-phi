@@ -26,13 +26,13 @@ export function StaffLanguageSwitcher({ current }: { current: Language }) {
   );
 }
 
-export function PublicLanguageSwitcher({ current, hrefFor }: { current: Language; hrefFor: (lang: Language) => string }) {
+export function PublicLanguageSwitcher({ current, hrefs }: { current: Language; hrefs: Record<Language, string> }) {
   return (
     <details className="language-switcher">
       <summary><Globe aria-hidden="true" /> {current === "vi" ? "VI ▾" : "EN ▾"}</summary>
       <div className="language-switcher-menu">
         {OPTIONS.map((option) => (
-          <Link key={option.value} href={hrefFor(option.value)} className="language-option" aria-current={current === option.value ? "page" : undefined}>
+          <Link key={option.value} href={hrefs[option.value]} className="language-option" aria-current={current === option.value ? "page" : undefined}>
             {current === option.value ? <Check className="size-4" aria-hidden="true" /> : <span className="size-4" />}
             {option.label}
           </Link>
