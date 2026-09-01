@@ -14,6 +14,7 @@ import { createSyncPreview, queueSyncJob, retrySyncJob } from "@/lib/official-da
 import { actionFailure, actionSuccess, type ActionResult } from "@/lib/action-result";
 
 async function admin() { const user = await getSessionUser(); if (!user || user.role !== "ADMIN") throw new Error("Chỉ quản trị viên được thực hiện thao tác này."); return user; }
+const message = (language: "vi" | "en", vi: string, en: string) => language === "en" ? en : vi;
 const enabled = (data: FormData, key: string) => ["on", "true", "1"].includes(String(data.get(key) ?? "").toLowerCase());
 
 const DATA_SYNC_SOURCES = new Set<DataSyncSource>(["VDD_FOOD", "VDD_DISH", "RNI_DISH"]);
@@ -21,7 +22,7 @@ const DATA_SYNC_SOURCES = new Set<DataSyncSource>(["VDD_FOOD", "VDD_DISH", "RNI_
 export async function previewOfficialDataAction(formData: FormData) {
   const actor = await admin();
   const source = String(formData.get("source") ?? "") as DataSyncSource;
-  if (!DATA_SYNC_SOURCES.has(source)) throw new Error("Nguồn dữ liệu không hợp lệ.");
+  if (!DATA_SYNC_SOURCES.has(source)) throw new Error(message(actor.language, "Nguồn dữ liệu không hợp lệ.", "Invalid data source."));
   const job = await createSyncPreview(source, actor);
   redirect(`/quan-tri?sync=${encodeURIComponent(job.id)}#official-data`);
 }
@@ -46,15 +47,15 @@ export async function saveBrandingAction(formData: FormData) {
   const file = formData.get("logo");
   let logoDataUrl = formData.get("removeLogo") === "on" ? null : current.logoDataUrl;
   if (file instanceof File && file.size > 0) {
-    if (!new Set(["image/png", "image/jpeg", "image/webp"]).has(file.type)) throw new Error("Logo chỉ nhận PNG, JPG hoặc WebP.");
-    if (file.size > 300_000) throw new Error("Logo tối đa 300 KB.");
+    if (!new Set(["image/png", "image/jpeg", "image/webp"]).has(file.type)) throw new Error(message(actor.language, "Logo chỉ nhận PNG, JPG hoặc WebP.", "Logo must be a PNG, JPG, or WebP image."));
+    if (file.size > 300_000) throw new Error(message(actor.language, "Logo tối đa 300 KB.", "Logo must not exceed 300 KB."));
     logoDataUrl = `data:${file.type};base64,${Buffer.from(await file.arrayBuffer()).toString("base64")}`;
   }
   const heroFile = formData.get("publicHeroImage");
   let publicHeroImageDataUrl = formData.get("removePublicHeroImage") === "on" ? null : current.publicHeroImageDataUrl;
   if (heroFile instanceof File && heroFile.size > 0) {
-    if (!new Set(["image/jpeg", "image/webp"]).has(heroFile.type)) throw new Error("Ảnh nền chỉ nhận JPG hoặc WebP.");
-    if (heroFile.size > 1_500_000) throw new Error("Ảnh nền tối đa 1,5 MB.");
+    if (!new Set(["image/jpeg", "image/webp"]).has(heroFile.type)) throw new Error(message(actor.language, "Ảnh nền chỉ nhận JPG hoặc WebP.", "Background image must be a JPG or WebP image."));
+    if (heroFile.size > 1_500_000) throw new Error(message(actor.language, "Ảnh nền tối đa 1,5 MB.", "Background image must not exceed 1.5 MB."));
     publicHeroImageDataUrl = `data:${heroFile.type};base64,${Buffer.from(await heroFile.arrayBuffer()).toString("base64")}`;
   }
   await updateBrandingSettings({ organizationName: String(formData.get("organizationName") ?? ""), shortName: String(formData.get("shortName") ?? ""), primaryColor: String(formData.get("primaryColor") ?? ""), logoDataUrl, publicPrimaryColor: String(formData.get("publicPrimaryColor") ?? ""), publicAccentColor: String(formData.get("publicAccentColor") ?? ""), publicHeroEnabled: formData.get("publicHeroEnabled") === "on", publicHeroImageDataUrl }, actor, String(formData.get("reason") ?? ""));
@@ -72,8 +73,8 @@ async function saveSettings(formData: FormData) {
 }
 
 export async function saveSettingsAction(_previous: ActionResult, formData: FormData): Promise<ActionResult> {
-  if (!await getSessionUser()) redirect("/");
-  try { await saveSettings(formData); return actionSuccess("Đã áp dụng cấu hình cho toàn hệ thống."); }
+  const user = await getSessionUser(); if (!user) redirect("/");
+  try { await saveSettings(formData); return actionSuccess(message(user.language, "Đã áp dụng cấu hình cho toàn hệ thống.", "Settings have been applied system-wide.")); }
   catch (error) { return actionFailure(error); }
 }
 

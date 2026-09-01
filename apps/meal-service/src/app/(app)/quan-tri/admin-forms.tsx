@@ -5,8 +5,11 @@ import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { ActionButton, ActionFeedback } from "@/components/action-feedback";
 import { INITIAL_ACTION_RESULT, type ActionResult } from "@/lib/action-result";
+import { adminText } from "./i18n";
 
 const error = (id: string, message?: string) => (message ? <span id={id} role="alert" className="field-error">{message}</span> : null);
+const getLanguage = () => typeof document !== "undefined" && document.documentElement.lang === "en" ? "en" : "vi";
+const t = (text: string) => adminText(getLanguage(), text);
 
 const settingsSchema = z.object({
   advanceEntryDays: z.number().int().min(1, "Tối thiểu 1 ngày.").max(60, "Tối đa 60 ngày."),
@@ -75,61 +78,61 @@ export function SettingsForm({ settings, mealTypes, action }: { settings: Omit<S
     >
       <div className="admin-grid settings-primary-grid">
         <label htmlFor="dataStartDate">
-          Ngày bắt đầu dữ liệu
+          {t("Ngày bắt đầu dữ liệu")}
           <input id="dataStartDate" type="date" {...register("dataStartDate")} />
-          <small>Lịch và báo cáo không thể chọn trước mốc này.</small>
+          <small>{t("Lịch và báo cáo không thể chọn trước mốc này.")}</small>
         </label>
         <label htmlFor="advanceEntryDays">
-          Số ngày được nhập trước
+          {t("Số ngày được nhập trước")}
           <input id="advanceEntryDays" type="number" min="1" max="60" {...register("advanceEntryDays", { valueAsNumber: true })} aria-invalid={!!errors.advanceEntryDays} aria-describedby={errors.advanceEntryDays ? "advanceEntryDays-error" : undefined} />
           {error("advanceEntryDays-error", errors.advanceEntryDays?.message)}
         </label>
         <label htmlFor="serviceCompletionMinutes">
-          Phút chuyển sang bữa kế
+          {t("Phút chuyển sang bữa kế")}
           <input id="serviceCompletionMinutes" type="number" min="15" max="240" step="5" {...register("serviceCompletionMinutes", { valueAsNumber: true })} aria-invalid={!!errors.serviceCompletionMinutes} />
         </label>
         <label htmlFor="publicBaseUrl">
-          Địa chỉ trang công khai của bệnh viện
+          {t("Địa chỉ trang công khai của bệnh viện")}
           <input id="publicBaseUrl" type="url" placeholder="https://benhvien.example.vn" {...register("publicBaseUrl")} aria-invalid={!!errors.publicBaseUrl} aria-describedby={errors.publicBaseUrl ? "publicBaseUrl-error" : undefined} />
-          <small>Dùng cho QR bệnh nhân. Chỉ dùng URL thuộc bệnh viện, không tự mặc định sang domain nhà phát triển.</small>
+          <small>{t("Dùng cho QR bệnh nhân. Chỉ dùng URL thuộc bệnh viện, không tự mặc định sang domain nhà phát triển.")}</small>
           {error("publicBaseUrl-error", errors.publicBaseUrl?.message)}
         </label>
         <label className="check-field sonde-setting-control">
           <input type="checkbox" {...register("sondeEnabled")} />
           <span>
-            Bật đường nuôi Sonde
+            {t("Bật đường nuôi Sonde")}
             <small className={sondeEnabled ? "sonde-inline-state is-on" : "sonde-inline-state is-off"}>
-              {sondeEnabled ? "Đang bật · lịch Sonde sẽ được áp dụng" : "Đang tắt · các màn nghiệp vụ sẽ ẩn Sonde"}
+              {sondeEnabled ? t("Đang bật · lịch Sonde sẽ được áp dụng") : t("Đang tắt · các màn nghiệp vụ sẽ ẩn Sonde")}
             </small>
           </span>
         </label>
-        <label className="check-field"><input type="checkbox" {...register("publicMenuImages")} /><span>Hiện ảnh món ăn cho bệnh nhân</span></label>
-        <label className="check-field"><input type="checkbox" {...register("publicMenuDishes")} /><span>Hiển thị món ăn trên trang công khai</span></label>
-        <label className="check-field"><input type="checkbox" {...register("publicMenuIngredients")} /><span>Cho xem thành phần món ăn<small>Thành phần được thu gọn; bệnh nhân chủ động mở khi cần.</small></span></label>
-        <label className="check-field"><input type="checkbox" {...register("publicViewCountVisible")} /><span>Hiện lượt xem trên trang chủ</span></label>
-        <label className="check-field"><input type="checkbox" {...register("foodRetention24hRequired")} /><span>Yêu cầu mẫu lưu thực phẩm 24 giờ<small>Bếp xác nhận một mẫu chung sau khi đã chụp đủ ảnh từng mã.</small></span></label>
+        <label className="check-field"><input type="checkbox" {...register("publicMenuImages")} /><span>{t("Hiện ảnh món ăn cho bệnh nhân")}</span></label>
+        <label className="check-field"><input type="checkbox" {...register("publicMenuDishes")} /><span>{t("Hiển thị món ăn trên trang công khai")}</span></label>
+        <label className="check-field"><input type="checkbox" {...register("publicMenuIngredients")} /><span>{t("Cho xem thành phần món ăn")}<small>{t("Thành phần được thu gọn; bệnh nhân chỉ mở khi cần.")}</small></span></label>
+        <label className="check-field"><input type="checkbox" {...register("publicViewCountVisible")} /><span>{t("Hiện lượt xem trên trang chủ")}</span></label>
+        <label className="check-field"><input type="checkbox" {...register("foodRetention24hRequired")} /><span>{t("Yêu cầu mẫu lưu thực phẩm 24 giờ")}<small>{t("Bếp xác nhận một mẫu chung sau khi đã chụp đủ ảnh từng mã.")}</small></span></label>
         <label htmlFor="warehouseMode">
-          Mode kho
+          {t("Mode kho")}
           <select id="warehouseMode" {...register("warehouseMode")}>
-            <option value="A">Mode A · một kho tổng</option>
-            <option value="B">Mode B · kho bếp + kho sonde</option>
+            <option value="A">{t("Mode A · một kho tổng")}</option>
+            <option value="B">{t("Mode B · kho bếp + kho sonde")}</option>
           </select>
         </label>
         <label htmlFor="warehouseApprovalRole">
-          Vai trò xác nhận kho
+          {t("Vai trò xác nhận kho")}
           <select id="warehouseApprovalRole" {...register("warehouseApprovalRole")}>
-            <option value="ADMIN">Quản trị</option>
-            <option value="DIETITIAN">Dinh dưỡng</option>
-            <option value="KITCHEN">Nhà bếp</option>
+            <option value="ADMIN">{adminText(getLanguage(), "Quản trị")}</option>
+            <option value="DIETITIAN">{adminText(getLanguage(), "Dinh dưỡng")}</option>
+            <option value="KITCHEN">{adminText(getLanguage(), "Nhà bếp")}</option>
           </select>
         </label>
         <fieldset className="settings-recipient-grid">
-          <legend>Người nhận ghi chú / phản ánh</legend>
-          <p>Admin luôn nhận. Các vai trò khác có thể bật/tắt riêng theo từng loại nội dung.</p>
-          <div className="settings-recipient-header"><span>Người nhận</span><span>Phản ánh</span><span>Ghi chú Bếp</span></div>
-          <div className="settings-recipient-row"><strong>Admin</strong><span>Luôn nhận</span><span>Luôn nhận</span></div>
-          <label className="settings-recipient-row"><strong>Dinh dưỡng</strong><input type="checkbox" {...register("feedbackDietitian")} /><input type="checkbox" {...register("kitchenNoteDietitian")} /></label>
-          <label className="settings-recipient-row"><strong>Khoa/Điều dưỡng</strong><input type="checkbox" {...register("feedbackNurse")} /><input type="checkbox" {...register("kitchenNoteNurse")} /></label>
+          <legend>{t("Người nhận ghi chú / phản ánh")}</legend>
+          <p>{t("Admin luôn nhận. Các vai trò khác có thể bật/tắt riêng theo từng loại nội dung.")}</p>
+          <div className="settings-recipient-header"><span>{t("Người nhận")}</span><span>{t("Phản ánh")}</span><span>{t("Ghi chú bếp")}</span></div>
+          <div className="settings-recipient-row"><strong>Admin</strong><span>{t("Luôn nhận")}</span><span>{t("Luôn nhận")}</span></div>
+          <label className="settings-recipient-row"><strong>{adminText(getLanguage(), "Dinh dưỡng")}</strong><input type="checkbox" {...register("feedbackDietitian")} /><input type="checkbox" {...register("kitchenNoteDietitian")} /></label>
+          <label className="settings-recipient-row"><strong>{t("Khoa/Điều dưỡng")}</strong><input type="checkbox" {...register("feedbackNurse")} /><input type="checkbox" {...register("kitchenNoteNurse")} /></label>
         </fieldset>
       </div>
 
@@ -137,15 +140,15 @@ export function SettingsForm({ settings, mealTypes, action }: { settings: Omit<S
         {(["NORMAL", ...(sondeEnabled ? ["SONDE" as const] : [])] as const).map((route) => (
           <section className="meal-schedule-settings" key={route}>
             <header>
-              <strong>{route === "SONDE" ? "Lịch cữ Sonde" : "Lịch suất ăn thường"}</strong>
-              <span>{mealTypes.filter((meal) => meal.feedingRoute === route).length} bữa/cữ</span>
+              <strong>{route === "SONDE" ? t("Lịch cữ Sonde") : t("Lịch suất ăn thường")}</strong>
+              <span>{mealTypes.filter((meal) => meal.feedingRoute === route).length} {t("bữa/cữ")}</span>
             </header>
             <table>
               <thead>
                 <tr>
-                  <th>Tên bữa/cữ</th>
-                  <th>Giờ chốt</th>
-                  <th>Giờ phục vụ</th>
+                  <th>{t("Tên bữa/cữ")}</th>
+                  <th>{t("Giờ chốt")}</th>
+                  <th>{t("Giờ phục vụ")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -155,8 +158,8 @@ export function SettingsForm({ settings, mealTypes, action }: { settings: Omit<S
                       {meal.name}
                       <input type="hidden" name="mealTypeId" value={meal.id} />
                     </th>
-                    <td><input aria-label={`Giờ chốt ${meal.name}`} name="cutoffTime" type="time" defaultValue={meal.cutoffTime} required /></td>
-                    <td><input aria-label={`Giờ phục vụ ${meal.name}`} name="serviceTime" type="time" defaultValue={meal.serviceTime} required /></td>
+                    <td><input aria-label={t(`Giờ chốt ${meal.name}`)} name="cutoffTime" type="time" defaultValue={meal.cutoffTime} required /></td>
+                    <td><input aria-label={t(`Giờ phục vụ ${meal.name}`)} name="serviceTime" type="time" defaultValue={meal.serviceTime} required /></td>
                   </tr>
                 ))}
               </tbody>
@@ -167,12 +170,12 @@ export function SettingsForm({ settings, mealTypes, action }: { settings: Omit<S
 
       <div className="admin-submit">
         <label htmlFor="settings-reason">
-          Lý do thay đổi
-          <input id="settings-reason" {...register("reason")} autoComplete="off" aria-invalid={!!errors.reason} aria-describedby={errors.reason ? "settings-reason-error" : undefined} placeholder="Nêu lý do để lưu AuditLog…" />
+          {t("Lý do thay đổi")}
+          <input id="settings-reason" {...register("reason")} autoComplete="off" aria-invalid={!!errors.reason} aria-describedby={errors.reason ? "settings-reason-error" : undefined} placeholder={t("Nêu lý do để lưu AuditLog…")} />
           {error("settings-reason-error", errors.reason?.message)}
         </label>
         <div>
-          <ActionButton type="submit" className="primary-action" pending={pending} pendingLabel="Đang áp dụng…">Áp dụng cấu hình</ActionButton>
+          <ActionButton type="submit" className="primary-action" pending={pending} pendingLabel={t("Đang áp dụng…")}>{t("Áp dụng cấu hình")}</ActionButton>
           <ActionFeedback result={result} />
         </div>
       </div>
@@ -181,17 +184,17 @@ export function SettingsForm({ settings, mealTypes, action }: { settings: Omit<S
 }
 
 const accountSchema = z.object({
-  displayName: z.string().trim().min(2, "Họ tên cần ít nhất 2 ký tự.").max(100),
-  email: z.string().trim().email("Nhập email hợp lệ."),
+  displayName: z.string().trim().min(2, t("Họ tên cần ít nhất 2 ký tự.")).max(100),
+  email: z.string().trim().email(t("Nhập email hợp lệ.")),
   role: z.enum(["ADMIN", "DIETITIAN", "NURSE", "KITCHEN"]),
   departmentId: z.string(),
-  password: z.string().min(10, "Mật khẩu cần ít nhất 10 ký tự.").max(256),
+  password: z.string().min(10, t("Mật khẩu cần ít nhất 10 ký tự.")).max(256),
 }).superRefine((value, context) => {
-  if (value.role === "NURSE" && !value.departmentId) context.addIssue({ code: "custom", path: ["departmentId"], message: "Chọn khoa cho điều dưỡng." });
+  if (value.role === "NURSE" && !value.departmentId) context.addIssue({ code: "custom", path: ["departmentId"], message: t("Chọn khoa cho điều dưỡng.") });
 });
 
 const scopedAccountSchema = accountSchema.and(z.object({ kitchenRoute: z.string() })).superRefine((value, context) => {
-  if (value.role === "KITCHEN" && !["NORMAL", "SONDE"].includes(value.kitchenRoute)) context.addIssue({ code: "custom", path: ["kitchenRoute"], message: "Chọn phạm vi bếp." });
+  if (value.role === "KITCHEN" && !["NORMAL", "SONDE"].includes(value.kitchenRoute)) context.addIssue({ code: "custom", path: ["kitchenRoute"], message: t("Chọn phạm vi bếp.") });
 });
 
 type AccountFields = z.infer<typeof scopedAccountSchema>;
@@ -216,13 +219,13 @@ export function AccountCreateForm({ departments, action, feedbackAction }: Accou
       if (feedbackAction) startTransition(() => feedbackFormAction(data));
       else if (action) run(() => action(data));
     })} noValidate className="admin-grid account-create">
-      <label>Họ tên<input {...register("displayName")} autoComplete="name" aria-invalid={!!errors.displayName} aria-describedby={errors.displayName ? "account-name-error" : undefined} />{error("account-name-error", errors.displayName?.message)}</label>
-      <label>Email<input type="email" {...register("email")} autoComplete="email" spellCheck={false} aria-invalid={!!errors.email} aria-describedby={errors.email ? "account-email-error" : undefined} />{error("account-email-error", errors.email?.message)}</label>
-      <label>Vai trò<select {...register("role")}><option value="ADMIN">Quản trị</option><option value="DIETITIAN">Dinh dưỡng</option><option value="NURSE">Điều dưỡng</option><option value="KITCHEN">Nhà bếp</option></select></label>
-      <label>Khoa cho điều dưỡng<select {...register("departmentId")} aria-invalid={!!errors.departmentId} aria-describedby={errors.departmentId ? "account-department-error" : undefined}><option value="">—</option>{departments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>{error("account-department-error", errors.departmentId?.message)}</label>
-      <label>Phạm vi cho tài khoản bếp<select {...register("kitchenRoute")} aria-invalid={!!errors.kitchenRoute}><option value="">—</option><option value="NORMAL">Bếp ăn thường</option><option value="SONDE">Bếp Sonde</option></select>{error("account-kitchen-route-error", errors.kitchenRoute?.message)}</label>
-      <label>Mật khẩu ban đầu<input type="password" {...register("password")} autoComplete="new-password" aria-invalid={!!errors.password} aria-describedby={errors.password ? "account-password-error" : undefined} />{error("account-password-error", errors.password?.message)}</label>
-      <ActionButton className="primary-action" pending={submitting} pendingLabel="Đang tạo…">Tạo tài khoản</ActionButton>
+      <label>{t("Họ tên")}<input {...register("displayName")} autoComplete="name" aria-invalid={!!errors.displayName} aria-describedby={errors.displayName ? "account-name-error" : undefined} />{error("account-name-error", errors.displayName?.message)}</label>
+      <label>{t("Email")}<input type="email" {...register("email")} autoComplete="email" spellCheck={false} aria-invalid={!!errors.email} aria-describedby={errors.email ? "account-email-error" : undefined} />{error("account-email-error", errors.email?.message)}</label>
+      <label>{t("Vai trò")}<select {...register("role")}><option value="ADMIN">{adminText(getLanguage(), "Quản trị")}</option><option value="DIETITIAN">{adminText(getLanguage(), "Dinh dưỡng")}</option><option value="NURSE">{adminText(getLanguage(), "Điều dưỡng")}</option><option value="KITCHEN">{adminText(getLanguage(), "Nhà bếp")}</option></select></label>
+      <label>{t("Khoa cho điều dưỡng")}<select {...register("departmentId")} aria-invalid={!!errors.departmentId} aria-describedby={errors.departmentId ? "account-department-error" : undefined}><option value="">—</option>{departments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>{error("account-department-error", errors.departmentId?.message)}</label>
+      <label>{t("Phạm vi cho tài khoản bếp")}<select {...register("kitchenRoute")} aria-invalid={!!errors.kitchenRoute}><option value="">—</option><option value="NORMAL">{t("Bếp ăn thường")}</option><option value="SONDE">{adminText(getLanguage(), "Bếp Sonde")}</option></select>{error("account-kitchen-route-error", errors.kitchenRoute?.message)}</label>
+      <label>{t("Mật khẩu ban đầu")}<input type="password" {...register("password")} autoComplete="new-password" aria-invalid={!!errors.password} aria-describedby={errors.password ? "account-password-error" : undefined} />{error("account-password-error", errors.password?.message)}</label>
+      <ActionButton className="primary-action" pending={submitting} pendingLabel={t("Đang tạo…")}>{t("Tạo tài khoản")}</ActionButton>
       {feedbackAction ? <ActionFeedback result={result} /> : null}
     </form>
   );

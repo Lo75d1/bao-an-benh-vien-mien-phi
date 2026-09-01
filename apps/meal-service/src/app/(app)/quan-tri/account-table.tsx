@@ -1,4 +1,5 @@
 "use client";
+
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
 import {
@@ -9,8 +10,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import type { Language } from "@/lib/i18n";
+import { adminText } from "./i18n";
+
 type Action = (data: FormData) => Promise<void>;
 type Option = { id: string; name: string };
+
 export type AccountRow = {
   id: string;
   name: string;
@@ -24,37 +29,48 @@ export type AccountRow = {
   status: "ACTIVE" | "INACTIVE";
   statusLabel: string;
 };
+
 const roleLabels = {
   ADMIN: "Quản trị",
   DIETITIAN: "Dinh dưỡng",
   NURSE: "Điều dưỡng",
   KITCHEN: "Nhà bếp",
 } as const;
+
 export function AccountTable({
+  language,
   data,
   departments,
   saveAction,
   statusAction,
 }: {
+  language?: Language;
   data: AccountRow[];
   departments: Option[];
   saveAction: Action;
   statusAction: Action;
 }) {
+  const currentLanguage = language ?? "vi";
+  const t = (text: string) => adminText(currentLanguage, text);
+  const labels =
+    currentLanguage === "en"
+      ? { ADMIN: "Admin", DIETITIAN: "Dietitian", NURSE: "Nurse", KITCHEN: "Kitchen" }
+      : roleLabels;
+
   const columns: ColumnDef<AccountRow, unknown>[] = [
     {
       accessorKey: "name",
-      header: "Họ tên",
+      header: t("Họ tên"),
       cell: ({ row }) => <strong>{row.original.name}</strong>,
     },
-    { accessorKey: "email", header: "Email" },
-    { accessorKey: "roleLabel", header: "Vai trò" },
-    { accessorKey: "department", header: "Khoa" },
-    { accessorKey: "kitchenScope", header: "Phạm vi bếp" },
-    { accessorKey: "statusLabel", header: "Trạng thái" },
+    { accessorKey: "email", header: t("Email") },
+    { accessorKey: "roleLabel", header: t("Vai trò") },
+    { accessorKey: "department", header: t("Khoa") },
+    { accessorKey: "kitchenScope", header: t("Phạm vi bếp") },
+    { accessorKey: "statusLabel", header: t("Trạng thái") },
     {
       id: "actions",
-      header: "Thao tác",
+      header: t("Thao tác"),
       enableSorting: false,
       cell: ({ row }) => {
         const account = row.original;
@@ -63,22 +79,23 @@ export function AccountTable({
           <Dialog>
             <DialogTrigger asChild>
               <button type="button" className="secondary-button">
-                Sửa
+                {t("Sửa")}
               </button>
             </DialogTrigger>
             <DialogContent className="admin-dialog max-h-[90vh] max-w-3xl overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Sửa tài khoản {account.name}</DialogTitle>
+                <DialogTitle>
+                  {currentLanguage === "en" ? `Edit account ${account.name}` : `Sửa tài khoản ${account.name}`}
+                </DialogTitle>
                 <DialogDescription>
-                  Cập nhật thông tin hoặc đổi trạng thái. Mọi thay đổi vẫn được
-                  ghi nhật ký.
+                  {t("Cập nhật thông tin hoặc đổi trạng thái. Mọi thay đổi vẫn được ghi nhật ký.")}
                 </DialogDescription>
               </DialogHeader>
               <div className="admin-detail">
                 <form action={saveAction} className="admin-grid">
                   <input type="hidden" name="userId" value={account.id} />
                   <label>
-                    Họ tên
+                    {t("Họ tên")}
                     <input
                       name="displayName"
                       defaultValue={account.name}
@@ -87,7 +104,7 @@ export function AccountTable({
                     />
                   </label>
                   <label>
-                    Email
+                    {t("Email")}
                     <input
                       name="email"
                       type="email"
@@ -98,9 +115,9 @@ export function AccountTable({
                     />
                   </label>
                   <label>
-                    Vai trò
+                    {t("Vai trò")}
                     <select name="role" defaultValue={account.role}>
-                      {Object.entries(roleLabels).map(([value, label]) => (
+                      {Object.entries(labels).map(([value, label]) => (
                         <option key={value} value={value}>
                           {label}
                         </option>
@@ -108,11 +125,8 @@ export function AccountTable({
                     </select>
                   </label>
                   <label>
-                    Khoa
-                    <select
-                      name="departmentId"
-                      defaultValue={account.departmentId}
-                    >
+                    {t("Khoa")}
+                    <select name="departmentId" defaultValue={account.departmentId}>
                       <option value="">—</option>
                       {departments.map((item) => (
                         <option key={item.id} value={item.id}>
@@ -122,15 +136,15 @@ export function AccountTable({
                     </select>
                   </label>
                   <label>
-                    Phạm vi bếp
+                    {t("Phạm vi bếp")}
                     <select name="kitchenRoute" defaultValue={account.kitchenRoute}>
                       <option value="">—</option>
-                      <option value="NORMAL">Bếp ăn thường</option>
-                      <option value="SONDE">Bếp Sonde</option>
+                      <option value="NORMAL">{t("Bếp ăn thường")}</option>
+                      <option value="SONDE">{adminText(currentLanguage, "Bếp Sonde")}</option>
                     </select>
                   </label>
                   <label>
-                    Mật khẩu mới (để trống nếu giữ nguyên)
+                    {t("Mật khẩu mới (để trống nếu giữ nguyên)")}
                     <input
                       name="password"
                       type="password"
@@ -139,7 +153,7 @@ export function AccountTable({
                       autoComplete="new-password"
                     />
                   </label>
-                  <button className="secondary-button">Lưu sửa đổi</button>
+                  <button className="secondary-button">{t("Lưu sửa đổi")}</button>
                 </form>
                 <form action={statusAction} className="status-form">
                   <input type="hidden" name="userId" value={account.id} />
@@ -149,7 +163,7 @@ export function AccountTable({
                     value={account.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"}
                   />
                   <label className="sr-only" htmlFor={reasonId}>
-                    Lý do đổi trạng thái
+                    {t("Lý do đổi trạng thái")}
                   </label>
                   <input
                     id={reasonId}
@@ -158,7 +172,7 @@ export function AccountTable({
                     maxLength={500}
                     autoComplete="off"
                     required
-                    placeholder="Lý do bắt buộc"
+                    placeholder={t("Lý do bắt buộc")}
                   />
                   <button
                     className={
@@ -168,8 +182,8 @@ export function AccountTable({
                     }
                   >
                     {account.status === "ACTIVE"
-                      ? "Vô hiệu hóa"
-                      : "Kích hoạt lại"}
+                      ? t("Vô hiệu hóa")
+                      : t("Kích hoạt lại")}
                   </button>
                 </form>
               </div>
@@ -179,14 +193,15 @@ export function AccountTable({
       },
     },
   ];
+
   return (
     <DataTable
       className="admin-data-table"
       columns={columns}
       data={data}
       getRowId={(row) => row.id}
-      filterPlaceholder="Lọc họ tên, email, khoa…"
-      emptyMessage="Chưa có tài khoản."
+      filterPlaceholder={t("Lọc họ tên, email, khoa…")}
+      emptyMessage={t("Chưa có tài khoản.")}
     />
   );
 }
