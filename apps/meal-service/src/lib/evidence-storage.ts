@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { detectInvoiceUploadMime } from "./invoice-upload";
 
 export type StoredEvidence = { storagePath: string };
 export interface EvidenceStorage { store(file: File): Promise<StoredEvidence | null>; publicUrl(storagePath: string): string | null; }
@@ -10,7 +11,8 @@ const storageDirectory = () => path.resolve(process.env.EVIDENCE_STORAGE_DIR?.tr
 
 class LocalEvidenceStorage implements EvidenceStorage {
   async store(file: File): Promise<StoredEvidence | null> {
-    const extension = EXTENSIONS[file.type];
+    const mime = await detectInvoiceUploadMime(file);
+    const extension = mime ? EXTENSIONS[mime] : undefined;
     if (!extension) return null;
     const directory = storageDirectory();
     await mkdir(directory, { recursive: true });
