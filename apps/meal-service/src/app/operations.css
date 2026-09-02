@@ -1082,11 +1082,12 @@ body:has(.nutrition-menu-page) .top-shell,body:has(.nutrition-menu-page) [role="
 }
 
 .demo-role-gallery-image {
-  display: block;
+  display: grid;
+  place-items: center;
   width: 100%;
   padding: 0;
   border: 0;
-  background: transparent;
+  background: #eef7f3;
   cursor: zoom-in;
 }
 
@@ -1095,7 +1096,7 @@ body:has(.nutrition-menu-page) .top-shell,body:has(.nutrition-menu-page) [role="
   width: 100%;
   height: auto;
   aspect-ratio: 1;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .demo-role-preview-dialog {
