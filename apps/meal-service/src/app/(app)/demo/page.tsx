@@ -52,6 +52,15 @@ const workflow = [
   { icon: MonitorCog, title: "Quản trị theo dõi", note: "Báo cáo và cấu hình" },
 ] as const;
 
+const adoptionScreens = [
+  { src: "/demo/adoption/nurse-serving.jpg", title: "Khoa báo suất", description: "Điều dưỡng cập nhật số suất và phát sinh theo đúng bữa đang xử lý." },
+  { src: "/demo/adoption/menu-planning.jpg", title: "Lập thực đơn", description: "Dinh dưỡng nhập món, thực phẩm hoặc dữ liệu Excel trước khi phân tích." },
+  { src: "/demo/adoption/kitchen-serving.jpg", title: "Bếp chuẩn bị", description: "Bếp xem tổng suất, thực phẩm cần dùng, ảnh món và trạng thái giao nhận." },
+  { src: "/demo/adoption/calendar.jpg", title: "Lịch tuần", description: "Các bữa trong tuần được theo dõi theo thời gian vận hành của bệnh viện." },
+  { src: "/demo/adoption/reporting.jpg", title: "Báo cáo", description: "IT và quản trị có dữ liệu xuất Excel, PDF hoặc in theo phạm vi cần rà soát." },
+  { src: "/demo/adoption/admin-settings.jpg", title: "Cấu hình bệnh viện", description: "Tài khoản, khoa phòng, mã chế độ và nhận diện được cấu hình theo từng đơn vị." },
+] as const;
+
 export async function generateMetadata() {
   return buildSocialMetadata("/demo");
 }
@@ -147,6 +156,14 @@ export default async function DemoLandingPage() {
           <article><strong>1</strong><h3>Khoa Dinh dưỡng trải nghiệm</h3><p>Xem mô hình, dữ liệu mô phỏng và các luồng nghiệp vụ.</p></article>
           <article><strong>2</strong><h3>Cùng IT rà quy trình</h3><p>Đối chiếu với cách bệnh viện đang vận hành và thống nhất yêu cầu cần điều chỉnh.</p></article>
           <article><strong>3</strong><h3>Tùy chỉnh và triển khai</h3><p>IT cấu hình hệ thống, domain, khoa/phòng, bữa ăn, tài khoản và quy trình theo đơn vị.</p></article>
+        </div>
+        <div className="demo-adoption-gallery" aria-label="Ảnh minh họa các màn hình DEMO">
+          {adoptionScreens.map((screen) => (
+            <figure key={screen.src}>
+              <Image src={screen.src} alt={`${screen.title} trong bản DEMO suất ăn bệnh viện`} width={1920} height={1080} sizes="(max-width: 900px) 82vw, 360px" />
+              <figcaption><strong>{screen.title}</strong><span>{screen.description}</span></figcaption>
+            </figure>
+          ))}
         </div>
       </section>
 
