@@ -152,12 +152,14 @@ export default async function DemoLandingPage() {
       </section>
 
       <section className="demo-reference-section demo-adoption" aria-labelledby="adoption-title">
-        <div className="demo-section-heading"><p>Bệnh viện dùng mẫu này thế nào?</p><h2 id="adoption-title">Từ trải nghiệm mẫu đến triển khai do bệnh viện sở hữu</h2></div>
         <div className="demo-adoption-layout">
-          <div className="demo-adoption-steps" aria-label="Quy trình bệnh viện dùng mẫu DEMO">
-            <article><strong>1</strong><h3>Khoa Dinh dưỡng trải nghiệm</h3><p>Xem mô hình, dữ liệu mô phỏng và các luồng nghiệp vụ.</p></article>
-            <article><strong>2</strong><h3>Cùng IT rà quy trình</h3><p>Đối chiếu với cách bệnh viện đang vận hành và thống nhất yêu cầu cần điều chỉnh.</p></article>
-            <article><strong>3</strong><h3>Tùy chỉnh và triển khai</h3><p>IT cấu hình hệ thống, domain, khoa/phòng, bữa ăn, tài khoản và quy trình theo đơn vị.</p></article>
+          <div className="demo-adoption-copy">
+            <div className="demo-section-heading"><p>Bệnh viện dùng mẫu này thế nào?</p><h2 id="adoption-title">Từ trải nghiệm mẫu đến triển khai do bệnh viện sở hữu</h2></div>
+            <div className="demo-adoption-steps" aria-label="Quy trình bệnh viện dùng mẫu DEMO">
+              <article><strong>1</strong><h3>Khoa Dinh dưỡng trải nghiệm</h3><p>Xem mô hình, dữ liệu mô phỏng và các luồng nghiệp vụ.</p></article>
+              <article><strong>2</strong><h3>Cùng IT rà quy trình</h3><p>Đối chiếu với cách bệnh viện đang vận hành và thống nhất yêu cầu cần điều chỉnh.</p></article>
+              <article><strong>3</strong><h3>Tùy chỉnh và triển khai</h3><p>IT cấu hình hệ thống, domain, khoa/phòng, bữa ăn, tài khoản và quy trình theo đơn vị.</p></article>
+            </div>
           </div>
           <DemoAdoptionSlider screens={adoptionScreens} />
         </div>
