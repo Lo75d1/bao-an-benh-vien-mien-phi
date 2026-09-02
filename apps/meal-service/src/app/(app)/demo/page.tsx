@@ -17,6 +17,7 @@ import {
   Soup,
   Truck,
 } from "lucide-react";
+import { DemoAdoptionSlider } from "@/components/demo-adoption-slider";
 import { DemoEntry, type DemoEntryAccount } from "@/components/demo-entry";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { demoRoleGalleryItems } from "@/lib/demo-role-gallery";
@@ -158,14 +159,7 @@ export default async function DemoLandingPage() {
             <article><strong>2</strong><h3>Cùng IT rà quy trình</h3><p>Đối chiếu với cách bệnh viện đang vận hành và thống nhất yêu cầu cần điều chỉnh.</p></article>
             <article><strong>3</strong><h3>Tùy chỉnh và triển khai</h3><p>IT cấu hình hệ thống, domain, khoa/phòng, bữa ăn, tài khoản và quy trình theo đơn vị.</p></article>
           </div>
-          <div className="demo-adoption-gallery" aria-label="Slide ảnh minh họa các màn hình DEMO">
-            {adoptionScreens.map((screen) => (
-              <figure key={screen.src}>
-                <Image src={screen.src} alt={`${screen.title} trong bản DEMO suất ăn bệnh viện`} width={1920} height={1080} sizes="(max-width: 900px) 82vw, 660px" />
-                <figcaption><strong>{screen.title}</strong><span>{screen.description}</span></figcaption>
-              </figure>
-            ))}
-          </div>
+          <DemoAdoptionSlider screens={adoptionScreens} />
         </div>
       </section>
 
