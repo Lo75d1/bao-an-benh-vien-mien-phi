@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -
 RUN groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 nextjs && mkdir -p /app/uploads && chown nextjs:nodejs /app/uploads
 COPY --from=builder --chown=nextjs:nodejs /app/apps/meal-service/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/meal-service/.next/static ./apps/meal-service/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/meal-service/public ./apps/meal-service/public
 USER nextjs
 EXPOSE 3000
 CMD ["node", "apps/meal-service/server.js"]
